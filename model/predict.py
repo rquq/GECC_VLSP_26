@@ -12,13 +12,13 @@ def main():
     parser.add_argument("--evaluate", action="store_true")
     parser.add_argument("--limit", type=int)
     parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
-    parser.add_argument("--max-new-tokens", type=int, default=192)
+    parser.add_argument("--max-new-tokens", type=int)
     args = parser.parse_args()
     import torch
     from .data import load_records
     from .loading import load_adapter
     from .metrics import score
-    from .modeling import generate_predictions
+    from .modeling import SYSTEM_PROMPT, generate_predictions
     from .train import write_json
 
     if args.device == "cuda" and not torch.cuda.is_available():
@@ -29,7 +29,14 @@ def main():
     if args.limit:
         records = records[:args.limit]
     model, tokenizer = load_adapter(args.adapter, args.device)
-    predictions = generate_predictions(model, tokenizer, records, args.max_new_tokens)
+    inference_path = Path(args.adapter) / "inference.json"
+    inference = json.loads(inference_path.read_text()) if inference_path.exists() else {}
+    generation = dict(inference.get("generation", {}))
+    if args.max_new_tokens is not None:
+        generation["max_new_tokens"] = args.max_new_tokens
+    predictions = generate_predictions(model, tokenizer, records,
+                                       system_prompt=inference.get("prompt", SYSTEM_PROMPT),
+                                       generation=generation)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     write_json(output, [{"ID": r["id"], "Output": {"Error_Type_Id": r["label"],

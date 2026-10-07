@@ -14,22 +14,22 @@ import sys
 DATA_FILENAME = "VGEC 2026_v1.json"
 
 
-def discover_data(explicit, project_root, input_root=Path("/kaggle/input")):
-    """Prefer an explicit path, then an unambiguous Kaggle input, then repo data."""
+def discover_data(explicit, project_root, input_root=Path("/kaggle/input"), filename=DATA_FILENAME):
+    """Prefer an explicit path, then an unambiguous input, then repo data."""
     if explicit is not None:
         path = Path(explicit).expanduser().resolve()
         if not path.is_file():
             raise FileNotFoundError(f"DATA_PATH does not exist: {path}")
         return path
-    matches = sorted(path.resolve() for path in input_root.rglob(DATA_FILENAME) if path.is_file()) if input_root.exists() else []
+    matches = sorted(path.resolve() for path in input_root.rglob(filename) if path.is_file()) if input_root.exists() else []
     if len(matches) > 1:
         raise ValueError("Multiple Kaggle datasets match; set DATA_PATH explicitly: " + ", ".join(map(str, matches)))
     if matches:
         return matches[0]
-    fallback = project_root / "dataset" / DATA_FILENAME
+    fallback = project_root / "dataset" / filename
     if fallback.is_file():
         return fallback.resolve()
-    raise FileNotFoundError(f"Attach a dataset containing {DATA_FILENAME!r} or set DATA_PATH explicitly.")
+    raise FileNotFoundError(f"Attach a dataset containing {filename!r} or set data.path explicitly.")
 
 
 def source_identity(project_root):
@@ -59,10 +59,9 @@ def source_identity(project_root):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("smoke", "full"), default="smoke")
+    parser.add_argument("--config", type=Path, help="Configuration file; overrides the mode's default.")
     parser.add_argument("--data", type=Path, help="Explicit data path; otherwise discover Kaggle input.")
     parser.add_argument("--output-dir", type=Path)
-    parser.add_argument("--num-gpus", type=int, choices=(1,), default=1,
-                        help="Each independent seed runs sequentially on one GPU (no DDP).")
     parser.add_argument("--preflight-only", action="store_true",
                         help="Check source, data, packages, and GPUs without starting training.")
     parser.add_argument("--expected-commit", help="Require this exact clean Git commit, as verified by the notebook.")
@@ -70,11 +69,15 @@ def main():
     project_root = Path(__file__).resolve().parents[1]
     # Running a script inside tools/ otherwise omits the package root.
     sys.path.insert(0, str(project_root))
-    data_path = discover_data(args.data, project_root)
+    from model.config import load_config, resolve_output
+    config = args.config.resolve() if args.config else project_root / "configs" / ("smoke.json" if args.mode == "smoke" else "baseline.json")
+    settings = load_config(config)
+    data_path = discover_data(args.data or settings["data"]["path"], project_root,
+                              Path(settings["data"]["input_root"]), settings["data"]["filename"])
     source = source_identity(project_root)
     if args.expected_commit and (source["commit"] != args.expected_commit or source["dirty"]):
         raise RuntimeError("Source changed after notebook verification; rerun the source cell with a clean clone.")
-    output_dir = (args.output_dir or Path(f"/kaggle/working/vgec-{args.mode}")).resolve()
+    output_dir = resolve_output(settings, args.output_dir)
     if output_dir.exists() and (not output_dir.is_dir() or any(output_dir.iterdir())):
         raise FileExistsError(f"Output directory is not empty: {output_dir}. Choose a new output directory for a reproducible run.")
 
@@ -83,46 +86,37 @@ def main():
     count = torch.cuda.device_count()
     names = [torch.cuda.get_device_name(index) for index in range(count)]
     print(f"Visible CUDA devices ({count}): {names}", flush=True)
-    if not torch.cuda.is_available() or count < args.num_gpus:
-        raise RuntimeError(f"Requested one CUDA device, found {count}. Enable a Kaggle GPU or use a CUDA-capable local GPU.")
-    config = project_root / "configs" / ("smoke.json" if args.mode == "smoke" else "baseline.json")
-    settings = json.loads(config.read_text(encoding="utf-8"))
-    if settings.get("model_name") != "Qwen/Qwen3-4B-Instruct-2507" or settings.get("load_in_4bit") is not True:
-        raise ValueError("Experiment requires Qwen3-4B-Instruct-2507 with load_in_4bit=true.")
-    if settings.get("compute_dtype") != "auto":
-        raise ValueError("compute_dtype must be auto to select the actual GPU's supported precision.")
-    if settings.get("batch_size") != 1 or settings.get("effective_batch_size") != 8:
-        raise ValueError("Single-GPU experiments require batch_size=1 and effective_batch_size=8.")
-    if not 1 <= settings.get("epochs", 0) <= 3:
-        raise ValueError("Experiment epochs must be between one and three.")
-    seeds = [42] if args.mode == "smoke" else settings.get("seeds")
-    if not isinstance(seeds, list) or not seeds or any(type(seed) is not int for seed in seeds) or len(set(seeds)) != len(seeds):
-        raise ValueError("Config seeds must be a nonempty list of distinct integers.")
-    if args.mode == "full" and seeds != [42, 43, 44]:
-        raise ValueError("Full experiments require seeds [42, 43, 44].")
+    device = settings["run"]["device"]
+    if device == "cuda" and (not torch.cuda.is_available() or count < 1):
+        raise RuntimeError("Enable a CUDA GPU or configure run.device=cpu and disable quantization.")
+    seeds = settings["run"]["seeds"]
     import transformers
     import peft
     import accelerate
     import bitsandbytes
     from bitsandbytes.cextension import lib
-    if not getattr(lib, "compiled_with_cuda", False):
+    if settings["model"]["load_in_4bit"] and not getattr(lib, "compiled_with_cuda", False):
         raise RuntimeError("bitsandbytes must have its CUDA backend available for 4-bit QLoRA.")
-    capability = torch.cuda.get_device_capability(0)
-    if capability < (6, 0):
+    capability = torch.cuda.get_device_capability(0) if device == "cuda" else None
+    if settings["model"]["load_in_4bit"] and (device != "cuda" or capability < (6, 0)):
         raise RuntimeError("bitsandbytes 4-bit quantization requires a Pascal-or-newer CUDA GPU.")
-    command = [sys.executable, "-m", "vgec.experiment", "--config", str(config), "--data", str(data_path), "--output-dir", str(output_dir)]
-    if args.mode == "smoke":
-        command.extend(["--seeds", "42"])
-    from vgec.data import load_records, split_records
+    command = [sys.executable, "-m", "model.experiment", "--config", str(config), "--data", str(data_path), "--output-dir", str(output_dir)]
+    from model.data import load_records, split_records
+    from model.train import balanced_limit
     records = load_records(data_path)
     splits = []
     for seed in seeds:
-        train, validation = split_records(records, settings["validation_fraction"], seed)
+        train, validation = split_records(records, settings["data"]["validation_fraction"], seed)
+        train = balanced_limit(train, settings["data"]["train_limit"], seed)
+        validation = balanced_limit(validation, settings["data"]["validation_limit"], seed + 1)
         splits.append({"seed": seed, "train_rows": len(train), "validation_rows": len(validation)})
     versions = {name: importlib.metadata.version(name) for name in ("torch", "transformers", "peft", "accelerate", "bitsandbytes")}
+    dtype = settings["model"]["compute_dtype"]
+    if dtype == "auto":
+        dtype = ("bfloat16" if torch.cuda.is_bf16_supported() else "float16") if device == "cuda" else "float32"
     print(json.dumps({"source": source, "data_path": str(data_path), "rows": len(records),
                       "splits": splits, "gpu_capability": capability,
-                      "compute_dtype": "bfloat16" if torch.cuda.is_bf16_supported() else "float16",
+                      "compute_dtype": dtype,
                       "versions": versions, "config": str(config)}, ensure_ascii=False, indent=2), flush=True)
     print("Experiment command:", shlex.join(command), flush=True)
     if args.preflight_only:
@@ -135,7 +129,7 @@ def main():
     subprocess.run(command, cwd=project_root, env=environment, check=True)
     for seed in seeds:
         seed_dir = output_dir / f"seed-{seed}"
-        for filename in ("adapter_config.json", "adapter_model.safetensors", "tokenizer_config.json"):
+        for filename in ("adapter_config.json", "adapter_model.safetensors", "tokenizer_config.json", "loading.json", "inference.json"):
             path = seed_dir / "adapter" / filename
             if not path.is_file() or path.stat().st_size == 0:
                 raise RuntimeError(f"Training did not produce the required saved artifact: {path}")
@@ -154,8 +148,12 @@ def main():
     comparison["source"] = source
     comparison_path.write_text(json.dumps(comparison, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print("\ncomparison.json:\n" + json.dumps(comparison, ensure_ascii=False, indent=2), flush=True)
-    archive = shutil.make_archive(str(output_dir) + "-artifacts", "zip", root_dir=output_dir.parent, base_dir=output_dir.name)
-    print(f"Saved local run artifacts: {archive}", flush=True)
+    if settings["run"]["archive"]:
+        archive = shutil.make_archive(str(output_dir) + "-artifacts", "zip", root_dir=output_dir.parent, base_dir=output_dir.name)
+        print(f"Saved local run artifacts: {archive}", flush=True)
+    print(f"Completed run: {output_dir}", flush=True)
+    for seed in seeds:
+        print(f"Saved adapter: {output_dir / f'seed-{seed}' / 'adapter'}", flush=True)
     print("Generated predictions are a local proposal, not an official competition submission.", flush=True)
 
 
