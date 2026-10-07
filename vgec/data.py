@@ -1,0 +1,196 @@
+"""Strict raw-data loading and deterministic, leakage-free grouped splitting."""
+
+from __future__ import annotations
+
+import argparse
+from collections import Counter, defaultdict
+import hashlib
+import json
+import math
+from pathlib import Path
+import random
+import statistics
+from typing import Any
+
+LABELS = tuple(range(5))
+
+
+def _id_key(value: Any) -> tuple[type, Any]:
+    """Keep integer and string IDs distinct; reject ambiguous JSON ID types."""
+    if type(value) not in (int, str):
+        raise ValueError(f"ID must be an integer or string, got {value!r}")
+    return type(value), value
+
+
+def _valid_label(value: Any) -> bool:
+    return type(value) is int and value in LABELS
+
+
+def _validate_records(records: list[dict], require_labels: bool = True) -> None:
+    seen = set()
+    for index, record in enumerate(records):
+        if not isinstance(record, dict) or not all(k in record for k in ("id", "source", "label", "target")):
+            raise ValueError(f"Record {index} must contain id, source, label, target")
+        key = _id_key(record["id"])
+        if key in seen:
+            raise ValueError(f"Duplicate ID: {record['id']!r}")
+        seen.add(key)
+        if not isinstance(record["source"], str):
+            raise ValueError(f"Input for ID {record['id']!r} must be a string")
+        label = record["label"]
+        if not _valid_label(label) and (require_labels or label is not None):
+            raise ValueError(f"Error_Type_Id for ID {record['id']!r} must be an integer in 0..4")
+        target = record["target"]
+        if not isinstance(target, str) and (require_labels or target is not None):
+            raise ValueError(f"Fixed Sentence for ID {record['id']!r} must be a string")
+
+
+def load_records(path: str | Path, require_labels: bool = True) -> list[dict]:
+    """Load the raw JSON array without altering any source or non-null correction.
+
+    With labels required, class 0's null correction is the exact input, whereas
+    a null correction for classes 1..4 fails. Inference inputs may omit Output.
+    Present labels must still be integers in 0..4 (booleans are not integers).
+    """
+    raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(raw, list):
+        raise ValueError("Dataset must be a raw JSON array")
+    records = []
+    for index, row in enumerate(raw):
+        if not isinstance(row, dict) or "ID" not in row or "Input" not in row:
+            raise ValueError(f"Row {index} must contain ID and Input")
+        output = row.get("Output")
+        if output is None:
+            if require_labels:
+                raise ValueError(f"Missing Output for ID {row['ID']!r}")
+            output = {}
+        if not isinstance(output, dict):
+            raise ValueError(f"Output for ID {row['ID']!r} must be an object")
+        label = output.get("Error_Type_Id")
+        target = output.get("Fixed Sentence")
+        if target is None and _valid_label(label) and label == 0:
+            target = row["Input"]
+        records.append({"id": row["ID"], "source": row["Input"], "label": label, "target": target})
+    _validate_records(records, require_labels)
+    return records
+
+
+def _source_key(source: str) -> str:
+    return " ".join(source.split()).casefold()
+
+
+def _groups(records: list[dict]) -> dict[str, list[dict]]:
+    groups = defaultdict(list)
+    for row in records:
+        groups[_source_key(row["source"])].append(row)
+    return dict(groups)
+
+
+def split_records(records: list[dict], validation_fraction: float = 0.2, seed: int = 42) -> tuple[list[dict], list[dict]]:
+    """Stratify by class, keeping normalized duplicate-source groups together.
+
+    Each observed class must have at least two independent source groups. A
+    deterministic subset-sum chooses the nearest feasible validation row count
+    for each class, with at least one group in each partition. All rows remain.
+    Output partitions are shuffled so prefix selection cannot follow label order.
+    """
+    _validate_records(records)
+    if not records:
+        raise ValueError("Cannot split an empty dataset")
+    if not isinstance(validation_fraction, (int, float)) or not math.isfinite(validation_fraction) or not 0 < validation_fraction < 1:
+        raise ValueError("validation_fraction must lie strictly between 0 and 1")
+    groups = _groups(records)
+    by_class = defaultdict(list)
+    for key, rows in groups.items():
+        annotations = {(row["label"], row["target"]) for row in rows}
+        if len(annotations) != 1:
+            raise ValueError(f"Conflicting labels/targets for normalized source group: {[row['id'] for row in rows]}")
+        by_class[rows[0]["label"]].append(key)
+    rng = random.Random(seed)
+    validation_keys = set()
+    for label in sorted(by_class):
+        keys = sorted(by_class[label])
+        if len(keys) < 2:
+            raise ValueError(f"Class {label} has fewer than two independent groups; cannot represent it in both splits")
+        rng.shuffle(keys)
+        total = sum(len(groups[key]) for key in keys)
+        desired = max(1, min(total - 1, round(total * validation_fraction)))
+        subsets = {0: ()}
+        for key in keys:
+            size = len(groups[key])
+            for count, selected in list(subsets.items()):
+                new_count = count + size
+                if new_count not in subsets:
+                    subsets[new_count] = selected + (key,)
+        selected_count = min((count for count in subsets if 0 < count < total), key=lambda count: (abs(count - desired), count))
+        validation_keys.update(subsets[selected_count])
+    train, validation = [], []
+    for row in records:
+        (validation if _source_key(row["source"]) in validation_keys else train).append(row)
+    rng.shuffle(train)
+    rng.shuffle(validation)
+    return train, validation
+
+
+def _length_summary(values: list[int]) -> dict:
+    if not values:
+        return {"min": None, "median": None, "mean": None, "p95": None, "max": None}
+    ordered = sorted(values)
+    return {"min": ordered[0], "median": statistics.median(ordered), "mean": statistics.mean(ordered), "p95": ordered[math.floor(0.95 * (len(ordered) - 1))], "max": ordered[-1]}
+
+
+def _counts(records: list[dict]) -> dict[str, int]:
+    counts = Counter(row["label"] for row in records)
+    return {str(label): counts[label] for label in LABELS}
+
+
+def analyze(path: str | Path, output_dir: str | Path, seed: int = 42, validation_fraction: float = 0.2) -> dict:
+    """Write analysis.json plus canonical train.json/validation.json and return it."""
+    path = Path(path)
+    records = load_records(path)
+    train, validation = split_records(records, validation_fraction, seed)
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    groups = _groups(records)
+    duplicate_groups = [{"ids": [row["id"] for row in rows], "count": len(rows), "label": rows[0]["label"]} for rows in groups.values() if len(rows) > 1]
+    label_runs = []
+    for index, row in enumerate(records, 1):
+        if not label_runs or label_runs[-1]["label"] != row["label"]:
+            label_runs.append({"label": row["label"], "start_row": index, "end_row": index, "start_id": row["id"], "end_id": row["id"]})
+        else:
+            label_runs[-1].update(end_row=index, end_id=row["id"])
+    report = {
+        "data_path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "rows": len(records), "class_counts": _counts(records), "unique_ids": len(records),
+        "null_input_count": sum(row["Input"] is None for row in raw),
+        "null_label_count": sum(row["Output"]["Error_Type_Id"] is None for row in raw),
+        "null_correction_count": sum(row["Output"].get("Fixed Sentence") is None for row in raw),
+        "null_corrections_by_class": {str(label): sum(row["Output"]["Error_Type_Id"] == label and row["Output"].get("Fixed Sentence") is None for row in raw) for label in LABELS},
+        "unique_source_groups": len(groups), "duplicate_group_count": len(duplicate_groups),
+        "duplicate_extra_rows": sum(group["count"] - 1 for group in duplicate_groups),
+        "duplicate_groups": duplicate_groups, "conflict_groups": [],
+        "text_lengths": {field: {"characters": _length_summary([len(row[field]) for row in records]), "whitespace_tokens": _length_summary([len(row[field].split()) for row in records])} for field in ("source", "target")},
+        "ordered_label_runs": label_runs,
+        "parenthesized_target_ids": [row["id"] for row in records if row["target"].startswith("(")],
+        "ellipsis_target_count": sum("..." in row["target"] for row in records),
+        "split": {"seed": seed, "validation_fraction": validation_fraction, "train_rows": len(train), "validation_rows": len(validation), "train_class_counts": _counts(train), "validation_class_counts": _counts(validation), "train_source_groups": len(_groups(train)), "validation_source_groups": len(_groups(validation)), "shared_source_groups": 0},
+        "assumptions": {"class_0_null_target": "Exact input; inferred no-error identity target", "group_normalization": "Whitespace collapse then casefold; no Unicode or punctuation normalization", "p95": "Sorted value at floor(0.95 * (N - 1))", "split_method": "Seeded class-stratified grouped subset-sum, nearest feasible row count; partition rows shuffled"},
+    }
+    destination = Path(output_dir)
+    destination.mkdir(parents=True, exist_ok=True)
+    for name, value in (("analysis.json", report), ("train.json", train), ("validation.json", validation)):
+        (destination / name).write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return report
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data", required=True)
+    parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--validation-fraction", type=float, default=0.2)
+    args = parser.parse_args()
+    print(json.dumps(analyze(args.data, args.output_dir, args.seed, args.validation_fraction), ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()

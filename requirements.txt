@@ -1,0 +1,8 @@
+# Keep Kaggle's CUDA-enabled torch installation; verified locally with torch 2.7.1.
+torch>=2.6,<2.9
+transformers==4.51.3
+peft==0.15.2
+accelerate==1.6.0
+safetensors==0.5.3
+huggingface-hub==0.30.2
+tokenizers==0.21.4
