@@ -113,12 +113,14 @@ def load_config(path):
         raise ValueError("training.args.gradient_checkpointing must be a boolean")
     if "gradient_checkpointing_kwargs" in args and not isinstance(args["gradient_checkpointing_kwargs"], dict):
         raise ValueError("training.args.gradient_checkpointing_kwargs must be an object")
-    for key in ("learning_rate", "weight_decay", "warmup_ratio", "max_grad_norm", "adam_epsilon"):
+    for key in ("learning_rate", "weight_decay", "warmup_steps", "max_grad_norm", "adam_epsilon"):
         if key in args:
             _number(args[key], f"training.args.{key}")
             if args[key] < 0:
                 raise ValueError(f"training.args.{key} must be nonnegative")
-    for key in ("warmup_ratio", "adam_beta1", "adam_beta2"):
+    if "warmup_steps" in args and type(args["warmup_steps"]) is float and args["warmup_steps"] >= 1:
+        raise ValueError("training.args.warmup_steps must be an integer count or a float ratio in [0, 1)")
+    for key in ("adam_beta1", "adam_beta2"):
         if key in args:
             _number(args[key], f"training.args.{key}")
             if not 0 <= args[key] <= 1:

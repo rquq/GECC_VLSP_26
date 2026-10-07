@@ -62,7 +62,9 @@ def main():
     if seed < 0:
         raise ValueError("Seed must be nonnegative")
     device = args.device or config["run"]["device"]
-    data_path = Path(args.data or config["data"]["path"] or PROJECT_ROOT / "dataset" / config["data"]["filename"]).expanduser().resolve()
+    from tools.kaggle_run import discover_data
+    data_path = discover_data(args.data or config["data"]["path"], PROJECT_ROOT,
+                              Path(config["data"]["input_root"]), config["data"]["filename"])
     output = resolve_output(config, args.output_dir)
     if output.exists() and any(output.iterdir()):
         raise ValueError(f"Output directory must be empty: {output}")
@@ -80,7 +82,7 @@ def main():
     import torch
     from transformers import AutoConfig, AutoTokenizer, Trainer, TrainerCallback, TrainingArguments, set_seed
     from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
-    from .data import load_records, split_records
+    from .data import load_training_split
     from .loading import load_adapter, load_base
     from .metrics import experiment_report
     from .modeling import ResponseCollator, encode_record, generate_predictions
@@ -104,8 +106,7 @@ def main():
     lora_config = LoraConfig(**config["lora"], task_type=TaskType.CAUSAL_LM,
                              revision=settings["revision"])
     set_seed(seed)
-    records = load_records(data_path)
-    train, validation = split_records(records, config["data"]["validation_fraction"], seed)
+    train, validation, data_provenance = load_training_split(data_path, config["data"]["validation_fraction"], seed)
     train = balanced_limit(train, config["data"]["train_limit"], seed)
     validation = balanced_limit(validation, config["data"]["validation_limit"], seed + 1)
     if not train or not validation:
@@ -221,6 +222,7 @@ def main():
         "gradient_accumulation_steps": accumulation, "selection_metrics": selection_metrics,
         "save_epoch_adapters": config["evaluation"]["save_epoch_adapters"],
         "data_sha256": hashlib.sha256(data_path.read_bytes()).hexdigest(),
+        "data_provenance": data_provenance,
         "train_ids": [r["id"] for r in train], "validation_ids": [r["id"] for r in validation],
         "train_max_tokens": max(len(r["input_ids"]) for r in encoded),
         "validation_max_tokens": max(validation_lengths), "optimizer_steps": result.global_step,

@@ -53,6 +53,10 @@ def load_records(path: str | Path, require_labels: bool = True) -> list[dict]:
     Present labels must still be integers in 0..4 (booleans are not integers).
     """
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    return _records_from_raw(raw, require_labels)
+
+
+def _records_from_raw(raw: list, require_labels: bool = True) -> list[dict]:
     if not isinstance(raw, list):
         raise ValueError("Dataset must be a raw JSON array")
     records = []
@@ -130,6 +134,49 @@ def split_records(records: list[dict], validation_fraction: float = 0.2, seed: i
     rng.shuffle(train)
     rng.shuffle(validation)
     return train, validation
+
+
+def load_training_split(path: str | Path, validation_fraction: float, seed: int) -> tuple[list[dict], list[dict], dict]:
+    """Use original grouped splits or a prebuilt split-before-augmentation bundle.
+
+    A bundle is never re-split: its validation records remain original gold.
+    Unsupported seeds/fractions fail instead of contaminating the holdout.
+    """
+    raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    if isinstance(raw, list):
+        train, validation = split_records(_records_from_raw(raw), validation_fraction, seed)
+        return train, validation, {"format": "raw", "original_rows": len(raw)}
+    if not isinstance(raw, dict) or raw.get("format") != "vgec-balanced-v1":
+        raise ValueError("Expected raw dataset array or vgec-balanced-v1 bundle")
+    if raw.get("validation_fraction") != validation_fraction:
+        raise ValueError("Bundle validation_fraction differs; rebuild the dataset for this fraction")
+    splits = raw.get("splits")
+    if not isinstance(splits, dict) or str(seed) not in splits:
+        raise ValueError(f"Bundle has no split for seed {seed}; rebuild the dataset for this seed")
+    split = splits[str(seed)]
+    if not isinstance(split, dict):
+        raise ValueError("Bundle split must be an object")
+    train = _records_from_raw(split.get("train"))
+    validation = _records_from_raw(split.get("validation"))
+    if not train or not validation:
+        raise ValueError("Bundle training and validation must both be nonempty")
+    if {_id_key(r["id"]) for r in train} & {_id_key(r["id"]) for r in validation}:
+        raise ValueError("Bundle has shared training/validation IDs")
+    if {_source_key(r["source"]) for r in train} & {_source_key(r["source"]) for r in validation}:
+        raise ValueError("Bundle has shared training/validation source groups")
+    counts = Counter(r["label"] for r in train)
+    if set(counts) != set(LABELS) or len(set(counts.values())) != 1:
+        raise ValueError("Bundle training classes must be exactly balanced across labels 0..4")
+    provenance = split.get("provenance")
+    if not isinstance(provenance, dict):
+        raise ValueError("Bundle split must include provenance")
+    heldout_text = {_source_key(r[field]) for r in validation for field in ("source", "target")}
+    synthetic_ids = {_id_key(value) for value in provenance.get("selected_synthetic_ids", [])}
+    for row in train:
+        if _id_key(row["id"]) in synthetic_ids and any(_source_key(row[field]) in heldout_text for field in ("source", "target")):
+            raise ValueError("Synthetic source/target overlaps original validation text")
+    return train, validation, {"format": raw["format"], "original_sha256": raw.get("original_sha256"),
+                               "synthetic_sha256": raw.get("synthetic_sha256"), "provenance": provenance}
 
 
 def _length_summary(values: list[int]) -> dict:

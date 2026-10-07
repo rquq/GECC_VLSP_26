@@ -15,7 +15,7 @@ def load_base(settings, device="cuda"):
     dtype = (torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16) if device == "cuda" else torch.float32
     if settings["compute_dtype"] != "auto":
         dtype = getattr(torch, settings["compute_dtype"])
-    kwargs = dict(revision=settings["revision"], torch_dtype=dtype,
+    kwargs = dict(revision=settings["revision"], dtype=dtype,
                   attn_implementation=settings["attn_implementation"])
     if load_in_4bit:
         kwargs.update(quantization_config=BitsAndBytesConfig(

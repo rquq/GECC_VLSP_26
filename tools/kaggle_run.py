@@ -11,7 +11,7 @@ import subprocess
 import sys
 
 
-DATA_FILENAME = "VGEC 2026_v1.json"
+DATA_FILENAME = "VGEC_balanced.json"
 
 
 def discover_data(explicit, project_root, input_root=Path("/kaggle/input"), filename=DATA_FILENAME):
@@ -26,10 +26,12 @@ def discover_data(explicit, project_root, input_root=Path("/kaggle/input"), file
         raise ValueError("Multiple Kaggle datasets match; set DATA_PATH explicitly: " + ", ".join(map(str, matches)))
     if matches:
         return matches[0]
-    fallback = project_root / "dataset" / filename
-    if fallback.is_file():
-        return fallback.resolve()
-    raise FileNotFoundError(f"Attach a dataset containing {filename!r} or set data.path explicitly.")
+    local_matches = sorted(path.resolve() for path in (project_root / "dataset").rglob(filename) if path.is_file())
+    if len(local_matches) > 1:
+        raise ValueError("Multiple local datasets match; set data.path explicitly: " + ", ".join(map(str, local_matches)))
+    if local_matches:
+        return local_matches[0]
+    raise FileNotFoundError(f"Attach a private dataset containing {filename!r} or set data.path explicitly.")
 
 
 def source_identity(project_root):
@@ -58,8 +60,7 @@ def source_identity(project_root):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("smoke", "full"), default="smoke")
-    parser.add_argument("--config", type=Path, help="Configuration file; overrides the mode's default.")
+    parser.add_argument("--config", type=Path, help="Configuration file; defaults to configs/baseline.json.")
     parser.add_argument("--data", type=Path, help="Explicit data path; otherwise discover Kaggle input.")
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--preflight-only", action="store_true",
@@ -70,7 +71,7 @@ def main():
     # Running a script inside tools/ otherwise omits the package root.
     sys.path.insert(0, str(project_root))
     from model.config import load_config, resolve_output
-    config = args.config.resolve() if args.config else project_root / "configs" / ("smoke.json" if args.mode == "smoke" else "baseline.json")
+    config = args.config.resolve() if args.config else project_root / "configs" / "baseline.json"
     settings = load_config(config)
     data_path = discover_data(args.data or settings["data"]["path"], project_root,
                               Path(settings["data"]["input_root"]), settings["data"]["filename"])
@@ -101,20 +102,21 @@ def main():
     if settings["model"]["load_in_4bit"] and (device != "cuda" or capability < (6, 0)):
         raise RuntimeError("bitsandbytes 4-bit quantization requires a Pascal-or-newer CUDA GPU.")
     command = [sys.executable, "-m", "model.experiment", "--config", str(config), "--data", str(data_path), "--output-dir", str(output_dir)]
-    from model.data import load_records, split_records
+    from model.data import load_training_split
     from model.train import balanced_limit
-    records = load_records(data_path)
     splits = []
     for seed in seeds:
-        train, validation = split_records(records, settings["data"]["validation_fraction"], seed)
+        train, validation, provenance = load_training_split(data_path, settings["data"]["validation_fraction"], seed)
         train = balanced_limit(train, settings["data"]["train_limit"], seed)
         validation = balanced_limit(validation, settings["data"]["validation_limit"], seed + 1)
-        splits.append({"seed": seed, "train_rows": len(train), "validation_rows": len(validation)})
+        splits.append({"seed": seed, "train_rows": len(train), "validation_rows": len(validation),
+                       "train_class_counts": {str(label): sum(r["label"] == label for r in train) for label in range(5)},
+                       "data_format": provenance["format"]})
     versions = {name: importlib.metadata.version(name) for name in ("torch", "transformers", "peft", "accelerate", "bitsandbytes")}
     dtype = settings["model"]["compute_dtype"]
     if dtype == "auto":
         dtype = ("bfloat16" if torch.cuda.is_bf16_supported() else "float16") if device == "cuda" else "float32"
-    print(json.dumps({"source": source, "data_path": str(data_path), "rows": len(records),
+    print(json.dumps({"source": source, "data_path": str(data_path),
                       "splits": splits, "gpu_capability": capability,
                       "compute_dtype": dtype,
                       "versions": versions, "config": str(config)}, ensure_ascii=False, indent=2), flush=True)

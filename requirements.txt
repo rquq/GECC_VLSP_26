@@ -1,9 +1,9 @@
-# Keep Kaggle's CUDA-enabled torch installation; verified locally with torch 2.7.1.
-torch>=2.6,<2.9
-transformers==4.51.3
-peft==0.15.2
-accelerate==1.6.0
-safetensors==0.5.3
-huggingface-hub==0.30.2
-tokenizers==0.21.4
-bitsandbytes==0.45.5
+# HiGANplus WSL stack (Python 3.10); retain the installed CUDA-enabled PyTorch build.
+torch==2.7.1
+transformers==5.9.0
+peft==0.21.2
+accelerate==1.13.0
+safetensors==0.7.0
+huggingface-hub==1.16.4
+tokenizers==0.22.2
+bitsandbytes==0.49.2

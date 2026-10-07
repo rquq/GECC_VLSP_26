@@ -32,7 +32,9 @@ def main():
     if len(set(seeds)) != len(seeds) or not seeds:
         raise ValueError("Specify distinct, nonempty split seeds")
     output = resolve_output(config, args.output_dir)
-    data = Path(args.data or config["data"]["path"] or PROJECT_ROOT / "dataset" / config["data"]["filename"]).resolve()
+    from tools.kaggle_run import discover_data
+    data = discover_data(args.data or config["data"]["path"], PROJECT_ROOT,
+                         Path(config["data"]["input_root"]), config["data"]["filename"])
     device = args.device or config["run"]["device"]
     config["run"]["seeds"] = seeds
     config["run"]["device"] = device
