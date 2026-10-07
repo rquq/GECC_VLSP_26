@@ -53,17 +53,8 @@ class NotebookSourceTests(unittest.TestCase):
             path.write_text("" if path.suffix != ".json" else "{}")
 
     def run_cell(self):
-        # The original cell mixes dependency installation with cloning. Keep
-        # Git real while avoiding network checks/pip in this focused test.
-        real_run = subprocess.run
-        def run(command, *args, **kwargs):
-            if "pip" in command:
-                return subprocess.CompletedProcess(command, 0)
-            return real_run(command, *args, **kwargs)
-        with patch("urllib.request.urlopen") as internet, patch("subprocess.run", side_effect=run):
-            internet.return_value.__enter__.return_value.status = 200
-            with contextlib.redirect_stdout(io.StringIO()):
-                exec(compile(self.source, "kaggle-source-cell", "exec"), self.namespace)
+        with contextlib.redirect_stdout(io.StringIO()):
+            exec(compile(self.source, "kaggle-source-cell", "exec"), self.namespace)
 
     def test_clones_requested_branch_at_repository_root(self):
         self.run_cell()
