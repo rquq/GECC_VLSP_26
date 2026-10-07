@@ -1,4 +1,4 @@
-"""Local PDF-aligned metrics; implementation assumptions in docs/DATA_METRICS.md.
+"""Local PDF-aligned metrics; implementation assumptions in agents/docs/DATA_METRICS.md.
 
 GLEU+ is source-aware, corpus-aggregated over orders 1..4 without smoothing.
 It is NOT nltk.gleu, which has no source-retention penalty.
@@ -154,6 +154,69 @@ def score(records: list[dict], predictions: list[dict]) -> dict:
         "corrections": {"all": _corrections(all_rows), "error_only": _corrections(error_rows)},
         "invalid_prediction_rate": invalid / len(records),
     }
+
+
+def experiment_report(records: list[dict], predictions: list[dict]) -> dict:
+    """Extend :func:`score` without changing its strict alignment or metrics.
+
+    Clean preservation compares gold-class-0 predictions to the exact source,
+    independently of their predicted label. Its rates are null without clean
+    examples. Invalid JSON includes any non-null ``parse_error`` diagnostic,
+    invalid label, or blank corrected sentence (the generation schema rejects
+    blank text, although ``score`` deliberately permits it).
+
+    Reference slices contain only gold error examples. Annotation-like targets
+    start literally with ``(`` or contain literal ``...``; flags may overlap.
+    References are never stripped, normalized, or rewritten. Empty slices have
+    null metrics; nonempty slices use the unchanged scoring implementation.
+    """
+    report = score(records, predictions)
+    aligned = {_id_key(row["id"]): row for row in predictions}
+    clean_count = preserved = invalid_json = 0
+    slices = {"annotation_like": [], "standalone_error": []}
+    audit = []
+    for row in records:
+        prediction = aligned[_id_key(row["id"])]
+        invalid_json += (
+            prediction.get("parse_error") is not None
+            or not _valid_label(prediction.get("label"))
+            or not prediction["target"].strip()
+        )
+        if row["label"] == 0:
+            clean_count += 1
+            preserved += prediction["target"] == row["source"]
+            continue
+        flags = []
+        if row["target"].startswith("("):
+            flags.append("starts_with_parenthesis")
+        if "..." in row["target"]:
+            flags.append("contains_ellipsis")
+        slices["annotation_like" if flags else "standalone_error"].append(row)
+        if flags:
+            audit.append({
+                "id": row["id"],
+                "source": row["source"],
+                "reference": row["target"],
+                "prediction": prediction["target"],
+                "label": row["label"],
+                "predicted_label": prediction.get("label"),
+                "flags": flags,
+            })
+    report["clean_preservation"] = {
+        "count": clean_count,
+        "exact_source_preservation": preserved / clean_count if clean_count else None,
+        "overcorrection_rate": (clean_count - preserved) / clean_count if clean_count else None,
+    }
+    report["invalid_json_rate"] = invalid_json / len(records)
+    report["reference_slices"] = {
+        name: {
+            "count": len(subset),
+            "metrics": score(subset, [aligned[_id_key(row["id"])] for row in subset]) if subset else None,
+        }
+        for name, subset in slices.items()
+    }
+    report["annotation_audit"] = audit
+    return report
 
 
 def _load_predictions(path: str | Path) -> list[dict]:

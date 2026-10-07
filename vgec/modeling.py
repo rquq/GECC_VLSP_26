@@ -6,6 +6,10 @@ SYSTEM_PROMPT = (
     "Chỉ trả lời một đối tượng JSON với hai khóa error_type_id và corrected_sentence. "
     "error_type_id là một số nguyên thuộc [0, 1, 2, 3, 4]. "
     "Nhãn 0: câu không có lỗi, giữ nguyên câu. "
+    "Nhãn 1: lỗi cấu trúc câu (thiếu hoặc sai quan hệ chủ ngữ, vị ngữ, các vế câu). "
+    "Nhãn 2: lỗi cấu trúc ngữ đoạn (sắp xếp hoặc kết hợp thành phần trong cụm từ). "
+    "Nhãn 3: lỗi về sử dụng từ công cụ (quan hệ từ, liên từ, từ phụ trợ). "
+    "Nhãn 4: lỗi cách chấm câu (thiếu, thừa hoặc dùng sai dấu câu). "
     "Sửa ít nhất có thể, giữ nguyên ý nghĩa; không giải thích."
 )
 
@@ -14,7 +18,7 @@ def prompt_ids(tokenizer, source):
     return tokenizer.apply_chat_template(
         [{"role": "system", "content": SYSTEM_PROMPT},
          {"role": "user", "content": source}],
-        tokenize=True, add_generation_prompt=True,
+        tokenize=True, add_generation_prompt=True, return_dict=False,
     )
 
 
@@ -45,10 +49,10 @@ def parse_completion(text):
     try:
         value = json.loads(text)
         label, target = value["error_type_id"], value["corrected_sentence"]
-        if type(label) is not int or label not in range(5) or not isinstance(target, str) or not target.strip():
+        if set(value) != {"error_type_id", "corrected_sentence"} or type(label) is not int or label not in range(5) or not isinstance(target, str) or not target.strip():
             raise ValueError("Invalid label or corrected sentence")
         return label, target, None
-    except (ValueError, TypeError, KeyError) as error:
+    except (ValueError, TypeError, KeyError, IndexError) as error:
         # No source-copy or class-0 fallback: invalid generations remain visible.
         return None, "", str(error)
 

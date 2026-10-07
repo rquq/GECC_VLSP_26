@@ -228,3 +228,6 @@ outputs/
 .ipynb_checkpoints/
 dataset/
 Metrics_GEC.pdf
+
+# Assistant-created documentation, tests, and diagnostic artifacts.
+/agents/

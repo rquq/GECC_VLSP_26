@@ -15,9 +15,8 @@ def main():
     parser.add_argument("--max-new-tokens", type=int, default=192)
     args = parser.parse_args()
     import torch
-    from peft import PeftConfig, PeftModel
-    from transformers import AutoModelForCausalLM, AutoTokenizer
     from .data import load_records
+    from .loading import load_adapter
     from .metrics import score
     from .modeling import generate_predictions
     from .train import write_json
@@ -29,14 +28,7 @@ def main():
     records = load_records(args.data, require_labels=args.evaluate)
     if args.limit:
         records = records[:args.limit]
-    config = PeftConfig.from_pretrained(args.adapter)
-    base = AutoModelForCausalLM.from_pretrained(
-        config.base_model_name_or_path, revision=config.revision,
-        torch_dtype=torch.float16 if args.device == "cuda" else torch.float32,
-        attn_implementation="sdpa",
-    ).to(args.device)
-    model = PeftModel.from_pretrained(base, args.adapter)
-    tokenizer = AutoTokenizer.from_pretrained(args.adapter)
+    model, tokenizer = load_adapter(args.adapter, args.device)
     predictions = generate_predictions(model, tokenizer, records, args.max_new_tokens)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
