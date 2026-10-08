@@ -1,0 +1,75 @@
+{
+  "task": "correction",
+  "run": {
+    "name": "sailor2-8b-qlora-correction",
+    "output_root": "runs",
+    "device": "cuda",
+    "seed": 42,
+    "archive": true
+  },
+  "data": {
+    "path": "dataset/newdataset/VGEC_balanced.json",
+    "filename": "VGEC_balanced.json",
+    "input_root": "/kaggle/input",
+    "validation_fraction": 0.2
+  },
+  "model": {
+    "name": "sail/Sailor2-8B-Chat",
+    "revision": "577d5b2745863cec11e1b2f1c92586a91cea446e",
+    "compute_dtype": "auto",
+    "device_map": "single",
+    "attn_implementation": "sdpa",
+    "load_in_4bit": true,
+    "quant_type": "nf4",
+    "use_double_quant": true
+  },
+  "lora": {
+    "r": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+    "bias": "none"
+  },
+  "training": {
+    "max_length": 512,
+    "effective_batch_size": 8,
+    "fp16_initial_scale": 1.0,
+    "args": {
+      "num_train_epochs": 4,
+      "max_steps": -1,
+      "per_device_train_batch_size": 1,
+      "learning_rate": 2e-5,
+      "warmup_steps": 0.1,
+      "weight_decay": 0.01,
+      "gradient_checkpointing": true,
+      "gradient_checkpointing_kwargs": {"use_reentrant": false},
+      "optim": "adamw_torch",
+      "logging_steps": 1,
+      "dataloader_num_workers": 0,
+      "lr_scheduler_type": "linear",
+      "max_grad_norm": 1.0,
+      "adam_beta1": 0.9,
+      "adam_beta2": 0.999,
+      "adam_epsilon": 1e-8
+    }
+  },
+  "inference": {
+    "prompt": "Hãy sửa lỗi ngữ pháp Tiếng Việt. Nhãn dự đoán chỉ là gợi ý, có thể sai; hãy tự xét câu, không bắt buộc sửa theo nhãn. Sửa ít nhất có thể, giữ nguyên ý nghĩa; giữ nguyên câu đúng. Chỉ trả lời JSON với duy nhất khóa corrected_sentence chứa câu hoàn chỉnh; không giải thích.",
+    "hint_descriptions": [
+      "câu không có lỗi",
+      "lỗi cấu trúc câu (quan hệ chủ ngữ, vị ngữ, các vế câu)",
+      "lỗi cấu trúc ngữ đoạn (thành phần trong cụm từ)",
+      "lỗi sử dụng từ công cụ (quan hệ từ, liên từ, từ phụ trợ)",
+      "lỗi chấm câu (thiếu, thừa hoặc dùng sai dấu câu)"
+    ]
+  },
+  "generation": {
+    "max_new_tokens": 192,
+    "do_sample": false,
+    "use_cache": true
+  },
+  "evaluation": {
+    "selection_metrics": ["corrections.error_only.gleu_plus", "corrections.error_only.exact_match", "clean_preservation.exact_source_preservation"],
+    "save_epoch_adapters": false
+  }
+}

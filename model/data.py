@@ -98,6 +98,8 @@ def split_records(records: list[dict], validation_fraction: float = 0.2, seed: i
     for each class, with at least one group in each partition. All rows remain.
     Output partitions are shuffled so prefix selection cannot follow label order.
     """
+    if type(seed) is not int or seed != 42:
+        raise ValueError("Split seed must be 42")
     _validate_records(records)
     if not records:
         raise ValueError("Cannot split an empty dataset")
@@ -139,44 +141,128 @@ def split_records(records: list[dict], validation_fraction: float = 0.2, seed: i
 def load_training_split(path: str | Path, validation_fraction: float, seed: int) -> tuple[list[dict], list[dict], dict]:
     """Use original grouped splits or a prebuilt split-before-augmentation bundle.
 
-    A bundle is never re-split: its validation records remain original gold.
-    Unsupported seeds/fractions fail instead of contaminating the holdout.
+    A v3 bundle is never re-split: its validation records remain original gold.
+    Retained originals define capped per-class targets; only error classes gain
+    synthetic rows. Train-row provenance is optional, but when supplied its IDs,
+    kinds and synthetic parents must agree with the original training partition.
+    Only seed 42 is accepted, before opening the dataset; fractions must match.
     """
+    if type(seed) is not int or seed != 42:
+        raise ValueError("Training seed must be 42")
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
     if isinstance(raw, list):
         train, validation = split_records(_records_from_raw(raw), validation_fraction, seed)
         return train, validation, {"format": "raw", "original_rows": len(raw)}
-    if not isinstance(raw, dict) or raw.get("format") != "vgec-balanced-v1":
-        raise ValueError("Expected raw dataset array or vgec-balanced-v1 bundle")
+    if not isinstance(raw, dict) or raw.get("format") != "vgec-balanced-v3":
+        raise ValueError("Expected raw dataset array or vgec-balanced-v3 bundle")
+    if type(raw.get("seed")) is not int or raw["seed"] != 42:
+        raise ValueError("Bundle seed must be 42")
     if raw.get("validation_fraction") != validation_fraction:
         raise ValueError("Bundle validation_fraction differs; rebuild the dataset for this fraction")
-    splits = raw.get("splits")
-    if not isinstance(splits, dict) or str(seed) not in splits:
-        raise ValueError(f"Bundle has no split for seed {seed}; rebuild the dataset for this seed")
-    split = splits[str(seed)]
-    if not isinstance(split, dict):
-        raise ValueError("Bundle split must be an object")
-    train = _records_from_raw(split.get("train"))
-    validation = _records_from_raw(split.get("validation"))
+    train = _records_from_raw(raw.get("train"))
+    validation = _records_from_raw(raw.get("validation"))
     if not train or not validation:
         raise ValueError("Bundle training and validation must both be nonempty")
-    if {_id_key(r["id"]) for r in train} & {_id_key(r["id"]) for r in validation}:
+    train_ids = {_id_key(r["id"]) for r in train}
+    validation_ids = {_id_key(r["id"]) for r in validation}
+    if train_ids & validation_ids:
         raise ValueError("Bundle has shared training/validation IDs")
     if {_source_key(r["source"]) for r in train} & {_source_key(r["source"]) for r in validation}:
         raise ValueError("Bundle has shared training/validation source groups")
-    counts = Counter(r["label"] for r in train)
-    if set(counts) != set(LABELS) or len(set(counts.values())) != 1:
-        raise ValueError("Bundle training classes must be exactly balanced across labels 0..4")
-    provenance = split.get("provenance")
-    if not isinstance(provenance, dict):
-        raise ValueError("Bundle split must include provenance")
     heldout_text = {_source_key(r[field]) for r in validation for field in ("source", "target")}
-    synthetic_ids = {_id_key(value) for value in provenance.get("selected_synthetic_ids", [])}
     for row in train:
-        if _id_key(row["id"]) in synthetic_ids and any(_source_key(row[field]) in heldout_text for field in ("source", "target")):
-            raise ValueError("Synthetic source/target overlaps original validation text")
+        if any(_source_key(row[field]) in heldout_text for field in ("source", "target")):
+            raise ValueError("Training source/target overlaps original validation text")
+    provenance = raw.get("provenance")
+    if not isinstance(provenance, dict):
+        raise ValueError("Bundle must include provenance")
+    if provenance.get("balance_policy") != "original_capped_2x":
+        raise ValueError("Bundle balance_policy must be original_capped_2x")
+
+    def provenance_ids(name: str) -> set:
+        values = provenance.get(name)
+        if not isinstance(values, list):
+            raise ValueError(f"Bundle provenance {name} must be an array")
+        keys = {_id_key(value) for value in values}
+        if len(keys) != len(values):
+            raise ValueError(f"Bundle provenance {name} has duplicate IDs")
+        return keys
+
+    original_ids = provenance_ids("original_train_ids")
+    retained_ids = provenance_ids("retained_original_train_ids")
+    synthetic_ids = provenance_ids("selected_synthetic_ids")
+    if original_ids & validation_ids:
+        raise ValueError("Original training partition includes validation IDs")
+    if not retained_ids <= original_ids:
+        raise ValueError("Retained originals must belong to original training partition")
+    if retained_ids & synthetic_ids:
+        raise ValueError("Retained original and selected synthetic IDs must be disjoint")
+    if synthetic_ids & original_ids:
+        raise ValueError("Selected synthetic IDs must not belong to original training partition")
+    if retained_ids | synthetic_ids != train_ids:
+        raise ValueError("Retained original and selected synthetic IDs must exactly cover training IDs")
+    original_counts = Counter(r["label"] for r in train if _id_key(r["id"]) in retained_ids)
+    if set(original_counts) != set(LABELS):
+        raise ValueError("Retained originals must represent all labels 0..4")
+    if any(r["label"] == 0 for r in train if _id_key(r["id"]) in synthetic_ids):
+        raise ValueError("Synthetic rows must have error labels 1..4")
+    largest = max(original_counts.values())
+    targets = {str(label): original_counts[label] if label == 0 else min(largest, 2 * original_counts[label])
+               for label in LABELS}
+    declared_targets = provenance.get("balance_targets_by_class")
+    if (not isinstance(declared_targets, dict) or set(declared_targets) != set(targets)
+            or any(type(value) is not int for value in declared_targets.values())
+            or declared_targets != targets):
+        raise ValueError("Declared balance_targets_by_class must match original_capped_2x targets")
+    if _counts(train) != targets:
+        raise ValueError("Bundle training class counts must match original_capped_2x targets")
+    if "train_rows" in provenance:
+        metadata_rows = provenance["train_rows"]
+        if not isinstance(metadata_rows, list):
+            raise ValueError("Bundle provenance train_rows must be an array")
+        metadata_ids = set()
+        for metadata in metadata_rows:
+            if not isinstance(metadata, dict) or "id" not in metadata:
+                raise ValueError("Bundle train_rows entries must include an ID")
+            key = _id_key(metadata["id"])
+            if key in metadata_ids:
+                raise ValueError("Bundle train_rows has duplicate metadata IDs")
+            metadata_ids.add(key)
+            expected_kind = "original" if key in retained_ids else "synthetic"
+            if metadata.get("kind") != expected_kind:
+                raise ValueError("Bundle train_rows kind differs from retained/selected IDs")
+            if expected_kind == "synthetic":
+                parents = metadata.get("parent_ids", [])
+                if not isinstance(parents, list):
+                    raise ValueError("Synthetic parent_ids must be an array")
+                if any(_id_key(parent) not in original_ids or _id_key(parent) in validation_ids for parent in parents):
+                    raise ValueError("Synthetic parent_ids must belong to original training partition, not holdout")
+        if metadata_ids != train_ids:
+            raise ValueError("Bundle train_rows metadata IDs must exactly cover training IDs")
     return train, validation, {"format": raw["format"], "original_sha256": raw.get("original_sha256"),
                                "synthetic_sha256": raw.get("synthetic_sha256"), "provenance": provenance}
+
+
+def load_classifier_split(original_path, bundle_path, validation_fraction, seed):
+    """Require capped augmentation of every original classifier training row."""
+    originals, validation = split_records(load_records(original_path), validation_fraction, seed)
+    train, heldout, info = load_training_split(bundle_path, validation_fraction, seed)
+    if info["format"] != "vgec-balanced-v3":
+        raise ValueError("Classifier requires a mixed v3 training bundle")
+    provenance = info["provenance"]
+    expected = {_id_key(row["id"]): row for row in originals}
+    retained = {_id_key(value) for value in provenance["retained_original_train_ids"]}
+    declared = {_id_key(value) for value in provenance["original_train_ids"]}
+    if retained != set(expected) or declared != set(expected):
+        raise ValueError("Classifier bundle must retain every original training row")
+    actual = {_id_key(row["id"]): row for row in train if _id_key(row["id"]) in retained}
+    if actual != expected or heldout != validation:
+        raise ValueError("Classifier bundle originals/holdout differ from original grouped split")
+    if info.get("original_sha256") != hashlib.sha256(Path(original_path).read_bytes()).hexdigest():
+        raise ValueError("Classifier bundle original SHA256 differs")
+    if "train_rows" not in provenance:
+        raise ValueError("Classifier bundle requires synthetic-parent provenance")
+    return train, info
 
 
 def _length_summary(values: list[int]) -> dict:
@@ -193,6 +279,8 @@ def _counts(records: list[dict]) -> dict[str, int]:
 
 def analyze(path: str | Path, output_dir: str | Path, seed: int = 42, validation_fraction: float = 0.2) -> dict:
     """Write analysis.json plus canonical train.json/validation.json and return it."""
+    if type(seed) is not int or seed != 42:
+        raise ValueError("Analysis seed must be 42")
     path = Path(path)
     records = load_records(path)
     train, validation = split_records(records, validation_fraction, seed)
@@ -233,10 +321,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", required=True)
     parser.add_argument("--output-dir", required=True)
-    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--validation-fraction", type=float, default=0.2)
     args = parser.parse_args()
-    print(json.dumps(analyze(args.data, args.output_dir, args.seed, args.validation_fraction), ensure_ascii=False, indent=2))
+    print(json.dumps(analyze(args.data, args.output_dir, 42, args.validation_fraction), ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

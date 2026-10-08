@@ -234,6 +234,9 @@ def _load_predictions(path: str | Path) -> list[dict]:
             if "Fixed Sentence" not in output:
                 raise ValueError(f"Missing Fixed Sentence for ID {row['ID']!r}")
             predictions.append({"id": row["ID"], "label": output.get("Error_Type_Id"), "target": output["Fixed Sentence"]})
+        elif "predicted_class" in row and "predicted_correction" in row:
+            predictions.append({**row, "label": row["predicted_class"],
+                                "target": row["predicted_correction"]})
         else:
             predictions.append(row)
     return predictions

@@ -228,6 +228,8 @@ outputs/
 .ipynb_checkpoints/
 dataset/
 Metrics_GEC.pdf
+VLSP2026-ViGEC-UserAgreement.docx
+/alpha/
 
 # Assistant-created documentation, tests, and diagnostic artifacts.
 /agents/
