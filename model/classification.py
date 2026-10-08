@@ -220,6 +220,29 @@ def _weighted_cross_entropy(logits, labels, weights, num_items_in_batch=None):
     return loss / denominator
 
 
+def _optimizer_groups(model, decay_names, lora_lr, head_lr, weight_decay):
+    """Partition only trainable adapters/head; retain Trainer's decay policy."""
+    for name, value in (("LoRA learning_rate", lora_lr), ("head_learning_rate", head_lr)):
+        if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
+            raise ValueError(f"{name} must be finite and positive")
+    buckets = {(role, decay): [] for role in ("lora", "head") for decay in (True, False)}
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad:
+            continue
+        if "score" in name.split("."):
+            role = "head"
+        elif "lora_" in name:
+            role = "lora"
+        else:
+            raise ValueError(f"Unexpected trainable classifier parameter: {name}")
+        buckets[role, name in decay_names].append(parameter)
+    if any(not any(buckets[role, decay] for decay in (True, False)) for role in ("lora", "head")):
+        raise ValueError("Classifier optimizer requires trainable LoRA and score head parameters")
+    return [{"params": parameters, "lr": head_lr if role == "head" else lora_lr,
+             "weight_decay": weight_decay if decay else 0.0, "role": role}
+            for (role, decay), parameters in buckets.items() if parameters]
+
+
 def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, preprocessing,
          fixed_epochs=None):
     """Fresh mixed-data LoRA/head fit; only main fit selects on outer holdout."""
@@ -259,6 +282,8 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         "pad_token_id": tokenizer.pad_token_id, "tokenizer_length": len(tokenizer),
         "added_pad_token": added_pad,
         "class_weighting": weighting,
+        "learning_rates": {"lora": config["training"]["args"]["learning_rate"],
+                           "head": config["training"]["head_learning_rate"]},
     }
     trainable_parameters = sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad)
     total_parameters = sum(parameter.numel() for parameter in model.parameters())
@@ -301,6 +326,19 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         return _weighted_cross_entropy(outputs.logits, labels, loss_weights, num_items_in_batch)
 
     class FiniteTrainer(Trainer):
+        def create_optimizer(self, model=None):
+            if self.optimizer is None:
+                if self.args.optim != "adamw_torch":
+                    raise ValueError("Separate head/LoRA rates require optim=adamw_torch")
+                opt_model = self.model if model is None else model
+                groups = _optimizer_groups(
+                    opt_model, self.get_decay_parameter_names(opt_model), self.args.learning_rate,
+                    training["head_learning_rate"], self.args.weight_decay)
+                self.optimizer = torch.optim.AdamW(
+                    groups, lr=self.args.learning_rate,
+                    betas=(self.args.adam_beta1, self.args.adam_beta2), eps=self.args.adam_epsilon)
+            return self.optimizer
+
         def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
             result = super().compute_loss(model, inputs, return_outputs=return_outputs, **kwargs)
             loss = result[0] if return_outputs else result
@@ -357,6 +395,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         "gradient_accumulation_steps": effective // microbatch,
         "effective_batch_size": effective, "training_args": training_args.to_dict(),
         "class_weighting": weighting,
+        "learning_rates": classifier_config["learning_rates"],
         "fp16_initial_scale": training.get("fp16_initial_scale", 1.0) if training_args.fp16 else None,
         "best_epoch": best["epoch"], "selection_macro_f1": best["macro_f1"],
         "selection_rule": ("highest outer-validation macro F1; ties retain earlier epoch"
