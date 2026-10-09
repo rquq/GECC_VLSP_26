@@ -1,0 +1,14 @@
+{
+  "seed": 42,
+  "model": {
+    "name": "FacebookAI/xlm-roberta-base",
+    "revision": "e73636d4f797dec63c3081bb6ed5c7b0bb3f2089"
+  },
+  "max_length": 512,
+  "class_weight_power": 0.5,
+  "epochs": 5,
+  "microbatch": 1,
+  "effective_batch_size": 8,
+  "eval_batch_size": 1,
+  "learning_rate": 0.00002
+}

@@ -1,8 +1,14 @@
 # Vietnamese GEC: classification → correction
 
-The active alpha experiment is **soft hierarchical Qwen3-4B NF4 QLoRA
-classification with subtype loss coefficient 2 and R-Drop beta 1**. Sailor2
-correction and train-only OOF hint support remain available, but are not run in this ablation.
+The retained best classification experiment is **Sailor2-8B NF4 QLoRA,
+five-epoch training horizon, selected epoch 4**, using
+`configs/classification_sailor2_8b.json`. Its saved checkpoint is
+`runs/sailor2-8b-hierarchical-qlora-seed42/classifier` in the shared project
+workspace. This is the user-selected baseline, not the highest observed score:
+the eight-epoch recipe scored higher on the repeatedly used holdout but is
+retained only as comparison evidence. Equal-weight ensembles are not selected.
+The existing Qwen classification + Sailor correction pipeline configs and OOF
+support remain unchanged; the selected standalone Sailor run has no OOF hints.
 
 ## Project layout
 
@@ -11,6 +17,10 @@ correction and train-only OOF hint support remain available, but are not run in 
 | `configs/classification.json` | Qwen3-4B QLoRA classification and OOF settings |
 | `configs/correction.json` | Sailor2 QLoRA, prompt, decoding and checkpoint selection |
 | `model/classification.py` | Classifier training and leakage-safe correction hints |
+| `model/encoder_classification.py` | Full-finetuned BamiBERT/XLM-R classifiers and saved serving |
+| `model/ensemble.py` | Three fixed equal-probability combinations and sequential serving |
+| `configs/encoder_bamibert.json`, `configs/encoder_xlmr.json` | Pinned encoder training recipes |
+| `configs/classification_sailor2_8b.json` | Retained five-epoch Sailor classification experiment |
 | `model/correction.py` | Correction-only QLoRA training and saved-adapter reload |
 | `model/two_phase.py` | Connected stages, preflight and artifact packaging |
 | `model/pipeline_predict.py` | Saved classifier + corrector inference |
@@ -61,7 +71,7 @@ prediction export modules remain shared between the two tasks.
   with the adapter and manifest. R-Drop does not redefine the width-five
   architecture version 2: existing lambda-two hierarchical adapters still load.
   Earlier flat and lambda-one checkpoints remain incompatible; their artifacts
-  and measured predictions remain unchanged. No R-Drop result is claimed here.
+  and measured predictions remain unchanged. Completed R-Drop results are below.
 - Correction: `sail/Sailor2-8B-Chat`, **460 training rows** (310 retained originals
   + 150 synthetic), five epochs, rank 16 / alpha 32 QLoRA, LR 2e-5;
   NF4 double quantization, microbatch 1 / effective batch 8.
@@ -481,6 +491,282 @@ Shared project artifacts:
 - `runs/hierarchical-rdrop-seed42/`: adapter/head, saved predictions, metrics,
   epoch/trainer histories, manifest and matched `comparison.json`.
 - `runs/hierarchical-rdrop-seed42-config.json`: exact experiment controls.
+
+## Heterogeneous encoder ensemble
+
+Run from the alpha worktree using the pinned `requirements.txt` environment.
+Reuse the saved `hierarchical-lambda2-seed42` Qwen control: do not retrain it or
+substitute the R-Drop checkpoint. Encoder training reads that run's exact
+ordered canonical `train.json` and `validation.json`, checking ID/source split
+separation. Each encoder uses seed 42, full fine-tuning, five epochs, LR 2e-5,
+microbatch 1 / effective batch 8, raw text up to 512 tokens and the same
+inverse-square-root class weights. The objective is flat weighted five-class
+CE divided by accumulation-window rows, not Qwen's hierarchical loss.
+Checkpoint selection maximizes holdout Macro-F1; no weight sweep or calibration.
+
+```bash
+python -m model.encoder_classification --config configs/encoder_bamibert.json \
+  --control-run ../runs/hierarchical-lambda2-seed42 \
+  --output-dir ../runs/heterogeneous-ensemble-seed42/bamibert
+python -m model.encoder_classification --config configs/encoder_xlmr.json \
+  --control-run ../runs/hierarchical-lambda2-seed42 \
+  --output-dir ../runs/heterogeneous-ensemble-seed42/xlmr
+python -m model.ensemble --qwen-run ../runs/hierarchical-lambda2-seed42 \
+  --bamibert-run ../runs/heterogeneous-ensemble-seed42/bamibert \
+  --xlmr-run ../runs/heterogeneous-ensemble-seed42/xlmr \
+  --output-dir ../runs/heterogeneous-ensemble-seed42/ensembles
+```
+
+Both encoders load their published `tokenizer.json` backend directly through
+`PreTrainedTokenizerFast`. BamiBERT's metadata names an XLM-R tokenizer despite
+its byte-level BPE backend; automatic loading fails under Transformers 5.9.
+Direct backend loading retains its segmentation, special-token processing and
+raw punctuation; save/reload token IDs were identical in a tokenizer smoke.
+No external Vietnamese word segmentation is applied. Revisions are pinned in
+the configs. [BamiBERT](https://huggingface.co/Qualcomm-AI-Research/BamiBERT)
+specifies research/educational use and Qualcomm responsible-AI terms;
+[XLM-R](https://huggingface.co/FacebookAI/xlm-roberta-base) is MIT licensed.
+Competition eligibility is not verified here.
+
+The evaluator checks ordered train/holdout equality and exact typed prediction
+IDs. It evaluates exactly `qwen_bamibert`, `qwen_xlmr` and `all_three`, with
+direct equal-weight means of the original five-class probabilities followed by
+argmax. Each directory contains `ensemble_config.json`, joined predictions,
+metrics and paired fixes/regressions; `summary.json` includes every standalone
+model, per-class F1 and disagreement. Class order is always 0..4. Invalid or
+unnormalized probability vectors and nested ensembles are rejected.
+
+Saved serving accepts unseen source-only records:
+
+```python
+from model.ensemble import classify
+predictions = classify(
+    "../runs/heterogeneous-ensemble-seed42/ensembles/qwen_bamibert",
+    [{"id": "new-1", "source": "Tôi đang đọc sách."}],
+    device="cuda", batch_size=1,
+)
+```
+
+Members load sequentially and release GPU weights between forwards. Configs
+reference absolute member checkpoint paths; relocating artifacts requires
+updating those paths. Encoders save complete fine-tuned weights, unlike QLoRA
+adapters. This is classification only: no corrected-sentence generation.
+The holdout has been repeatedly used for selection; any gain is exploratory,
+not independent-test evidence.
+
+### Completed fixed-split experiment
+
+Both encoders completed five epochs / 300 optimizer updates on the same 480
+training rows and 81 held-out originals as the saved Qwen hierarchy control.
+BamiBERT selected epoch 2 (102,955,013 parameters; training/evaluation/save
+duration 156.9 s); XLM-R selected epoch 4 (278,047,493 parameters; 217.8 s).
+These timings exclude initial model loading and final saved-checkpoint reload.
+Both reloaded checkpoints preserved the selected holdout decisions.
+
+| Model or equal-weight ensemble | Macro-F1 | Micro-F1 | Fixes / regressions vs Qwen |
+| --- | ---: | ---: | ---: |
+| Qwen hierarchy control | 0.508452 | 0.691358 | — |
+| BamiBERT standalone | 0.509337 | 0.666667 | — |
+| XLM-R standalone | 0.398770 | 0.666667 | — |
+| Qwen + BamiBERT | 0.502429 | 0.691358 | 3 / 3 |
+| Qwen + XLM-R | 0.458957 | 0.703704 | 5 / 4 |
+| Qwen + BamiBERT + XLM-R | 0.446174 | 0.703704 | 7 / 6 |
+
+No equal-weight ensemble improved Macro-F1 over Qwen or the best standalone
+model. The XLM-R pair and triple gained one correct row overall but lost all
+class-3 recall, giving class-3 F1 zero. Diversity alone did not help: Qwen
+disagreed with BamiBERT on 30/81 rows and with XLM-R on 24/81. The BamiBERT
+standalone Macro-F1 advantage is only 0.000885, with lower Micro-F1; it is not
+evidence for replacing Qwen. Retain Qwen as this ensemble experiment's control
+and these artifacts as a negative ensemble result. No weight tuning or
+recursive ensemble averaging was performed.
+
+Real GPU serving was exercised for all three saved ensembles, using one
+held-out row per class plus a new source-only sentence. Probabilities matched
+saved offline predictions within atol 1e-6 / rtol 1e-5, labels matched, and
+unseen outputs had finite normalized vectors. All three classified the clean
+smoke sentence “Tôi đang đọc một cuốn sách rất thú vị.” as class 4: serving
+works, but this is an observed quality failure, not a correctness example.
+The integrated alpha suite passed all 80 tests.
+
+Artifacts: `runs/heterogeneous-ensemble-seed42/{bamibert,xlmr}/` contain full
+checkpoints, splits, histories, manifests and joined predictions.
+`runs/heterogeneous-ensemble-seed42/ensembles/summary.json` contains full
+standalone and ensemble metrics; combination directories include per-class
+F1, confusion matrices, paired changed IDs and serving configurations.
+Only alpha implementation/docs/tests were changed; beta and `rquq/test` were
+not changed by this experiment.
+
+## Larger Vietnamese QLoRA classifier: Sailor2-8B
+
+Completed on alpha using
+[sail/Sailor2-8B-Chat](https://huggingface.co/sail/Sailor2-8B-Chat), a
+Vietnamese-capable Southeast Asian checkpoint with Apache-2.0 licensing,
+pinned at `577d5b2745863cec11e1b2f1c92586a91cea446e`. This is a standalone
+sentence classifier, not a corrected-sentence generator or connected two-stage
+run. Default classification/correction configs remain unchanged.
+
+From alpha, using the existing pinned training environment:
+
+```bash
+python -m model.classification --config configs/classification_sailor2_8b.json \
+  --output-dir ../runs/sailor2-8b-hierarchical-qlora-seed42 --skip-hints
+```
+
+Use an empty output directory when rerunning. Recipe: NF4/double quantization,
+BF16 compute, rank 16 / alpha 32, attention and MLP adapters plus the trained
+five-output hierarchical head, R-Drop beta 1, LR 5e-5, cosine decay with 30
+warmup updates, paged 8-bit AdamW, gradient checkpointing, microbatch 1 and
+effective batch 8. The ordered 480 training rows and 81 held-out originals
+match both saved Qwen controls exactly. Maximum source length was 74 tokens;
+no training sources exceeded the 512-token limit.
+
+Five epochs / 300 optimizer updates completed on the local RTX 4060 Laptop
+8 GB GPU. Trainer runtime was 3411.14 s (56.85 minutes), excluding initial
+download/model loading and final saved-checkpoint reload. There were
+46,155,264 trainable parameters. Epoch 4 was selected; epoch 5 tied and
+retained the earlier checkpoint. Trainable parameters and training statistics
+were finite. Saved-adapter evaluation covered all 81 held-out rows.
+
+| Classifier | Macro-F1 | Micro-F1 | Fixes / regressions vs Qwen |
+| --- | ---: | ---: | ---: |
+| Qwen3-4B hierarchy control | 0.508452 | 0.691358 | — |
+| Qwen3-4B hierarchy + R-Drop | 0.508452 | 0.691358 | — |
+| Sailor2-8B hierarchy + R-Drop | 0.607858 | 0.790123 | 11 / 3 |
+
+Sailor changed 19 decisions and gained eight correct rows overall. Macro-F1
+increased by 0.099406; class-3 F1 increased from 0.200000 to 0.571429, but
+class-2 F1 fell from 0.428571 to 0.181818 (only one of seven class-2 rows
+correct). Keep Sailor as the stronger candidate on this holdout, not a proven
+generalization winner. The holdout has been repeatedly used for selection;
+model, LR, scheduler and optimizer changed together, so this does not isolate
+the effect of model size or Vietnamese pretraining. No ensemble was added.
+
+Serving reload matched saved probabilities within atol 1e-6 / rtol 1e-5 and
+labels exactly on one held-out row per class. A new source-only sentence had
+a finite normalized probability vector, but the clean sentence “Tôi đang đọc
+một cuốn sách rất thú vị.” was incorrectly classified as class 2 with about
+0.990758 probability. That is an observed quality failure, not a positive
+correctness example.
+
+```python
+from model.classification import classify
+predictions = classify(
+    "../runs/sailor2-8b-hierarchical-qlora-seed42/classifier",
+    [{"id": "new-1", "source": "Tôi đang đọc sách."}],
+    device="cuda", batch_size=1,
+)
+```
+
+Artifacts: `runs/sailor2-8b-hierarchical-qlora-seed42/` contains the adapter/head,
+resolved config, exact splits, metrics, predictions, epoch/trainer histories,
+manifest, matched `comparison.json` (paired changed IDs and per-class deltas)
+and `serving_smoke.json`. OOF hints were disabled; this run cannot be reused as
+a connected correction pipeline without producing its required hints. Only
+the new alpha recipe and this documentation were changed; beta and
+`rquq/test` were not changed by this experiment.
+
+### Eight-epoch fit and equal-weight Qwen ensemble
+
+Completed a fresh fit with `configs/classification_sailor2_8b_8epochs.json`.
+Only the epoch horizon (5 to 8) and run name changed from the Sailor recipe
+above; ordered canonical training and validation rows remained identical.
+This was not a continuation of the five-epoch checkpoint: cosine decay was
+recomputed for 480 optimizer updates, changing the learning-rate trajectory
+before epoch 4 as well as extending training.
+
+```bash
+python -m model.classification --config configs/classification_sailor2_8b_8epochs.json \
+  --output-dir ../runs/sailor2-8b-hierarchical-qlora-8epochs-seed42 --skip-hints
+```
+
+Eight epochs / 480 updates completed on the same local 8 GB GPU. Trainer
+runtime was 5463.03 s (91.05 minutes), excluding model loading and final
+reload. Training loss was 0.720204; trainable parameters and training
+statistics were finite. Epoch 4 was selected; epochs 5–8 tied its holdout
+Macro-F1, retaining the earlier checkpoint. Extra late epochs did not improve
+that selection score.
+
+| Classifier | Macro-F1 | Micro-F1 | Correct / 81 |
+| --- | ---: | ---: | ---: |
+| Original Qwen3-4B hierarchy control | 0.508452 | 0.691358 | 56 |
+| Sailor2-8B, five-epoch horizon, selected epoch 4 | 0.607858 | 0.790123 | 64 |
+| Sailor2-8B, eight-epoch horizon, selected epoch 4 | 0.630288 | 0.802469 | 65 |
+| Equal-probability Qwen + eight-epoch Sailor | 0.577120 | 0.765432 | 62 |
+
+The eight-epoch recipe fixed ID 181 versus the five-epoch recipe, with no
+regressions and one changed decision. Versus Qwen it fixed 12 rows and
+regressed three. Class-2 F1 remained 0.181818 (one of seven correct).
+
+The ensemble averaged the two original five-class probability vectors with
+weight 0.5 each; no weight tuning or nested ensemble was used. It fixed no
+Sailor errors and introduced three regressions (IDs 140, 96 and 20), reducing
+Macro-F1 by 0.053168 versus Sailor. The five-epoch Sailor run is the retained
+best experiment by user selection; the eight-epoch result remains comparison
+evidence, and this equal-weight ensemble is not the default serving choice.
+
+Saved ensemble GPU serving loaded one member at a time and matched offline
+probabilities within atol 1e-6 / rtol 1e-5 and labels exactly on held-out IDs
+377, 60, 130, 140 and 197. The source-only clean sentence “Tôi đang đọc một
+cuốn sách rất thú vị.” produced a finite normalized vector but was wrongly
+classified as class 4 (probability 0.484187). Serving consistency is not proof
+of classification quality.
+
+```python
+from model.ensemble import classify
+predictions = classify(
+    "../runs/sailor2-8b-8epochs-qwen-ensemble-seed42",
+    [{"id": "new-1", "source": "Tôi đang đọc sách."}],
+    device="cuda", batch_size=1,
+)
+```
+
+Artifacts: `runs/sailor2-8b-hierarchical-qlora-8epochs-seed42/` contains the
+selected adapter/head, exact splits, metrics, predictions, histories, manifest
+and paired `comparison.json` against Qwen and five-epoch Sailor.
+`runs/sailor2-8b-8epochs-qwen-ensemble-seed42/` contains `ensemble_config.json`,
+predictions, metrics, paired comparisons, `summary.json` and
+`serving_smoke.json`. Ensemble member checkpoint paths are absolute; update
+them if moving artifacts to another machine.
+
+All results use the repeatedly selected 81-row holdout; no independent test
+was evaluated. The small gain does not establish generalization or isolate
+the benefit of extra epochs from the changed cosine schedule. Classification
+only: correction generation and OOF hints were not evaluated. Only the new
+alpha recipe and this documentation were changed for this extension; default
+configs, beta and `rquq/test` were left unchanged.
+
+### Retained experiment integration into `rquq/test`
+
+The alpha recipes, encoder/ensemble implementations, regression checks and
+experiment evidence are integrated into `rquq/test`. Existing test-branch
+alpha/beta comparison notes and its Kaggle source branch are preserved; beta
+localization is not merged. Private data links and trained artifacts are not
+committed. Sailor recipes discover private data in either worktree or Kaggle;
+use explicit `--data` if discovery is ambiguous.
+
+From the integrated `rquq/test` checkout, rerun into a new empty directory:
+
+```bash
+python -m model.classification --config configs/classification_sailor2_8b.json \
+  --output-dir runs/sailor2-8b-hierarchical-qlora-repeat --skip-hints
+```
+
+Serve the retained checkpoint without retraining:
+
+```python
+from model.classification import classify
+predictions = classify(
+    "runs/sailor2-8b-hierarchical-qlora-seed42/classifier",
+    [{"id": "new-1", "source": "Tôi đang đọc sách."}],
+    device="cuda", batch_size=1,
+)
+```
+
+Selection is classification-only: five-epoch Macro-F1 0.607858, Micro-F1
+0.790123, 64/81 correct. Do not substitute the eight-epoch adapter or ensemble
+when reporting this baseline. Connecting it to correction requires fresh
+train-only OOF hints and end-to-end correction evaluation first.
 
 ## Paper evidence and improvement priorities
 
