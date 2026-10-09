@@ -45,7 +45,7 @@ def _hint_index(records, hints):
 
 
 def validate_hints(artifact, train, validation, provenance, classifier_train, data_path, seed, fraction):
-    """Check OOF declarations against connected source/parent groups, not just IDs."""
+    """Check OOF declarations against connected source, parent and contrast families."""
     if not isinstance(artifact, dict):
         raise ValueError("Classifier hints must be an object")
     if type(artifact.get("seed")) is not int or artifact["seed"] != seed:
@@ -67,11 +67,13 @@ def validate_hints(artifact, train, validation, provenance, classifier_train, da
     if not isinstance(mixed, dict) or original_ids is None:
         raise ValueError("Mixed classifier hints require original and classifier provenance")
     original_keys = {_id_key(value) for value in original_ids}
-    if ({_id_key(value) for value in mixed["retained_original_train_ids"]} != original_keys
+    retained = {_id_key(value) for value in mixed["retained_original_train_ids"]}
+    quarantined = {_id_key(value) for value in mixed["quarantined_ids"]}
+    synthetic = {_id_key(value) for value in mixed["selected_synthetic_ids"]}
+    if (not retained <= original_keys or quarantined != original_keys - retained
             or {_id_key(value) for value in mixed["original_train_ids"]} != original_keys
-            or original_keys | {_id_key(value) for value in mixed["selected_synthetic_ids"]} != set(classifier_rows)):
+            or synthetic & original_keys or retained | synthetic != set(classifier_rows)):
         raise ValueError("Classifier train.json differs from declared mixed partition")
-    originals = {key: classifier_rows[key] for key in original_keys}
     parents = {}
     sources = {}
 
@@ -100,11 +102,21 @@ def validate_hints(artifact, train, validation, provenance, classifier_train, da
             sources[source] = key
     if set(sources) & {_source_key(row["source"]) for row in validation}:
         raise ValueError("Classifier training sources overlap outer validation")
+    families = {}
     for metadata in provenance.get("provenance", {}).get("train_rows", []) + mixed["train_rows"]:
         key = _id_key(metadata["id"])
+        authored = metadata.get("authored_provenance", {})
+        for field in ("family_id", "template_id"):
+            value = authored.get(field)
+            if value:
+                family = (field, value)
+                if family in families:
+                    union(key, families[family])
+                else:
+                    families[family] = key
         for parent in metadata.get("parent_ids", []):
             parent_key = _id_key(parent)
-            if parent_key not in originals or parent_key in heldout:
+            if parent_key not in original_keys or parent_key in heldout:
                 raise ValueError("Synthetic parent is not in the classifier training partition")
             union(key, parent_key)
     components = {key: find(key) for key in parents}
@@ -128,7 +140,7 @@ def validate_hints(artifact, train, validation, provenance, classifier_train, da
             raise ValueError("Fold declarations have invalid, duplicate, or overlapping IDs")
         excluded_components = {components[key] for key in prediction_keys}
         if any(components[key] in excluded_components for key in training_keys):
-            raise ValueError("OOF training leaks a held-out normalized source or synthetic parent group")
+            raise ValueError("OOF training leaks a held-out source, parent or contrast/template family")
         for key in prediction_keys:
             if type(train_hints[key].get("fold")) is not int or train_hints[key]["fold"] != number:
                 raise ValueError("Training hint fold differs from its prediction declaration")
@@ -140,7 +152,7 @@ def validate_hints(artifact, train, validation, provenance, classifier_train, da
     for key, hint in train_hints.items():
         group = components[key]
         if group in group_folds and group_folds[group] != hint["fold"]:
-            raise ValueError("Connected source/parent group is split across OOF folds")
+            raise ValueError("Connected source/parent/family group is split across OOF folds")
         group_folds[group] = hint["fold"]
     return train_hints, validation_hints
 

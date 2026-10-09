@@ -252,11 +252,34 @@ def _class_weights(train, power):
             "normalization": "weighted sum divided by accumulation-batch row count"}
 
 
-def _weighted_hierarchical_loss(logits, labels, weights, num_items_in_batch=None):
-    """Weighted binary loss plus twice the subtype CE, normalized by row count.
+def _loss_weighting(train, power, scheme):
+    weighting = _class_weights(train, power)
+    if scheme == "shared":
+        return weighting
+    if scheme != "separate":
+        raise ValueError("hierarchical_weighting must be shared or separate")
+    counts = weighting["counts"]
+    binary_counts = [counts[0], sum(counts[1:])]
 
-    Clean rows have no subtype loss/gradient. The same sample weight multiplies
-    both terms; normalization includes partial final accumulation windows.
+    def normalized_weights(frequencies):
+        raw = [count ** (-power) for count in frequencies]
+        mean = sum(count * weight for count, weight in zip(frequencies, raw)) / sum(frequencies)
+        return [weight / mean for weight in raw]
+
+    return {**weighting, "scheme": "separate",
+            "detection_counts": binary_counts,
+            "detection_weights": normalized_weights(binary_counts),
+            "subtype_counts": counts[1:],
+            "subtype_weights": [0.0, *normalized_weights(counts[1:])],
+            "supervised_normalization": "binary expectation one over all rows; subtype expectation one over error rows; both losses divided by accumulation-window row count"}
+
+
+def _weighted_hierarchical_loss(logits, labels, weights, num_items_in_batch=None,
+                                detection_weights=None, subtype_weights=None):
+    """Weighted binary + twice subtype CE; clean rows have no subtype gradient.
+
+    Separate mode uses binary-frequency detection weights and error-only subtype
+    weights. Both terms retain the baseline accumulation-window row denominator.
     """
     import torch.nn.functional as F
 
@@ -266,41 +289,26 @@ def _weighted_hierarchical_loss(logits, labels, weights, num_items_in_batch=None
     # Ignore clean rows without selecting a variable-size CUDA tensor. Their
     # conditional target is -1; cross_entropy's ignore_index produces zero loss.
     subtype = F.cross_entropy(logits[..., 1:], labels - 1, ignore_index=-1, reduction="none")
-    loss = (weights[labels] * (binary + 2.0 * subtype)).sum()
+    if detection_weights is None:
+        loss = (weights[labels] * (binary + 2.0 * subtype)).sum()
+    else:
+        loss = (detection_weights[(labels > 0).long()] * binary
+                + 2.0 * subtype_weights[labels] * subtype).sum()
     denominator = labels.numel() if num_items_in_batch is None else num_items_in_batch
     return loss / denominator
 
 
-def _symmetric_joint_kl(first_logits, second_logits):
-    """Per-row 0.5 * (KL(p1 || p2) + KL(p2 || p1)), entirely in FP32.
-
-    Both distributions stay attached to autograd; no detached teacher. Computing
-    the symmetric expression together avoids cancellation between directed KLs.
-    """
-    first = _joint_log_probabilities(first_logits)
-    second = _joint_log_probabilities(second_logits)
-    return 0.5 * ((first.exp() - second.exp()) * (first - second)).sum(-1)
-
-
-def _weighted_rdrop_loss(first_logits, second_logits, labels, weights, num_items_in_batch=None):
-    """Mean supervised loss + beta=1 weighted symmetric joint KL / window rows."""
-    supervised = 0.5 * (
-        _weighted_hierarchical_loss(first_logits, labels, weights, num_items_in_batch)
-        + _weighted_hierarchical_loss(second_logits, labels, weights, num_items_in_batch))
-    denominator = labels.numel() if num_items_in_batch is None else num_items_in_batch
-    regularization = (weights[labels] * _symmetric_joint_kl(first_logits, second_logits)).sum()
-    return supervised + regularization / denominator
-
-
-def _rdrop_trainer_class():
+def _hierarchical_trainer_class():
     """Keep optional Transformers imports lazy for dataset-only consumers."""
     import torch
     from transformers import Trainer
 
-    class RDropTrainer(Trainer):
-        def __init__(self, *args, loss_weights, **kwargs):
+    class HierarchicalTrainer(Trainer):
+        def __init__(self, *args, loss_weights, detection_weights=None, subtype_weights=None, **kwargs):
             super().__init__(*args, **kwargs)
             self.loss_weights = loss_weights
+            self.detection_weights = detection_weights
+            self.subtype_weights = subtype_weights
             # We consume Trainer's full/partial accumulation-window row count.
             # This also disables its second division by accumulation steps;
             # kwargs are consumed here, never forwarded to the Qwen model.
@@ -309,36 +317,27 @@ def _rdrop_trainer_class():
         def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
             labels = inputs["labels"]
             features = {key: value for key, value in inputs.items() if key != "labels"}
-            first = model(**features)
-            if model.training:
-                # No RNG reset, concatenation, detach or no_grad: independent
-                # dropout masks and gradients through both passes are required.
-                second = model(**features)
-                loss = _weighted_rdrop_loss(first.logits, second.logits, labels,
-                                           self.loss_weights, num_items_in_batch)
-            else:
-                loss = _weighted_hierarchical_loss(first.logits, labels, self.loss_weights,
-                                                   num_items_in_batch)
+            output = model(**features)
+            loss = _weighted_hierarchical_loss(output.logits, labels, self.loss_weights,
+                                               num_items_in_batch,
+                                               self.detection_weights, self.subtype_weights)
             if not torch.isfinite(loss).all().item():
                 raise RuntimeError("Nonfinite classifier training loss")
-            return (loss, first) if return_outputs else loss
+            return (loss, output) if return_outputs else loss
 
-    return RDropTrainer
+    return HierarchicalTrainer
 
 
 def _training_algorithm(config, model):
-    algorithm = config["training"].get("algorithm", {"name": "rdrop", "beta": 1.0})
-    if algorithm != {"name": "rdrop", "beta": 1.0}:
-        raise ValueError("Alpha requires fixed R-Drop beta=1")
+    if "algorithm" in config["training"]:
+        raise ValueError("training.algorithm is obsolete; classifier training uses single-forward hierarchical loss")
     return {
-        **algorithm, "supervised_pass_reduction": "mean of two weighted BCE + 2*CE losses",
-        "kl_convention": "0.5 * (KL(p1||p2) + KL(p2||p1)); five-class joint distributions",
-        "normalization": "class-weighted sum divided by full/partial accumulation-window rows",
-        "kl_dtype": "float32", "training_forwards": 2, "inference_forwards": 1,
-        "dropout_masks": "independent RNG draws; both passes retain autograd",
+        "name": "hierarchical", "supervised_objective": "weighted BCE + 2*CE",
+        "normalization": "weighted sum divided by full/partial accumulation-window rows",
+        "training_forwards": 1, "inference_forwards": 1,
         "lora_dropout": config["lora"]["lora_dropout"],
         "base_attention_dropout": getattr(model.config, "attention_dropout", None),
-        "seed": "fit seed recorded in run manifest; no reseeding between passes",
+        "seed": "fit seed recorded in run manifest",
     }
 
 
@@ -352,7 +351,10 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
 
     if not train:
         raise ValueError("Every classifier fit needs training rows")
-    weighting = _class_weights(train, config["training"].get("class_weight_power", 0.0))
+    if "algorithm" in config["training"]:
+        raise ValueError("training.algorithm is obsolete; classifier training uses single-forward hierarchical loss")
+    weighting = _loss_weighting(train, config["training"].get("class_weight_power", 0.0),
+                                config["training"].get("hierarchical_weighting", "shared"))
     set_seed(seed)
     placement = placement_preflight(config["model"], device)
     device = placement["device"]
@@ -421,8 +423,12 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         write_json(checkpoint / "classifier_config.json", classifier_config)
 
     loss_weights = torch.tensor(weighting["weights"], dtype=torch.float32, device=device)
+    detection_weights = subtype_weights = None
+    if weighting.get("scheme") == "separate":
+        detection_weights = torch.tensor(weighting["detection_weights"], dtype=torch.float32, device=device)
+        subtype_weights = torch.tensor(weighting["subtype_weights"], dtype=torch.float32, device=device)
 
-    RDropTrainer = _rdrop_trainer_class()
+    HierarchicalTrainer = _hierarchical_trainer_class()
 
     class EpochEvaluation(TrainerCallback):
         def on_epoch_end(self, args, state, control, **kwargs):
@@ -441,9 +447,10 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
             model.train()
             return control
 
-    trainer = RDropTrainer(model=model, args=training_args, train_dataset=encoded,
+    trainer = HierarchicalTrainer(model=model, args=training_args, train_dataset=encoded,
                           data_collator=DataCollatorWithPadding(tokenizer), callbacks=[EpochEvaluation()],
-                          loss_weights=loss_weights)
+                          loss_weights=loss_weights, detection_weights=detection_weights,
+                          subtype_weights=subtype_weights)
     if training_args.fp16:
         # Qwen3 NF4 backward overflowed at scale 4096 despite a finite forward loss.
         # Start unscaled; retain dynamic scaling and the nonfinite-statistic guard.
@@ -489,7 +496,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
 
 
 def _connected_folds(original_train, correction_train, provenance, folds, seed, classifier_train):
-    """Keep mixed classifier rows, correction rows and synthetic parents together."""
+    """Keep source duplicates, synthetic parents and contrast/template families together."""
     if type(folds) is not int or folds < 2:
         raise ValueError("OOF folds must be an integer of at least two")
     originals = {_id_key(row["id"]): row for row in original_train}
@@ -514,8 +521,18 @@ def _connected_folds(original_train, correction_train, provenance, folds, seed, 
             union(key, sources[source])
         else:
             sources[source] = key
+    families = {}
     for row in provenance.get("train_rows", []):
         key = _id_key(row["id"])
+        metadata = row.get("authored_provenance", {})
+        for field in ("family_id", "template_id"):
+            value = metadata.get(field)
+            if value:
+                family = (field, value)
+                if family in families:
+                    union(key, families[family])
+                else:
+                    families[family] = key
         for value in row.get("parent_ids", []):
             original = _id_key(value)
             if original not in originals:
@@ -575,7 +592,8 @@ def _connected_folds(original_train, correction_train, provenance, folds, seed, 
         for row in train:
             if _id_key(row["id"]) not in originals:
                 label = row["label"]
-                if synthetic_counts[label] >= original_counts[label]:
+                limit = min(40, original_counts[label]) if label == 0 else original_counts[label]
+                if synthetic_counts[label] >= limit:
                     continue
                 synthetic_counts[label] += 1
             capped.append(row)
@@ -684,7 +702,10 @@ def main():
         "data_path": str(path), "data_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         "classifier_data_path": str(mixed_path),
         "classifier_data_sha256": hashlib.sha256(mixed_path.read_bytes()).hexdigest(),
-        "original_train_count": len(original_train), "synthetic_train_count": len(train) - len(original_train),
+        "original_train_count": len(original_train),
+        "retained_original_train_count": len(classifier_info["provenance"]["retained_original_train_ids"]),
+        "quarantined_original_train_count": len(classifier_info["provenance"]["quarantined_ids"]),
+        "synthetic_train_count": len(classifier_info["provenance"]["selected_synthetic_ids"]),
         "model": config["model"], "resolved_model_revision": config["model"]["revision"],
         "preprocessing": preprocessing, "saved_classifier_reloaded_for_evaluation": True,
         "train_count": len(train), "validation_count": len(validation),
@@ -704,8 +725,8 @@ def main():
                         "predict_ids": [row["id"] for row in fold_predict],
                         "heldout_original_ids": [row["id"] for row in heldout_originals],
                         "epochs": epochs, "seed": seed + fold + 1,
-                        "grouping": "normalized source union synthetic parents across both mixed datasets",
-                        "training_labels": "original plus capped synthetic labels", "outer_validation_used": False}
+                        "grouping": "normalized source union synthetic parents and contrast/template families across both mixed datasets",
+                        "training_labels": "quality-selected originals plus capped synthetic contrasts", "outer_validation_used": False}
             write_json(fold_dir / "fold.json", artifact)
             fold_stats = _fit(config, fold_train, None, fold_checkpoint, fold_dir,
                               device, artifact["seed"], preprocessing, fixed_epochs=epochs)

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Audit private VGEC gold and cap class augmentation at 2× retained originals.
+"""Build private quality-capped VGEC training bundles without changing gold.
 
-Correction training excludes explanatory/invalid targets; classifier training keeps
-all original labels or fails on holdout overlap. Validation is raw original gold.
-Seed 42 is fixed; both v3 bundles expose train, validation and provenance directly.
+Correction excludes incomplete/annotation references; classification excludes
+explicit correct-sentence contradictions. Validation stays raw and seed 42 fixed.
+Clean additions are capped at 40; error additions at classifier-eligible originals.
 """
 
 from __future__ import annotations
@@ -58,20 +58,22 @@ def audit_record(row: dict, raw: dict, *, original: bool = False) -> dict:
     flags, quarantine = [], []
     if target.lstrip().startswith("("):
         quarantine.append("parenthesized_target_annotation")
+        if label != 0 and "đúng" in target.casefold():
+            flags.append("annotation_declares_source_correct")
     if "..." in target or "…" in target:
-        (flags if original else quarantine).append("elliptical_target_not_full_sentence")
+        quarantine.append("elliptical_target_not_full_sentence")
     if label != 0 and normalized(source) == normalized(target):
         quarantine.append("nonzero_label_identity_target")
     if label == 0 and source != target:
         quarantine.append("class0_nonidentity_target")
     if label in (1, 2, 3) and normalized(source) != normalized(target) and without_punctuation(source) == without_punctuation(target):
-        (flags if original else quarantine).append("punctuation_only_change_with_nonpunctuation_label")
+        quarantine.append("punctuation_only_change_with_nonpunctuation_label")
     if punctuation(source) != punctuation(target):
         flags.append("source_target_punctuation_changed")
     if label == 4 and punctuation(source) == punctuation(target):
         flags.append("punctuation_label_without_punctuation_change")
     if "..." in source or "…" in source:
-        flags.append("elliptical_source")
+        quarantine.append("elliptical_source")
     if not target.strip():
         quarantine.append("empty_target")
     elif target.rstrip()[-1] not in ".!?。！？\"”’':;":
@@ -108,8 +110,8 @@ def validate_pool(raw: list[dict], records: list[dict], original_ids: set) -> No
             raise ValueError(f"Synthetic ID {row['id']!r} parent_ids must be an array")
         for parent in parents:
             id_key(parent)
-        if row["label"] == 0:
-            raise ValueError("Synthetic pool must contain correction classes 1..4 only")
+        if row["label"] == 0 and row["source"] != row["target"]:
+            raise ValueError("Synthetic clean examples require exact identity targets")
 
 
 def prepare_destination(destination: Path, inputs: tuple[Path, Path]) -> None:
@@ -156,19 +158,28 @@ def build_split(
     }
     exclusion_reasons = {}
     for row in original_train:
-        reasons = [] if classifier else list(audits[id_key(row["id"])]["quarantine_reasons"])
+        audit = audits[id_key(row["id"])]
+        if classifier:
+            reasons = ["annotation_declares_source_correct"] if "annotation_declares_source_correct" in audit["flags"] else []
+        else:
+            reasons = list(audit["quarantine_reasons"])
         if normalized(row["source"]) in leaking_sources:
             reasons.append("original_source_group_overlaps_validation_source_or_target")
         exclusion_reasons[id_key(row["id"])] = reasons
     retained = [row for row in original_train if not exclusion_reasons[id_key(row["id"])]]
     quarantined = [row for row in original_train if exclusion_reasons[id_key(row["id"])]]
-    if classifier and quarantined:
-        raise ValueError("Classifier requires full original training retention; original source/target overlaps validation")
+    if classifier and any("original_source_group_overlaps_validation_source_or_target" in reasons for reasons in exclusion_reasons.values()):
+        raise ValueError("Classifier cannot retain training text overlapping validation")
     class_counts = counts(retained)
     if any(value == 0 for value in class_counts.values()):
         raise ValueError(f"Seed {seed}: each class needs retained original training examples")
     largest = max(class_counts.values())
-    targets = {str(label): class_counts[str(label)] if label == 0 else min(largest, 2 * class_counts[str(label)]) for label in LABELS}
+    reference_counts = counts([row for row in original_train
+                               if "annotation_declares_source_correct" not in audits[id_key(row["id"])]["flags"]
+                               and normalized(row["source"]) not in leaking_sources])
+    targets = {str(label): class_counts[str(label)] + (
+        min(40, class_counts[str(label)]) if label == 0 else
+        min(reference_counts[str(label)], max(0, largest - class_counts[str(label)]))) for label in LABELS}
 
     train_ids = {id_key(row["id"]) for row in original_train}
     original_sources = defaultdict(list)
@@ -177,6 +188,11 @@ def build_split(
     pool_sources = defaultdict(set)
     for row in synthetic:
         pool_sources[normalized(row["source"])].add((row["label"], normalized(row["target"])))
+    leaking_families = set()
+    for row in synthetic:
+        if any(normalized(row[field]) in validation_text for field in ("source", "target")):
+            metadata = synthetic_raw[id_key(row["id"])]["Provenance"]
+            leaking_families.update((field, metadata[field]) for field in ("family_id", "template_id") if metadata.get(field))
 
     eligible = defaultdict(list)
     rejections = []
@@ -186,6 +202,8 @@ def build_split(
         reasons = []
         if normalized(row["source"]) in validation_text or normalized(row["target"]) in validation_text:
             reasons.append("source_or_target_overlaps_original_validation_source_or_target")
+        if any((field, metadata.get(field)) in leaking_families for field in ("family_id", "template_id")):
+            reasons.append("authored_family_overlaps_validation_text")
         if any(id_key(parent) not in train_ids for parent in metadata.get("parent_ids", [])):
             reasons.append("parent_not_in_original_training_partition")
         key = normalized(row["source"])
@@ -203,9 +221,20 @@ def build_split(
     rng = random.Random(seed)
     selected = []
     selected_sources = {}
-    for label in LABELS[1:]:
-        candidates = sorted(eligible[label], key=lambda row: (type(row["id"]).__name__, str(row["id"])))
-        rng.shuffle(candidates)
+    for label in LABELS:
+        families = defaultdict(list)
+        for row in sorted(eligible[label], key=lambda row: (type(row["id"]).__name__, str(row["id"]))):
+            metadata = synthetic_raw[id_key(row["id"])]["Provenance"]
+            families[metadata["template_rule"]].append(row)
+        rules = sorted(families)
+        rng.shuffle(rules)
+        for family in families.values():
+            rng.shuffle(family)
+        candidates = []
+        while any(families.values()):
+            for rule in rules:
+                if families[rule]:
+                    candidates.append(families[rule].pop())
         needed = targets[str(label)] - class_counts[str(label)]
         for row in candidates:
             key = normalized(row["source"])
@@ -225,9 +254,6 @@ def build_split(
     for row in retained:
         raw = copy.deepcopy(raw_by_id[id_key(row["id"])])
         transformations = []
-        if row["label"] == 0 and raw["Output"].get("Fixed Sentence") is None:
-            raw["Output"]["Fixed Sentence"] = row["source"]
-            transformations.append("class0_null_target_to_exact_input")
         train_entries.append((raw, {
             "id": row["id"], "kind": "original", "original_id": row["id"],
             "transformations": transformations, "audit_flags": audits[id_key(row["id"])]["flags"],
@@ -248,7 +274,9 @@ def build_split(
         raise ValueError(f"Seed {seed}: capped augmentation invariant failed")
     provenance = {
         "split_method": "model.data.split_records on original corpus before quarantine or augmentation",
-        "seed": seed, "balance_policy": "original_capped_2x", "balance_targets_by_class": targets,
+        "seed": seed, "balance_policy": "quality_capped_2x", "balance_targets_by_class": targets,
+        "augmentation_reference_counts": reference_counts,
+        "original_train_class_counts": counts(original_train),
         "original_train_ids": [row["id"] for row in original_train],
         "retained_original_train_ids": [row["id"] for row in retained],
         "quarantined_ids": [row["id"] for row in quarantined],
@@ -266,13 +294,16 @@ def build_split(
     }
     if classifier:
         provenance["training_task"] = "classifier"
-        provenance["original_retention_policy"] = "all_labeled_originals_or_fail_on_validation_overlap"
+        provenance["original_retention_policy"] = "exclude_explicit_correct_sentence_annotation_contradictions"
     summary = {
         "train_rows": len(train), "validation_rows": len(validation),
         "class_counts": provenance["class_counts"], "quarantined_ids": provenance["quarantined_ids"],
         "selected_synthetic_ids": provenance["selected_synthetic_ids"],
         "rejected_synthetic_count": len(rejections),
         "rejection_reason_counts": provenance["rejection_reason_counts"],
+        "selected_rule_counts": dict(sorted(Counter(
+            f"{row['label']}:{synthetic_raw[id_key(row['id'])]['Provenance']['template_rule']}"
+            for row in selected).items())),
     }
     if classifier:
         summary["training_task"] = "classifier"
@@ -297,17 +328,17 @@ def build(original: Path, synthetic_path: Path, output_dir: Path, validation_fra
         "rows": audit_rows, "original_class_counts": counts(records),
         "flag_counts": dict(sorted(Counter(flag for row in audit_rows for flag in row["flags"]).items())),
         "ambiguous_original_ids": [row["original_id"] for row in audit_rows if row["quarantine_reasons"]],
-        "quarantine_policy": "Keep original abbreviated corrections unchanged; exclude explanatory/invalid training targets and entire training source groups with exact normalized source/target overlap with validation. Validation stays raw.",
-        "punctuation_policy": "Original punctuation-only changes retain organizer labels unchanged and are flagged. Synthetic punctuation-only changes under classes 1..3 are rejected.",
+        "quarantine_policy": "Correction excludes annotations and ellipses in source/target; classifier excludes explicit correct-sentence annotation contradictions. Gold and validation stay raw.",
+        "punctuation_policy": "Punctuation-only changes with nonpunctuation labels are excluded from correction training, not relabeled. Synthetic equivalents are rejected.",
         "authored_overrides": [], "quarantine_repairs_gold": False, "privacy": privacy,
     }
     split, summary = build_split(records, raw_by_id, audits, pool, synthetic_raw, validation_fraction)
-    bundle = {"format": "vgec-balanced-v3", "seed": 42, "balance_policy": "original_capped_2x", "validation_fraction": validation_fraction, "original_sha256": original_sha, "synthetic_sha256": synthetic_sha, "privacy": privacy, **split}
+    bundle = {"format": "vgec-balanced-v3", "seed": 42, "balance_policy": "quality_capped_2x", "validation_fraction": validation_fraction, "original_sha256": original_sha, "synthetic_sha256": synthetic_sha, "privacy": privacy, **split}
     classifier_split, classifier_summary = build_split(
         records, raw_by_id, audits, pool, synthetic_raw, validation_fraction, classifier=True,
     )
     classifier_bundle = {**bundle, **classifier_split, "training_task": "classifier"}
-    manifest = {"format": "vgec-manifest-v3", "seed": 42, "balance_policy": "original_capped_2x", "inputs": {"original": {"path": str(original), "sha256": original_sha, "rows": len(raw)}, "synthetic": {"path": str(synthetic_path), "sha256": synthetic_sha, "rows": len(pool_raw)}}, "validation_fraction": validation_fraction, "privacy": privacy, "split": summary}
+    manifest = {"format": "vgec-manifest-v3", "seed": 42, "balance_policy": "quality_capped_2x", "inputs": {"original": {"path": str(original), "sha256": original_sha, "rows": len(raw)}, "synthetic": {"path": str(synthetic_path), "sha256": synthetic_sha, "rows": len(pool_raw)}}, "validation_fraction": validation_fraction, "privacy": privacy, "split": summary}
     manifest["classifier_split"] = classifier_summary
     if original.read_bytes() != original_bytes or synthetic_path.read_bytes() != synthetic_bytes:
         raise ValueError("An input changed during building; no generated outputs were written")

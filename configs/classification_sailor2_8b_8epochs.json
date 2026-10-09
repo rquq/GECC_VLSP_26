@@ -48,10 +48,6 @@
     "effective_batch_size": 8,
     "fp16_initial_scale": 1,
     "class_weight_power": 0.5,
-    "algorithm": {
-      "name": "rdrop",
-      "beta": 1
-    },
     "args": {
       "num_train_epochs": 8,
       "max_steps": -1,

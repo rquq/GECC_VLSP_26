@@ -1,14 +1,19 @@
 # Vietnamese GEC: classification → correction
 
-The retained best classification experiment is **Sailor2-8B NF4 QLoRA,
-five-epoch training horizon, selected epoch 4**, using
-`configs/classification_sailor2_8b.json`. Its saved checkpoint is
-`runs/sailor2-8b-hierarchical-qlora-seed42/classifier` in the shared project
-workspace. This is the user-selected baseline, not the highest observed score:
-the eight-epoch recipe scored higher on the repeatedly used holdout but is
-retained only as comparison evidence. Equal-weight ensembles are not selected.
-The existing Qwen classification + Sailor correction pipeline configs and OOF
-support remain unchanged; the selected standalone Sailor run has no OOF hints.
+The user-selected classification baseline is **audited Sailor2-8B NF4 QLoRA,
+hierarchical subtype coefficient two, five-epoch horizon, selected epoch 4**.
+Its checkpoint is
+`runs/sailor2-8b-hierarchical-qlora-audited-seed42/classifier`: Macro-F1
+**0.614473**, Micro-F1 **0.790123**, on the repeatedly selected 81-row holdout.
+Its actual training provenance includes R-Drop; do not relabel these weights
+as a single-forward result. `configs/classification_sailor2_8b.json` now starts
+fresh single-forward fits with shared weights and ordinary LoRA dropout, no KL.
+
+The historical 480-row five-epoch Sailor checkpoint and higher-scoring eight-epoch
+comparison remain preserved; neither replaces the audited baseline. Equal-weight
+ensembles are not selected. The Qwen classification + Sailor correction pipeline
+and OOF support remain available, but the standalone Sailor baseline has no OOF
+hints and is not an end-to-end correction result.
 
 ## Project layout
 
@@ -19,13 +24,14 @@ support remain unchanged; the selected standalone Sailor run has no OOF hints.
 | `model/classification.py` | Classifier training and leakage-safe correction hints |
 | `model/encoder_classification.py` | Full-finetuned BamiBERT/XLM-R classifiers and saved serving |
 | `model/ensemble.py` | Three fixed equal-probability combinations and sequential serving |
-| `configs/encoder_bamibert.json`, `configs/encoder_xlmr.json` | Pinned encoder training recipes |
+| `configs/encoder_bamibert.json` | Retained standalone encoder recipe |
 | `configs/classification_sailor2_8b.json` | Retained five-epoch Sailor classification experiment |
 | `model/correction.py` | Correction-only QLoRA training and saved-adapter reload |
 | `model/two_phase.py` | Connected stages, preflight and artifact packaging |
 | `model/pipeline_predict.py` | Saved classifier + corrector inference |
 | `notebooks/kaggle_two_phase.ipynb` | Kaggle source bootstrap, live logs and downloads |
 | `tools/build_dataset.py` | Private audited training-bundle preparation |
+| `tools/author_synthetic.py` | Explicit locally authored clean/error contrasts, without reading gold |
 | `dataset/original/` | Untouched original JSON/XLSX |
 | `dataset/newdataset/` | Separate classifier/correction bundles, pool, audit and manifest |
 | `runs/` | Active pipeline artifacts; never committed |
@@ -39,9 +45,9 @@ prediction export modules remain shared between the two tasks.
 
 - Seed **42**; independent JSON configurations for the two stages.
 - Classification: `Qwen/Qwen3-4B-Instruct-2507`, pinned to revision
-  `cdbee75f17c01a7cc42f958dc650907174af0554`, **480 training rows** (all 320
-  original labels + 160 capped synthetic examples), five epochs, raw Vietnamese
-  text, max length 512. NF4 double quantization;
+  `cdbee75f17c01a7cc42f958dc650907174af0554`, **504 training rows** (312
+  unchanged original rows + 192 capped synthetic examples), five epochs, raw
+  Vietnamese text, max length 512. NF4 double quantization;
   LoRA rank 16 / alpha 32 / dropout 0.05 on attention and MLP projections,
   Shared LoRA/head LR **2e-5**, microbatch 1 / effective batch 8. The existing
   linear `score` head still has width five, but its outputs are now one binary
@@ -51,34 +57,26 @@ prediction export modules remain shared between the two tasks.
   punctuation. Training loss and inference composition use FP32 math.
   Prediction is joint argmax, **not a hard binary gate**.
   Five-class sample weights retain baseline inverse-square-root frequencies
-  (`training.class_weight_power: 0.5`) and mean sample weight one. For each of
-  two independent dropout forwards, supervised loss is
-  `L_j = sum_i w[y_i] * (BCE(z0, y_i>0) + 2 * I(y_i>0) * CE(z1..z4, y_i-1)) / N`.
-  The complete training objective is `(L_1 + L_2)/2 + beta * sum_i w[y_i] *
-  (KL(p_1||p_2) + KL(p_2||p_1))/ (2*N)`, with **beta fixed to 1** and `p_j`
-  the composed five-class joint distribution. `N` includes every row in the
-  full or partial final accumulation window; Trainer must not divide again.
-  Symmetric KL is computed stably in FP32, with both distributions attached
-  to autograd. RNG is not reset between passes; LoRA dropout remains 0.05.
-  Clean rows have zero supervised subtype gradient, but their joint subtype
-  disagreement is regularized by KL. Evaluation/inference uses one forward
-  with dropout disabled and joint argmax. No pair augmentation, oversampling,
-  separate head LR, threshold
-  tuning or calibration is active. Synthetic class caps and the 480-row baseline
-  training population are unchanged. Best checkpoint maximizes holdout Macro-F1.
-  Counts/weights, architecture metadata and separate `training_algorithm`
-  provenance (coefficient, KL convention, dropout and forward counts) are saved
-  with the adapter and manifest. R-Drop does not redefine the width-five
-  architecture version 2: existing lambda-two hierarchical adapters still load.
-  Earlier flat and lambda-one checkpoints remain incompatible; their artifacts
-  and measured predictions remain unchanged. Completed R-Drop results are below.
-- Correction: `sail/Sailor2-8B-Chat`, **460 training rows** (310 retained originals
-  + 150 synthetic), five epochs, rank 16 / alpha 32 QLoRA, LR 2e-5;
+  (`training.class_weight_power: 0.5`) and mean sample weight one. A single
+  training forward uses
+  `L = sum_i w[y_i] * (BCE(z0, y_i>0) + 2 * I(y_i>0) * CE(z1..z4, y_i-1)) / N`.
+  `N` includes every row in the full or partial final accumulation window;
+  Trainer must not divide again. Clean rows have zero subtype gradient.
+  Ordinary LoRA dropout remains 0.05; **R-Drop and its KL penalty are removed**.
+  Evaluation/inference uses dropout-disabled joint argmax. No pair-consistency
+  loss, oversampling, separate head LR, threshold tuning or calibration is active.
+  Best checkpoint maximizes holdout Macro-F1. Counts/weights, architecture and
+  single-forward `training_algorithm` provenance are saved with the adapter.
+  Architecture version 2 is unchanged; existing lambda-two adapters still load.
+  Earlier flat and lambda-one checkpoints remain incompatible.
+- Correction: `sail/Sailor2-8B-Chat`, **409 training rows** (217 unchanged originals
+  + 192 synthetic), four configured epochs, rank 16 / alpha 32 QLoRA, LR 2e-5;
   NF4 double quantization, microbatch 1 / effective batch 8.
 - Both stages use the **same 81 original validation rows**.
 - Five fresh train-only OOF classifiers produce correction training hints.
-  Normalized duplicate sources and synthetic parent components across both
-  bundles stay together; each fold trains on its own capped mixed partition.
+  Normalized duplicate sources, synthetic parents, clean/error families and
+  authored template groups across both bundles stay together; folds cap their
+  own mixed training partitions again.
   Outer validation never trains or selects OOF models.
 - Correction receives raw sentences and advisory Vietnamese class descriptions.
   **Predicted class 0 still reaches the corrector**. Final labels come from Qwen3;
@@ -152,9 +150,9 @@ replacing its CUDA build.
 # Active alpha classification-only experiment; no OOF or correction training.
 python -m model.classification --config configs/classification.json --skip-hints
 
-# Matched local run (from the alpha worktree; resolved data paths in this config).
-python -m model.classification --config ../runs/hierarchical-rdrop-seed42-config.json \
-  --output-dir ../runs/hierarchical-rdrop-seed42 --skip-hints
+# Fresh single-forward local run; use an empty output directory.
+python -m model.classification --config configs/classification_sailor2_8b.json \
+  --output-dir runs/sailor2-8b-hierarchical-single-forward-seed42 --skip-hints
 
 # Optional connected pipeline support, outside the current ablation.
 python -m model.classification --config configs/classification.json
@@ -221,13 +219,14 @@ The classifier stores `adapter_config.json`, adapter/head weights, tokenizer,
 quantization/dtype, five-class mapping and `architecture` metadata. Architecture
 version 2 is `soft_hierarchical_error_type`; it records score-output order,
 conditional labels `[1,2,3,4]`, joint log-probability composition, supervised
-objective and joint-argmax decision. `training_algorithm` separately records
-R-Drop provenance without changing reload architecture. Alpha rejects missing
+objective and joint-argmax decision. `training_algorithm` records the actual
+single-forward objective without changing reload architecture. Alpha rejects missing
 or incompatible architecture metadata: old flat checkpoints must be evaluated
 from the baseline branch, not reinterpreted here.
 Inference keeps `{id, label, probabilities}` with five normalized joint scores.
 Pipeline reuse requires a compatible hierarchical mixed-data classifier and its
-complete OOF hints. Existing correction bundles and holdout are unchanged.
+complete OOF hints matching the current bundle hashes. Rebuild bundles and
+retrain rather than reusing historical hints with the audited data.
 Correction's base is reloaded with the saved NF4 settings, then prepared with the
 same frozen nonquantized-weight dtypes as training before loading its adapter.
 
@@ -235,21 +234,84 @@ same frozen nonquantized-weight dtypes as training before loading its adapter.
 ## Private data and score caveats
 
 ```bash
+python tools/author_synthetic.py
 python tools/build_dataset.py
 python -m unittest discover -s agents/tests -v
 ```
 
-The builder writes two bundles. `VGEC_classifier.json` retains every original
-training label, including rows whose correction references are explanatory,
-and adds capped synthetic examples. `VGEC_balanced.json` preserves original
-gold, excludes explanatory/invalid training references, retains abbreviated
-corrections, and caps synthetic augmentation separately. Both keep validation
-unchanged and reject synthetic source/target or parent leakage into holdout.
-Abbreviated references can penalize valid full-sentence corrections and teach
-shortened outputs; ROUGE-L's LCS does not
-remove that mismatch. Inspect annotation diagnostics and standalone-reference
-scores. Holdout-selected scores are not independent test results. No official
-combined ranking formula has been supplied.
+The organizer JSON is byte-for-byte unchanged. Split before auditing or
+augmentation: seed 42, 320 original training rows and the same 81 raw holdout
+rows. Do not repair/relabel organizer gold, reconstruct ellipses, or remove
+holdout annotations to improve reported scores.
+
+`VGEC_classifier.json` excludes eight nonzero-label training rows whose
+parenthesized correction explicitly declares the source correct. Other
+annotation/incomplete-reference rows retain classification supervision.
+`VGEC_balanced.json` excludes 103 training rows with annotation targets, ellipses
+in either source or target, or punctuation-only repairs under a nonpunctuation
+label. Exclusions overlap; they are quarantine, not invented replacement gold.
+Retained raw originals preserve null class-0 targets; only the training loader
+interprets those as exact identity corrections.
+
+| Class | Classifier originals | Correction originals | Added synthetic to each | Classifier total | Correction total |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 0 — clean | 160 | 160 | 40 | 200 | 200 |
+| 1 — sentence | 78 | 48 | 78 | 156 | 126 |
+| 2 — phrase | 23 | 2 | 23 | 46 | 25 |
+| 3 — function word | 23 | 6 | 23 | 46 | 29 |
+| 4 — punctuation | 28 | 1 | 28 | 56 | 29 |
+| Total | 312 | 217 | 192 | 504 | 409 |
+
+The pool contains 696 explicitly authored rows: 324 local errors, 324 exact
+clean counterparts and 48 legal fronted/prepositional/subordinate sentences.
+Error coverage is six clause rules and eight rules each for phrases, function
+words and punctuation. Every row has its edit rationale, stable family/template
+IDs and `assistant_reviewed_not_human_adjudicated` review status. No lexical
+Cartesian expansion, external teacher, gold-source reading, or wholesale
+preposition deletion is used. Numbers are preserved; punctuation corruptions
+preserve all lexical tokens. Missing-predicate targets use the known authored
+counterpart, not a uniquely recoverable reference. Clause/type boundaries,
+naturalness and synthetic-domain mismatch still require linguistic review.
+
+Policy `quality_capped_2x`: add at most 40 clean rows, bounded by retained clean
+count. For error class `c`, add
+`min(classifier_eligible_original_count[c], largest_retained_count - retained_count[c])`.
+Correction uses eligible classification counts as its augmentation reference,
+not its tiny complete-reference counts. Selection rotates across rule families;
+unused pool rows are not automatically included. Both bundles reject normalized
+training/holdout source-target collisions and quarantine whole leaking authored
+families/templates. OOF fits additionally group clean/error counterparts and
+templates, so a related clean example cannot train a model predicting its error.
+
+`audit.json` records flags/exclusion reasons; `manifest.json` records hashes,
+class counts, selected IDs/rules and privacy policy. Generated files stay under
+ignored `dataset/newdataset/`; the author writes the pool atomically with mode
+0600 and refuses unrelated output. The corpus agreement prohibits redistribution
+of original or edited resources: keep bundles private; no public upload or
+external teacher receives the corpus. No new data is published by these commands.
+
+Verification: the builder ran on the private corpus; raw original/holdout
+equality and the original SHA-256 were checked. Real Qwen/Sailor tokenizers
+encoded all 504 classifier and 409 correction training rows; maximum lengths
+were 74 and 275 tokens (correction checked under all five possible hints), below
+512 without target truncation. Five real fold plans predicted 81/82/82/82/82
+correction rows using 397/399/395/401/397 classifier-fit rows. Declaration checks
+accepted the audited quarantine partition and rejected injected family leakage;
+dummy probabilities exercised declarations only, not trained-model accuracy.
+Notebook schema and six code cells validated. Full Sailor correction placement
+preflight rejected the local GPU: 6.93 GiB free versus a conservative 13.24 GiB
+requirement. The builder verification itself ran no training; the later audited
+Sailor classifier rerun is recorded below. No new correction training ran.
+All 95 regression tests passed after deleting an obsolete old-cap assertion;
+focused builder regressions also passed (10 tests).
+
+Holdout still includes one annotation target, 17 elliptical sources and 21
+elliptical targets. Those can penalize valid full-sentence repairs; report
+complete-reference diagnostics alongside raw official-style scores. Historical
+holdout-selected scores below used the older 480/460-row bundles; the explicitly
+marked audited rerun used 504 classifier rows. Neither is an independent-test
+estimate. More synthetic rows are not evidence of better accuracy. No official combined ranking formula
+has been supplied.
 
 Full dataset/scorer evidence: [docs/DATA_METRICS.md](docs/DATA_METRICS.md).
 
@@ -324,27 +386,27 @@ Notebook JSON and all code cells validated. These checks establish runtime
 and leakage contracts, not Macro-F1 improvement or full Qwen3/Sailor2 training.
 
 
-### Historical alpha ablations (retained artifacts, inactive code)
+### Historical rejected alpha ablations
 
 Matched seed-42 five-epoch Qwen3 NF4/BF16 runs used 480 mixed training rows and
 81 original holdout rows. Shared-LR baseline versus 5× head-LR saved-inference
-Macro-F1 was **0.45977767 / 0.45260493**; both selected epoch 3 and used 300
-updates. No stable differential-LR gain was established. Artifacts remain at
-`../runs/lr-head-vs-lora-seed42/`.
-
-Minimal-pair augmentation added 215 clean counterparts (695 total rows), used
-435 updates and selected epoch 4. Saved-inference Macro-F1 was **0.40740642**
-versus baseline **0.45977767**. Clean false alarms fell 3 → 0 but errors classified
-clean rose 2 → 8; the recipe was not promoted. Artifacts remain at
-`../runs/minimal-pairs-seed42/`. Both abandoned experiments' active code and
-alpha-only regression tests have been removed; trained weights/data are retained.
+Macro-F1 was **0.45977767 / 0.45260493**. Minimal-pair clean-counterpart mixing
+scored **0.40740642**, with errors called clean rising from two to eight.
+Neither candidate was promoted. Their runs/configs were deleted; the unchanged
+flat baseline remains at `runs/lr-head-vs-lora-seed42/baseline/` as a useful control.
 
 Historical saved inference lacked Trainer's BF16 autocast: baseline Trainer
-selection Macro-F1 was **0.43460223**, versus pairs **0.43080141**. Scores are
-precision-sensitive and holdout-selected, not independent-test estimates. Alpha's
-hierarchy now matches forward precision between fit and reload. The matched
-hierarchy experiment below uses the reevaluated baseline, not the historical
-0.45977767 saved-inference score.
+selection Macro-F1 was **0.43460223**, versus pairs **0.43080141**. The hierarchy
+comparison below uses the precision-matched baseline, not the historical
+0.45977767 saved-inference score. These are holdout-selected estimates.
+
+Cleansed artifacts: rejected R-Drop and localization runs/configs/tokenizer audit,
+minimal-pair run/config, differential-LR candidate/config, XLM-R checkpoint/recipe,
+all three failed encoder ensembles, the failed Qwen/Sailor ensemble, and the
+mistaken R-Drop separate-weight run/recipe. Selected Sailor baselines, audited
+rerun, eight-epoch comparison, Qwen controls, BamiBERT standalone and historical
+PhoBERT/OOF artifacts remain. General encoder/ensemble utilities remain available;
+no failed ensemble checkpoint is a selected serving path.
 
 ### Completed soft hierarchy ablation
 
@@ -447,187 +509,74 @@ Artifacts (relative to this worktree):
 - `../runs/hierarchical-lambda2-seed42-config.json`: matched training controls.
 - `../runs/hierarchical-seed42/`: retained lambda-one control artifacts.
 
-### R-Drop implementation verification
+### Single-forward cutover verification
 
-The fixed beta-one R-Drop recipe passed **69 behavior regressions**, including
-independent dropout gradients, stable extreme-logit KL and real Trainer updates
-for full and partial accumulation windows. A separate CPU tiny-Qwen smoke ran
-the actual `_fit` path, updated the score head by a maximum absolute **0.05**,
-updated LoRA weights, saved the adapter and reloaded normalized joint-argmax
-predictions. Notebook schema and code-cell compilation passed. The matched
-five-epoch Qwen3-4B GPU experiment is separate; no quality gain is established
-by this implementation smoke.
+The affected regression suite passed **94 tests** after removing R-Drop.
+A real tiny-Qwen CPU fit exercised both shared and separate weighting: five
+microbatches, exactly five training forwards and one optimizer update per fit,
+including a partial effective-batch-eight window. Finite loss/parameters,
+saved-adapter reload and source-only normalized joint-argmax inference passed.
+This is runtime proof, not a full Sailor fit or a no-R-Drop quality measurement.
 
-### Completed matched R-Drop ablation
+### Rejected matched R-Drop ablation
 
-The beta-one R-Drop experiment completed five epochs / **300 optimizer updates**
-on Qwen3-4B NF4/BF16; epoch 5 was selected. Comparison assertions verified the
-same ordered 480 training rows, 81 holdout rows, model revision, LoRA settings,
-class weights, package versions, preprocessing and training arguments except
-artifact paths. The coefficient-two hierarchy control was reused, not retrained.
-Saved-adapter inference retained one forward, BF16 autocast and joint argmax.
+The historical beta-one experiment and coefficient-two control both scored
+Macro-F1 **0.50845162**, accuracy **0.69135802**, with identical labels on all
+81 rows. Probabilities changed by up to 0.06777167, but there were no fixes or
+regressions. R-Drop required two training forwards without observed benefit.
+Its run and standalone config were deleted; active training uses one forward
+and no KL penalty. Retained successful Sailor checkpoints still record their
+actual historical R-Drop provenance; they are not single-forward fit results.
 
-| Measure | Hierarchy coefficient 2 | R-Drop beta 1 |
+### Rejected alpha/beta comparison
+
+On the same ordered 480-row train / 81-row holdout, coefficient-two hierarchy,
+R-Drop and localization scored Macro-F1 **0.50845162 / 0.50845162 / 0.48774208**.
+Localization introduced two regressions with no fixes. Neither candidate
+demonstrated improvement. Both failed outputs and their experiment configs
+were deleted. These historical scores remain negative evidence, not available
+serving checkpoints or independent-test results.
+
+## Standalone encoder comparison
+
+BamiBERT and XLM-R were full-finetuned on the Qwen coefficient-two control's
+ordered 480 training rows and 81 held-out originals. Both used seed 42, five
+epochs, LR 2e-5, microbatch 1 / effective batch 8, raw text up to 512 tokens,
+inverse-square-root class weights and flat weighted five-class CE. BamiBERT
+selected epoch 2; XLM-R selected epoch 4. Saved reload preserved their decisions.
+
+| Model or equal-weight ensemble | Macro-F1 | Micro-F1 |
 | --- | ---: | ---: |
-| Five-way Macro-F1 | 0.50845162 | 0.50845162 |
-| Micro-F1 / accuracy | 0.69135802 | 0.69135802 |
-| Gold-error subtype Macro-F1 | 0.41654457 | 0.41654457 |
-| Correct subtype on 41 errors | 20 | 20 |
-| Clean false alarms | 4 | 4 |
-| Errors called clean | 0 | 0 |
+| Qwen hierarchy control | 0.508452 | 0.691358 |
+| BamiBERT standalone | 0.509337 | 0.666667 |
+| XLM-R standalone | 0.398770 | 0.666667 |
+| Qwen + BamiBERT | 0.502429 | 0.691358 |
+| Qwen + XLM-R | 0.458957 | 0.703704 |
+| All three | 0.446174 | 0.703704 |
 
-All 81 predicted labels are identical: **zero fixes, zero regressions, zero
-Macro-F1 delta**. Joint probabilities changed by up to **0.06777167**, so this
-is not a reused prediction file. The paired row-bootstrap delta is [0, 0] only
-because these labels are identical; it does not prove generalization equivalence.
-The repeatedly selected holdout is not an independent test. Training loss was
-1.23480150 with finite parameters and statistics. R-Drop used two training
-forwards and took about 50.5 minutes; **no classification benefit was observed**.
-Prefer the simpler hierarchy control for efficiency on current evidence.
-R-Drop remains active in alpha and its requested integration into `rquq/test`;
-there is no silent algorithm rollback or localization merge.
+No ensemble improved Macro-F1. XLM-R and all three failed ensemble outputs
+were deleted, along with the XLM-R recipe. BamiBERT's standalone checkpoint and
+recipe remain as a useful small-model comparator, not a replacement for Sailor.
+Its advantage over Qwen was only 0.000885 with lower accuracy. These scores
+use the repeatedly selected holdout, not an independent test.
 
-Shared project artifacts:
-- `runs/hierarchical-rdrop-seed42/`: adapter/head, saved predictions, metrics,
-  epoch/trainer histories, manifest and matched `comparison.json`.
-- `runs/hierarchical-rdrop-seed42-config.json`: exact experiment controls.
-
-### Completed alpha/beta comparison
-
-Both requested experiments used the same ordered 480 training rows, 81 holdout
-rows, seed 42, Qwen3-4B revision, NF4/BF16 precision, LoRA settings, class weights,
-preprocessing and 300 optimizer updates. Epoch 5 was selected in both. Beta
-required `remove_unused_columns=False` to retain auxiliary labels; other Trainer
-arguments matched the hierarchy control except artifact paths. The control was
-reused, not retrained. No OOF or correction fits ran.
-
-| Measure | Hierarchy coefficient 2 | Alpha R-Drop | Beta localization |
-| --- | ---: | ---: | ---: |
-| Five-way Macro-F1 | 0.50845162 | 0.50845162 | 0.48774208 |
-| Micro-F1 / accuracy | 0.69135802 | 0.69135802 | 0.66666667 |
-| Correct subtype on 41 errors | 20 | 20 | 18 |
-| Clean false alarms | 4 | 4 | 4 |
-| Errors called clean | 0 | 0 | 0 |
-
-Alpha changed probabilities but no labels. Beta changed three labels: IDs 5
-and 43 became incorrect, while ID 120 moved between incorrect subtypes. Beta's
-Macro-F1 delta was -0.02070953; the descriptive paired class-stratified
-row-bootstrap 95% interval was [-0.05384649, +0.00196186]. This repeatedly
-selected holdout omits source dependence and recipe/checkpoint uncertainty;
-neither experiment demonstrates generalization improvement.
-
-Prefer the simpler hierarchy control on current evidence. The requested alpha
-R-Drop integration remains active in `rquq/test`; beta localization remains
-separate. Integrated notebook preflight and actual CUDA saved-classifier serving
-passed; beta serving also reproduced saved probabilities within 1e-6 for the
-three changed IDs and clean/punctuation examples. Beta evidence is preserved in
-`runs/hierarchical-localization-seed42/comparison.json`, its manifest and durable
-localization audit; alpha evidence is in `runs/hierarchical-rdrop-seed42/`.
-
-## Heterogeneous encoder ensemble
-
-Run from the alpha worktree using the pinned `requirements.txt` environment.
-Reuse the saved `hierarchical-lambda2-seed42` Qwen control: do not retrain it or
-substitute the R-Drop checkpoint. Encoder training reads that run's exact
-ordered canonical `train.json` and `validation.json`, checking ID/source split
-separation. Each encoder uses seed 42, full fine-tuning, five epochs, LR 2e-5,
-microbatch 1 / effective batch 8, raw text up to 512 tokens and the same
-inverse-square-root class weights. The objective is flat weighted five-class
-CE divided by accumulation-window rows, not Qwen's hierarchical loss.
-Checkpoint selection maximizes holdout Macro-F1; no weight sweep or calibration.
+Fresh standalone BamiBERT fit (use an empty output directory):
 
 ```bash
 python -m model.encoder_classification --config configs/encoder_bamibert.json \
-  --control-run ../runs/hierarchical-lambda2-seed42 \
-  --output-dir ../runs/heterogeneous-ensemble-seed42/bamibert
-python -m model.encoder_classification --config configs/encoder_xlmr.json \
-  --control-run ../runs/hierarchical-lambda2-seed42 \
-  --output-dir ../runs/heterogeneous-ensemble-seed42/xlmr
-python -m model.ensemble --qwen-run ../runs/hierarchical-lambda2-seed42 \
-  --bamibert-run ../runs/heterogeneous-ensemble-seed42/bamibert \
-  --xlmr-run ../runs/heterogeneous-ensemble-seed42/xlmr \
-  --output-dir ../runs/heterogeneous-ensemble-seed42/ensembles
+  --control-run runs/hierarchical-lambda2-seed42 \
+  --output-dir runs/bamibert-repeat-seed42
 ```
 
-Both encoders load their published `tokenizer.json` backend directly through
-`PreTrainedTokenizerFast`. BamiBERT's metadata names an XLM-R tokenizer despite
-its byte-level BPE backend; automatic loading fails under Transformers 5.9.
-Direct backend loading retains its segmentation, special-token processing and
-raw punctuation; save/reload token IDs were identical in a tokenizer smoke.
-No external Vietnamese word segmentation is applied. Revisions are pinned in
-the configs. [BamiBERT](https://huggingface.co/Qualcomm-AI-Research/BamiBERT)
-specifies research/educational use and Qualcomm responsible-AI terms;
-[XLM-R](https://huggingface.co/FacebookAI/xlm-roberta-base) is MIT licensed.
-Competition eligibility is not verified here.
-
-The evaluator checks ordered train/holdout equality and exact typed prediction
-IDs. It evaluates exactly `qwen_bamibert`, `qwen_xlmr` and `all_three`, with
-direct equal-weight means of the original five-class probabilities followed by
-argmax. Each directory contains `ensemble_config.json`, joined predictions,
-metrics and paired fixes/regressions; `summary.json` includes every standalone
-model, per-class F1 and disagreement. Class order is always 0..4. Invalid or
-unnormalized probability vectors and nested ensembles are rejected.
-
-Saved serving accepts unseen source-only records:
-
-```python
-from model.ensemble import classify
-predictions = classify(
-    "../runs/heterogeneous-ensemble-seed42/ensembles/qwen_bamibert",
-    [{"id": "new-1", "source": "Tôi đang đọc sách."}],
-    device="cuda", batch_size=1,
-)
-```
-
-Members load sequentially and release GPU weights between forwards. Configs
-reference absolute member checkpoint paths; relocating artifacts requires
-updating those paths. Encoders save complete fine-tuned weights, unlike QLoRA
-adapters. This is classification only: no corrected-sentence generation.
-The holdout has been repeatedly used for selection; any gain is exploratory,
-not independent-test evidence.
-
-### Completed fixed-split experiment
-
-Both encoders completed five epochs / 300 optimizer updates on the same 480
-training rows and 81 held-out originals as the saved Qwen hierarchy control.
-BamiBERT selected epoch 2 (102,955,013 parameters; training/evaluation/save
-duration 156.9 s); XLM-R selected epoch 4 (278,047,493 parameters; 217.8 s).
-These timings exclude initial model loading and final saved-checkpoint reload.
-Both reloaded checkpoints preserved the selected holdout decisions.
-
-| Model or equal-weight ensemble | Macro-F1 | Micro-F1 | Fixes / regressions vs Qwen |
-| --- | ---: | ---: | ---: |
-| Qwen hierarchy control | 0.508452 | 0.691358 | — |
-| BamiBERT standalone | 0.509337 | 0.666667 | — |
-| XLM-R standalone | 0.398770 | 0.666667 | — |
-| Qwen + BamiBERT | 0.502429 | 0.691358 | 3 / 3 |
-| Qwen + XLM-R | 0.458957 | 0.703704 | 5 / 4 |
-| Qwen + BamiBERT + XLM-R | 0.446174 | 0.703704 | 7 / 6 |
-
-No equal-weight ensemble improved Macro-F1 over Qwen or the best standalone
-model. The XLM-R pair and triple gained one correct row overall but lost all
-class-3 recall, giving class-3 F1 zero. Diversity alone did not help: Qwen
-disagreed with BamiBERT on 30/81 rows and with XLM-R on 24/81. The BamiBERT
-standalone Macro-F1 advantage is only 0.000885, with lower Micro-F1; it is not
-evidence for replacing Qwen. Retain Qwen as this ensemble experiment's control
-and these artifacts as a negative ensemble result. No weight tuning or
-recursive ensemble averaging was performed.
-
-Real GPU serving was exercised for all three saved ensembles, using one
-held-out row per class plus a new source-only sentence. Probabilities matched
-saved offline predictions within atol 1e-6 / rtol 1e-5, labels matched, and
-unseen outputs had finite normalized vectors. All three classified the clean
-smoke sentence “Tôi đang đọc một cuốn sách rất thú vị.” as class 4: serving
-works, but this is an observed quality failure, not a correctness example.
-The integrated alpha suite passed all 80 tests.
-
-Artifacts: `runs/heterogeneous-ensemble-seed42/{bamibert,xlmr}/` contain full
-checkpoints, splits, histories, manifests and joined predictions.
-`runs/heterogeneous-ensemble-seed42/ensembles/summary.json` contains full
-standalone and ensemble metrics; combination directories include per-class
-F1, confusion matrices, paired changed IDs and serving configurations.
-Only alpha implementation/docs/tests were changed; beta and `rquq/test` were
-not changed by this experiment.
+The retained checkpoint is `runs/heterogeneous-ensemble-seed42/bamibert/`.
+Encoder loading uses the published `tokenizer.json` through
+`PreTrainedTokenizerFast`, without external Vietnamese word segmentation.
+BamiBERT metadata names an XLM-R tokenizer despite its byte-level BPE backend;
+direct backend loading preserves segmentation, special tokens and punctuation.
+[BamiBERT](https://huggingface.co/Qualcomm-AI-Research/BamiBERT) specifies
+research/educational use and Qualcomm responsible-AI terms; competition
+eligibility is not verified. General ensemble utilities remain available for
+explicit future experiments, not as a selected or precomputed serving path.
 
 ## Larger Vietnamese QLoRA classifier: Sailor2-8B
 
@@ -698,6 +647,110 @@ a connected correction pipeline without producing its required hints. Only
 the new alpha recipe and this documentation were changed; beta and
 `rquq/test` were not changed by this experiment.
 
+### Audited private-bundle five-epoch rerun
+
+Completed a fresh fit on 312 retained originals + 192 locally authored synthetic
+rows (504 total; class counts 200/156/46/46/56), excluding eight contradictory
+original annotations. The resolved config and ordered 81-row raw holdout matched
+the historical five-epoch Sailor run exactly. Original JSON SHA-256 was unchanged.
+No historical checkpoint was overwritten; no correction or OOF fit ran.
+
+```bash
+HF_HUB_OFFLINE=1 TOKENIZERS_PARALLELISM=false python -m model.classification \
+  --config configs/classification_sailor2_8b.json \
+  --data 'dataset/original/VGEC 2026_v1.json' \
+  --output-dir runs/sailor2-8b-hierarchical-qlora-audited-seed42 --skip-hints
+```
+
+Five epochs / 315 optimizer updates completed on the local RTX 4060 Laptop 8 GB
+GPU. Trainer runtime was 3613.241 s (60.22 minutes), excluding initial model
+loading and final saved-adapter reload. Epoch 4 was selected; epoch 5 declined
+to Macro-F1 0.547676. All 46,155,264 trainable parameters and training statistics
+were finite. Maximum training source length was 74 tokens, below the 512 limit.
+
+| Measure | Historical 480-row fit | Audited 504-row fit |
+| --- | ---: | ---: |
+| Macro-F1 | 0.607858 | 0.614473 |
+| Micro-F1 | 0.790123 | 0.790123 |
+| Correct holdout rows | 64/81 | 64/81 |
+| Class 0 F1 | 0.987342 | 0.963855 |
+| Class 1 F1 | 0.727273 | 0.750000 |
+| Class 2 F1 | 0.181818 | 0.363636 |
+| Class 3 F1 | 0.571429 | 0.461538 |
+| Class 4 F1 | 0.571429 | 0.533333 |
+
+Eight decisions changed: three fixes (IDs 117, 287, 81), three regressions
+(162, 61, 21), and two wrong-to-wrong changes (142, 17). Clean recall improved
+from 39/40 to 40/40, but three errors were classified as clean versus zero
+historically. Phrase recall improved from 1/7 to 2/7; function-word recall fell
+from 4/7 to 3/7. The small Macro-F1 gain is mixed evidence, not grounds for
+replacing the retained user-selected baseline automatically.
+
+Saved-adapter inference rescored all 81 rows. A separate CUDA serving reload
+on one held-out row per gold class matched all saved probabilities exactly
+(maximum absolute difference 0; tolerance atol 1e-6 / rtol 1e-5) and labels.
+The previously misclassified source-only clean sentence “Tôi đang đọc một cuốn
+sách rất thú vị.” now predicted class 0 with probability 0.999632. This single
+probe does not establish generalization.
+
+Artifacts: `runs/sailor2-8b-hierarchical-qlora-audited-seed42/` contains the
+adapter/head, exact splits, resolved config, epoch/trainer histories, manifest,
+predictions, metrics, `comparison.json` and `serving_smoke.json`. The repeatedly
+selected holdout is not independent test evidence. Filtering, synthetic coverage,
+class weights and the cosine update horizon changed together (300 to 315
+updates), so the result does not isolate augmentation quality or quarantine.
+
+### Separate detection/subtype weighting ablation
+
+**Rejected experiment:** this run mistakenly retained R-Drop after the user
+had rejected it. These numbers describe separate weights **with R-Drop**, not
+the intended no-R-Drop recipe. Its artifacts and standalone config were deleted
+at the user's request. No full no-R-Drop separate-weight fit has been measured.
+
+The historical candidate used the deleted separate-weight Sailor recipe. The
+audited 504-row training population, ordered 81-row holdout, seed 42, Sailor model/revision,
+QLoRA settings, LR 5e-5, five-epoch schedule, subtype coefficient two and
+R-Drop beta one remained unchanged. The resolved recipe differed only in
+`training.hierarchical_weighting: "separate"` and run name. The audited control
+was neither retrained nor reloaded; its saved predictions were rescored, and
+all baseline artifact content hashes remained unchanged.
+
+The historical supervised term was
+`sum_i (d[y_i>0] * BCE_i + 2 * s[y_i] * I(y_i>0) * CE_i) / N`.
+Detection/subtype weights were normalized over all rows/error rows respectively;
+the R-Drop KL term still used the original five-class weights. Separate weighting
+remains supported in the single-forward trainer, but has no measured full fit.
+
+Five epochs / 315 updates completed with finite parameters and loss; Trainer
+runtime was 4683.178 s (78.05 minutes), excluding initial loading and final
+saved-adapter evaluation. Epoch 4 was selected by holdout Macro-F1.
+
+| Measure | Audited shared-weight control | Separate-weight candidate |
+| --- | ---: | ---: |
+| Macro-F1 | 0.614473 | 0.596330 |
+| Micro-F1 | 0.790123 | 0.802469 |
+| Correct holdout rows | 64/81 | 65/81 |
+| Class 0 F1 | 0.963855 | 1.000000 |
+| Class 1 F1 | 0.750000 | 0.829268 |
+| Class 2 F1 | 0.363636 | 0.285714 |
+| Class 3 F1 | 0.461538 | 0.333333 |
+| Class 4 F1 | 0.533333 | 0.533333 |
+| Clean false alarms | 0/40 | 0/40 |
+| Errors classified as clean | 3/41 | 0/41 |
+| Detected errors with wrong subtype | 14 | 16 |
+| Conditional subtype accuracy on gold-error rows | 26/41 | 25/41 |
+
+Six decisions changed: fixes on IDs 61 and 21; regression on ID 136;
+wrong-to-wrong changes on IDs 142, 181 and 146. Detection improved, but
+minority subtype performance worsened: Macro-F1 fell by 0.018143 despite one
+net correct row. Retain the baseline; this is not a successful Macro-F1
+replacement and does not establish generalization on an independent test.
+
+Before deletion, source-only CUDA reload matched all saved labels and
+probabilities on five held-out inputs exactly. Its former output was
+`runs/sailor2-8b-hierarchical-separate-weights-audited-seed42/`.
+The four deferred options remain subject to user selection; none was launched.
+
 ### Eight-epoch fit and equal-weight Qwen ensemble
 
 Completed a fresh fit with `configs/classification_sailor2_8b_8epochs.json`.
@@ -744,22 +797,11 @@ cuốn sách rất thú vị.” produced a finite normalized vector but was wro
 classified as class 4 (probability 0.484187). Serving consistency is not proof
 of classification quality.
 
-```python
-from model.ensemble import classify
-predictions = classify(
-    "../runs/sailor2-8b-8epochs-qwen-ensemble-seed42",
-    [{"id": "new-1", "source": "Tôi đang đọc sách."}],
-    device="cuda", batch_size=1,
-)
-```
-
-Artifacts: `runs/sailor2-8b-hierarchical-qlora-8epochs-seed42/` contains the
-selected adapter/head, exact splits, metrics, predictions, histories, manifest
-and paired `comparison.json` against Qwen and five-epoch Sailor.
-`runs/sailor2-8b-8epochs-qwen-ensemble-seed42/` contains `ensemble_config.json`,
-predictions, metrics, paired comparisons, `summary.json` and
-`serving_smoke.json`. Ensemble member checkpoint paths are absolute; update
-them if moving artifacts to another machine.
+The failed Qwen/Sailor ensemble output was deleted. The higher-scoring standalone
+eight-epoch checkpoint remains at
+`runs/sailor2-8b-hierarchical-qlora-8epochs-seed42/`, with its exact splits,
+metrics, histories and comparisons. It is retained comparison evidence, not the
+user-selected five-epoch serving baseline.
 
 All results use the repeatedly selected 81-row holdout; no independent test
 was evaluated. The small gain does not establish generalization or isolate
@@ -789,19 +831,19 @@ Serve the retained checkpoint without retraining:
 ```python
 from model.classification import classify
 predictions = classify(
-    "runs/sailor2-8b-hierarchical-qlora-seed42/classifier",
+    "runs/sailor2-8b-hierarchical-qlora-audited-seed42/classifier",
     [{"id": "new-1", "source": "Tôi đang đọc sách."}],
     device="cuda", batch_size=1,
 )
 ```
 
-Selection is classification-only: five-epoch Macro-F1 0.607858, Micro-F1
-0.790123, 64/81 correct. Do not substitute the eight-epoch adapter or ensemble
-when reporting this baseline. Connecting it to correction requires fresh
-train-only OOF hints and end-to-end correction evaluation first.
+Current audited selection is classification-only: Macro-F1 0.614473, Micro-F1
+0.790123, 64/81 correct. Do not substitute the historical 480-row or eight-epoch
+adapter when reporting this baseline. Connecting it to correction requires
+fresh train-only OOF hints and end-to-end correction evaluation first.
 
-Integrated verification: all 80 regression tests passed. Data discovery from
-`rquq/test` reproduced the retained run's exact ordered 480 training and 81
+Historical integration verification: all 80 regression tests passed. Data discovery
+from `rquq/test` reproduced the historical run's ordered 480 training and 81
 validation rows. Actual CUDA serving of its five-epoch recipe's selected
 adapter matched saved probabilities within atol 1e-6 / rtol 1e-5 and labels
 exactly on IDs 377, 60, 130, 140 and 197. No retraining or correction run was
@@ -893,11 +935,10 @@ grammar classes.
    above. Keep coefficient two in alpha for fresh group-safe evaluation; the
    small gain does not justify replacing the baseline. Do not tune thresholds
    or sweep more coefficients on the repeatedly used holdout.
-2. Next **classification** candidate: auxiliary edit localization/type only on
-   audited complete source-target pairs. Incomplete corrections cannot define
-   trustworthy KEEP/error spans; omit their auxiliary loss rather than invent
-   targets. Classification still receives source text only—never gold-selected
-   descriptions, corrections or explanations.
+2. **Rejected classification candidate:** auxiliary edit localization/type was
+   tested above and regressed on this split. It is not active; revisiting it
+   requires a different, explicitly selected experiment on audited complete
+   source-target pairs. Classification remains source-only.
 3. Next **data/schedule** candidate: realistic syntax, phrase, function-word and
    punctuation corruptions with verified labels, then an original-gold-only
    finishing stage. Keep synthetic parents/duplicate sources inside training
@@ -909,6 +950,48 @@ grammar classes.
 5. Defer a Vietnamese edit tagger and error-specialized MoE until sufficiently
    large, verified aligned data exists. Neither is a paper-proven shortcut for
    the current 401 gold sentences.
+
+### Deferred classifier algorithms
+
+The separate detection/subtype weighting experiment is complete above; the user
+has not yet selected among these four algorithms. None ran in that experiment:
+
+1. [LDAM](https://arxiv.org/abs/1906.07413) on conditional subtype logits:
+   training-only class margins; preserve binary detection and joint inference.
+2. [Supervised contrastive learning](https://arxiv.org/abs/2004.11362) on gold-error
+   sentence representations: cross-family positives, actual contrastive batches,
+   and a training-only projection head.
+3. [Adversarial consistency](https://aclanthology.org/2020.acl-main.197/) under
+   constrained embedding perturbations: separate binary/subtype consistency.
+   This term alone is not the complete SMART algorithm.
+4. [Focal loss](https://arxiv.org/abs/1708.02002) on conditional subtype probabilities:
+   a replacement for subtype CE, not initially combined with LDAM.
+
+All four are untested proposals for this Sailor hierarchy. Compare them one at a
+time against the retained shared-weight baseline; do not silently stack or launch them.
+
+### Next controlled experiment
+
+First fit a fresh **single-forward shared-weight Sailor lambda-two control** on
+the exact audited 504 training rows and ordered 81-row holdout. Retain the audited
+R-Drop checkpoint unchanged as historical evidence. This prerequisite measures
+the requested R-Drop removal; it must not be combined with a new objective.
+
+Next recommended ablation: conditional subtype focal loss with fixed gamma two,
+replacing only subtype CE and retaining coefficient two, shared sample weights,
+binary BCE, model/revision, data/order, seed 42, LoRA, LR/schedule, five epochs,
+checkpoint selection and joint-argmax serving. Do not add separate weights or
+another class-alpha factor. This is an untested hypothesis targeting subtype
+confusion, not a promised improvement; ambiguous labels can receive excessive
+weight. It works with microbatch one without contrastive-batch machinery.
+
+Compare saved-reload five-way Macro-F1, each subtype F1, gold-error subtype
+accuracy, clean false alarms, missed errors and paired fixes/regressions against
+the new no-R-Drop control. No gamma sweep on this holdout. Require a genuinely
+untouched, independently annotated evaluation set before claiming generalization.
+Neither the full control rerun nor focal-loss implementation/training was launched
+by this recommendation.
+
 
 The auxiliary-supervision, data/schedule and correction priorities remain
 proposals, not measured improvements. This holdout has already selected

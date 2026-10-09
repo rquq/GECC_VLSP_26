@@ -1,10 +1,12 @@
 """Capped augmentation must preserve originals without leaking into validation."""
+import copy
+import hashlib
 import json
 from pathlib import Path
 import tempfile
 import unittest
 
-from model.data import load_training_split
+from model.data import load_classifier_split, load_records, load_training_split, split_records
 
 
 def row(identifier, label, source, target):
@@ -13,26 +15,30 @@ def row(identifier, label, source, target):
 
 
 def bundle(original_counts=(4, 1, 2, 3, 1)):
-    originals = [row(label * 10 + index, label, f"original {label} {index}",
+    originals = [row(label * 1000 + index, label, f"original {label} {index}",
                      None if label == 0 else f"correction {label} {index} ...")
                  for label, count in enumerate(original_counts) for index in range(count)]
     largest = max(original_counts)
-    targets = {str(label): count if label == 0 else min(largest, 2 * count)
+    targets = {str(label): count + min(40, count) if label == 0 else min(largest, 2 * count)
                for label, count in enumerate(original_counts)}
     synthetics = [row(f"syn:{label}:{index}", label, f"synthetic {label} {index}",
-                      f"synthetic correction {label} {index}")
-                  for label in range(1, 5)
+                      f"synthetic {label} {index}" if label == 0 else f"synthetic correction {label} {index}")
+                  for label in range(5)
                   for index in range(targets[str(label)] - original_counts[label])]
-    validation = [row(1000, 0, "Original clean sentence.", None),
-                  row(1001, 1, "Original incorrect sentence.", "(Annotation) ...")]
+    validation = [row(10000, 0, "Original clean sentence.", None),
+                  row(10001, 1, "Original incorrect sentence.", "(Annotation) ...")]
     provenance = {
-        "balance_policy": "original_capped_2x", "balance_targets_by_class": targets,
+        "balance_policy": "quality_capped_2x", "balance_targets_by_class": targets,
+        "augmentation_reference_counts": {str(label): count for label, count in enumerate(original_counts)},
+        "original_train_class_counts": {str(label): count + (label == 2)
+                                        for label, count in enumerate(original_counts)},
         "original_train_ids": [r["ID"] for r in originals] + [999],
         "retained_original_train_ids": [r["ID"] for r in originals],
+        "quarantined_ids": [999],
         "selected_synthetic_ids": [r["ID"] for r in synthetics],
         "train_rows": [{"id": r["ID"], "kind": "original", "original_id": r["ID"]}
                        for r in originals] +
-                      [{"id": r["ID"], "kind": "synthetic", "parent_ids": [r["Output"]["Error_Type_Id"] * 10]}
+                      [{"id": r["ID"], "kind": "synthetic", "parent_ids": [r["Output"]["Error_Type_Id"] * 1000]}
                        for r in synthetics],
     }
     return {"format": "vgec-balanced-v3", "seed": 42, "validation_fraction": 0.2,
@@ -65,13 +71,13 @@ class BalancedSplitTests(unittest.TestCase):
 
     def test_capped_unequal_training_preserves_original_targets_and_validation(self):
         train, validation, metadata = self.load()
-        self.assertEqual([r["id"] for r in validation], [1000, 1001])
+        self.assertEqual([r["id"] for r in validation], [10000, 10001])
         self.assertEqual(validation[0]["target"], "Original clean sentence.")
         self.assertEqual(validation[1]["target"], "(Annotation) ...")
         self.assertEqual({r["id"] for r in train}, {r["ID"] for r in self.train})
-        self.assertEqual(next(r["target"] for r in train if r["id"] == 10), "correction 1 0 ...")
+        self.assertEqual(next(r["target"] for r in train if r["id"] == 1000), "correction 1 0 ...")
         counts = {str(label): sum(r["label"] == label for r in train) for label in range(5)}
-        self.assertEqual(counts, {"0": 4, "1": 2, "2": 4, "3": 4, "4": 2})
+        self.assertEqual(counts, {"0": 8, "1": 2, "2": 4, "3": 4, "4": 2})
         originals = self.provenance["retained_original_train_ids"]
         self.assertTrue(all(sum(r["label"] == label for r in train) <=
                             2 * sum(r["label"] == label and r["id"] in originals for r in train)
@@ -79,11 +85,14 @@ class BalancedSplitTests(unittest.TestCase):
         self.assertEqual(metadata["provenance"], self.provenance)
         self.assertEqual(metadata["format"], "vgec-balanced-v3")
 
-    def test_majority_can_be_an_error_class_and_class_zero_is_not_augmented(self):
+    def test_majority_can_be_an_error_class_and_clean_additions_are_capped(self):
         self.reset_bundle((2, 5, 1, 3, 1))
         train, _, _ = self.load()
         self.assertEqual([sum(r["label"] == label for r in train) for label in range(5)],
-                         [2, 5, 2, 5, 2])
+                         [4, 5, 2, 5, 2])
+        self.reset_bundle((50, 1, 2, 3, 1))
+        train, _, _ = self.load()
+        self.assertEqual(sum(r["label"] == 0 for r in train), 90)
 
     def test_seed_and_fraction_mismatch_cannot_resplit_augmented_rows(self):
         with self.assertRaisesRegex(ValueError, "Training seed must be 42"):
@@ -125,7 +134,7 @@ class BalancedSplitTests(unittest.TestCase):
                             self.load()
 
     def test_shared_training_validation_ids_rejected(self):
-        self.train[0]["ID"] = 1000
+        self.train[0]["ID"] = 10000
         with self.assertRaisesRegex(ValueError, "shared training/validation IDs"):
             self.load()
 
@@ -150,33 +159,69 @@ class BalancedSplitTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.load()
 
-    def test_synthetic_class_zero_rejected(self):
-        self.add_synthetic(0)
-        with self.assertRaises(ValueError):
-            self.load()
+    def test_synthetic_clean_labels_require_exact_identity(self):
+        for target in ("different correction", " SYNTHETIC 0 0 ", "synthetic 0 0 "):
+            with self.subTest(target=target):
+                self.reset_bundle()
+                clean = next(r for r in self.train if r["ID"] == "syn:0:0")
+                clean["Output"]["Fixed Sentence"] = target
+                with self.assertRaisesRegex(ValueError, "exact source/target identity"):
+                    self.load()
 
     def test_all_five_classes_require_retained_originals(self):
-        self.train[:] = [r for r in self.train if r["ID"] != 40]
-        self.provenance["retained_original_train_ids"].remove(40)
-        self.provenance["train_rows"][:] = [r for r in self.provenance["train_rows"] if r["id"] != 40]
+        self.train[:] = [r for r in self.train if r["ID"] != 4000]
+        self.provenance["retained_original_train_ids"].remove(4000)
+        self.provenance["quarantined_ids"].append(4000)
+        self.provenance["train_rows"][:] = [r for r in self.provenance["train_rows"] if r["id"] != 4000]
         with self.assertRaises(ValueError):
             self.load()
 
     def test_policy_and_declared_targets_must_match_actual_original_counts(self):
-        self.provenance["balance_policy"] = "equal_classes"
-        with self.assertRaises(ValueError):
-            self.load()
-        for targets in ({"0": 4, "1": 4, "2": 4, "3": 4, "4": 4},
-                        {"0": 4, "1": 2, "2": 4, "3": 4},
-                        {"0": 4, "1": 2.0, "2": 4, "3": 4, "4": 2}):
+        for policy in ("original_capped_2x", "equal_classes"):
+            with self.subTest(policy=policy):
+                self.provenance["balance_policy"] = policy
+                with self.assertRaises(ValueError):
+                    self.load()
+        for targets in ({"0": 4, "1": 2, "2": 4, "3": 4, "4": 2},
+                        {"0": 8, "1": 2, "2": 4, "3": 4},
+                        {"0": 8, "1": 2.0, "2": 4, "3": 4, "4": 2}):
             with self.subTest(targets=targets):
                 self.reset_bundle()
                 self.provenance["balance_targets_by_class"] = targets
                 with self.assertRaises(ValueError):
                     self.load()
 
+    def test_legacy_top_level_policy_cannot_override_quality_provenance(self):
+        self.bundle["balance_policy"] = "original_capped_2x"
+        with self.assertRaisesRegex(ValueError, "balance_policy"):
+            self.load()
+
+    def test_correction_augmentation_can_use_classifier_eligible_reference_counts(self):
+        self.reset_bundle((8, 2, 1, 1, 1))
+        excluded = [900, 901, 902, 903]
+        self.provenance["original_train_ids"].extend(excluded)
+        self.provenance["quarantined_ids"].extend(excluded)
+        self.provenance["original_train_class_counts"]["2"] += len(excluded)
+        self.provenance["augmentation_reference_counts"]["2"] = 5
+        self.provenance["balance_targets_by_class"]["2"] = 6
+        for index in range(4):
+            identifier = f"reference:2:{index}"
+            self.train.append(row(identifier, 2, f"reference error {index}", f"reference repair {index}"))
+            self.provenance["selected_synthetic_ids"].append(identifier)
+            self.provenance["train_rows"].append({"id": identifier, "kind": "synthetic", "parent_ids": []})
+        train, _, _ = self.load()
+        self.assertEqual(sum(r["label"] == 2 for r in train), 6)
+
+    def test_augmentation_reference_counts_are_bounded_by_original_partition(self):
+        for value in (0, 4, 2.0, True):
+            with self.subTest(value=value):
+                self.reset_bundle()
+                self.provenance["augmentation_reference_counts"]["2"] = value
+                with self.assertRaises(ValueError):
+                    self.load()
+
     def test_partition_id_lists_require_arrays_and_unique_ids(self):
-        for field in ("original_train_ids", "retained_original_train_ids", "selected_synthetic_ids"):
+        for field in ("original_train_ids", "retained_original_train_ids", "selected_synthetic_ids", "quarantined_ids"):
             for invalid in (None, "not an array", "duplicate"):
                 with self.subTest(field=field, invalid=invalid):
                     self.reset_bundle()
@@ -200,11 +245,11 @@ class BalancedSplitTests(unittest.TestCase):
                     self.load()
 
     def test_retained_originals_must_belong_to_non_holdout_original_partition(self):
-        self.provenance["original_train_ids"].remove(10)
+        self.provenance["original_train_ids"].remove(1000)
         with self.assertRaises(ValueError):
             self.load()
         self.reset_bundle()
-        self.provenance["original_train_ids"].append(1001)
+        self.provenance["original_train_ids"].append(10001)
         with self.assertRaises(ValueError):
             self.load()
         self.reset_bundle()
@@ -231,7 +276,7 @@ class BalancedSplitTests(unittest.TestCase):
                     self.load()
 
     def test_synthetic_parent_ids_require_original_training_partition(self):
-        for parents in ([1001], ["unknown"], "not an array", [True]):
+        for parents in ([10001], ["unknown"], "not an array", [True]):
             with self.subTest(parents=parents):
                 self.reset_bundle()
                 metadata = next(r for r in self.provenance["train_rows"] if r["kind"] == "synthetic")
@@ -250,6 +295,124 @@ class BalancedSplitTests(unittest.TestCase):
         self.load()
         del self.provenance["train_rows"]
         self.load()
+
+
+class ClassifierRetentionTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.original = self.root / "original.json"
+        self.path = self.root / "classifier.json"
+        self.raw = [row(label * 10 + index, label, f"organizer {label} {index}",
+                        None if label == 0 else f"organizer repair {label} {index}")
+                    for label in range(5) for index in range(5)]
+        self.original.write_text(json.dumps(self.raw), encoding="utf-8")
+        train, _ = split_records(load_records(self.original), 0.2, 42)
+        self.annotation_ids = [r["id"] for r in train if r["label"] == 2]
+        targets = ("  (Câu này ĐÚNG, không cần sửa.)", "(Ghi chú chưa đủ)",
+                   "Câu đúng nhưng không phải chú thích.", "Bản sửa ...")
+        by_id = {r["ID"]: r for r in self.raw}
+        for identifier, target in zip(self.annotation_ids, targets):
+            by_id[identifier]["Output"]["Fixed Sentence"] = target
+        self.original.write_text(json.dumps(self.raw), encoding="utf-8")
+        self.excluded = {self.annotation_ids[0]}
+        self.make_bundle()
+
+    def make_bundle(self, excluded=None):
+        excluded = self.excluded if excluded is None else excluded
+        train, validation = split_records(load_records(self.original), 0.2, 42)
+        by_id = {r["ID"]: r for r in self.raw}
+        retained = [r for r in train if r["id"] not in excluded]
+        counts = [sum(r["label"] == label for r in retained) for label in range(5)]
+        targets = {str(label): count + min(40, count) if label == 0 else min(max(counts), 2 * count)
+                   for label, count in enumerate(counts)}
+        synthetics = [row(f"syn:{label}:{index}", label, f"authored {label} {index}",
+                          f"authored {label} {index}" if label == 0 else f"authored repair {label} {index}")
+                      for label in range(5) for index in range(targets[str(label)] - counts[label])]
+        self.bundle = {
+            "format": "vgec-balanced-v3", "seed": 42, "validation_fraction": 0.2,
+            "original_sha256": hashlib.sha256(self.original.read_bytes()).hexdigest(),
+            "train": [copy.deepcopy(by_id[r["id"]]) for r in retained] + synthetics,
+            "validation": [copy.deepcopy(by_id[r["id"]]) for r in validation],
+            "provenance": {
+                "balance_policy": "quality_capped_2x", "balance_targets_by_class": targets,
+                "augmentation_reference_counts": {str(label): count for label, count in enumerate(counts)},
+                "original_train_class_counts": {str(label): sum(r["label"] == label for r in train)
+                                                for label in range(5)},
+                "original_train_ids": [r["id"] for r in train],
+                "retained_original_train_ids": [r["id"] for r in retained],
+                "quarantined_ids": [r["id"] for r in train if r["id"] in excluded],
+                "selected_synthetic_ids": [r["ID"] for r in synthetics],
+                "train_rows": [{"id": r["id"], "kind": "original"} for r in retained]
+                              + [{"id": r["ID"], "kind": "synthetic", "parent_ids": []} for r in synthetics],
+            },
+        }
+
+    def load(self):
+        self.path.write_text(json.dumps(self.bundle), encoding="utf-8")
+        return load_classifier_split(self.original, self.path, 0.2, 42)
+
+    def test_only_contradictory_nonzero_correct_annotation_is_quarantined(self):
+        train, _ = self.load()
+        actual = {r["id"]: r for r in train}
+        self.assertNotIn(self.annotation_ids[0], actual)
+        originals = {r["id"]: r for r in load_records(self.original)}
+        for identifier in self.annotation_ids[1:]:
+            self.assertEqual(actual[identifier], originals[identifier])
+
+    def test_unauthorized_removal_or_retention_is_rejected_even_with_valid_counts(self):
+        for excluded in (set(), self.excluded | {self.annotation_ids[1]}):
+            with self.subTest(excluded=excluded):
+                self.make_bundle(excluded)
+                with self.assertRaisesRegex(ValueError, "retention/quarantine"):
+                    self.load()
+
+    def test_clean_original_with_correct_annotation_remains_classifier_supervision(self):
+        train, _ = split_records(load_records(self.original), 0.2, 42)
+        clean_id = next(r["id"] for r in train if r["label"] == 0)
+        record = next(r for r in self.raw if r["ID"] == clean_id)
+        record["Output"]["Fixed Sentence"] = "(Câu này đúng.)"
+        self.original.write_text(json.dumps(self.raw), encoding="utf-8")
+        self.make_bundle()
+        actual, _ = self.load()
+        self.assertEqual(next(r["target"] for r in actual if r["id"] == clean_id), "(Câu này đúng.)")
+
+    def test_classifier_reference_counts_must_equal_recomputed_eligible_originals(self):
+        self.bundle["provenance"]["augmentation_reference_counts"]["2"] = 4
+        with self.assertRaisesRegex(ValueError, "reference/original counts"):
+            self.load()
+
+    def test_original_mutation_or_relabel_is_rejected(self):
+        for field, value in (("Input", "changed organizer source"),
+                             ("Fixed Sentence", "changed organizer correction"),
+                             ("Error_Type_Id", 1)):
+            with self.subTest(field=field):
+                self.make_bundle()
+                record = next(r for r in self.bundle["train"] if r["ID"] == self.annotation_ids[1])
+                if field == "Input":
+                    record[field] = value
+                else:
+                    record["Output"][field] = value
+                with self.assertRaises(ValueError):
+                    self.load()
+
+    def test_raw_null_clean_targets_cannot_be_rewritten_as_explicit_identity(self):
+        for partition in ("train", "validation"):
+            with self.subTest(partition=partition):
+                self.make_bundle()
+                record = next(r for r in self.bundle[partition] if r["Output"]["Error_Type_Id"] == 0)
+                record["Output"]["Fixed Sentence"] = record["Input"]
+                with self.assertRaisesRegex(ValueError, "raw originals/holdout"):
+                    self.load()
+
+    def test_forged_original_partition_and_quarantine_ids_are_rejected(self):
+        for field in ("original_train_ids", "quarantined_ids"):
+            with self.subTest(field=field):
+                self.make_bundle()
+                self.bundle["provenance"][field].append("not-an-original")
+                with self.assertRaises(ValueError):
+                    self.load()
 
 
 if __name__ == "__main__":

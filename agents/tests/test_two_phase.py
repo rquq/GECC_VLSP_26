@@ -44,6 +44,24 @@ class OutOfFoldGroupingTests(unittest.TestCase):
             self.assertFalse({_source_key(row["source"]) for row in train} &
                              {_source_key(row["source"]) for row in predict})
 
+    def test_clean_error_and_template_variants_never_train_each_others_hints(self):
+        originals = [{"id": i, "source": f"original {i}", "label": i % 5, "target": "fixed"}
+                     for i in range(40)]
+        synthetic = [
+            {"id": "clean", "source": "legal construction", "label": 0, "target": "legal construction"},
+            {"id": "error", "source": "broken construction", "label": 2, "target": "legal construction"},
+            {"id": "variant", "source": "related broken construction", "label": 2, "target": "related legal construction"},
+        ]
+        metadata = [{"id": r["id"], "authored_provenance": {
+            "family_id": "pair" if r["id"] != "variant" else "another-pair",
+            "template_id": "phrase-family"}} for r in synthetic]
+        plans = _connected_folds(originals, originals + synthetic,
+                                 {"train_rows": metadata}, 3, 42, originals + synthetic)
+        for train, _, predicted in plans:
+            if any(r["id"] == "error" for r in predicted):
+                self.assertTrue({"clean", "error", "variant"}.isdisjoint(r["id"] for r in train))
+                self.assertTrue({"clean", "error", "variant"}.issubset(r["id"] for r in predicted))
+
 
 class MixedClassifierFoldTests(unittest.TestCase):
     def test_classifier_only_synthetic_parent_components_and_fold_caps(self):
@@ -265,9 +283,6 @@ class QwenClassifierTests(unittest.TestCase):
             self.assertEqual(saved["model"], config["model"])
             self.assertEqual(saved["lora"]["modules_to_save"], ["score"])
             self.assertEqual(saved["architecture"], _architecture())
-            self.assertEqual(saved["training_algorithm"]["beta"], 1.0)
-            self.assertEqual(saved["training_algorithm"]["training_forwards"], 2)
-            self.assertEqual(saved["training_algorithm"]["lora_dropout"], 0.3)
             state = load_file(str(checkpoint / "adapter_model.safetensors"))
             head = next(value for key, value in state.items() if key.endswith(".score.weight"))
             self.assertFalse(torch.equal(head, initial_score))

@@ -4,22 +4,26 @@ The original corpus is isolated at `dataset/original/VGEC 2026_v1.json`;
 `Metrics_GEC.pdf` specifies evaluation. The accompanying XLSX supplies names and
 descriptions only. Original gold is never silently rewritten. The inventory
 below describes the original 401 records, not the derived balanced training data.
-The correction recipe uses `dataset/newdataset/VGEC_balanced.json`: original-only
-splits, unchanged abbreviated original training corrections, explanatory/invalid
-target exclusion, and locally authored augmentation capped at 2× retained originals
-per error class (also capped at the majority-original count). Class 0 is unchanged.
-Seed 42: 310 originals + 150 synthetic = 460 training rows.
-Validation stays at 81 original rows; all training source/target exact normalized
-matches to validation source/target are excluded. See [../README.md](../README.md)
-for provenance, caveats and the builder command.
+The correction recipe uses `dataset/newdataset/VGEC_balanced.json`: split the
+original corpus first, exclude annotation/incomplete-reference training rows,
+then add capped locally authored contrasts without rewriting any retained gold.
+Seed 42: 217 originals + 192 synthetic = 409 correction training rows.
+The classifier separately keeps 312 originals and adds 192 synthetic = 504 rows.
+Validation stays at the same 81 raw original rows; normalized source/target
+overlap and leaking authored families/templates are excluded from training.
+See [../README.md](../README.md) for counts, authoring/review limits and commands.
 
 Both bundles use `vgec-balanced-v3`: `seed: 42` and top-level `train`,
-`validation`, and `provenance`. `VGEC_classifier.json` retains all 320 original
-training labels and adds 160 synthetic rows; correction-reference quarantine
-does not discard classifier labels. The `vgec-manifest-v3` manifest has
-`seed: 42`, a correction `split` summary and a separate `classifier_split`.
-The builder takes no seed CLI option; the loader rejects other seeds and older
-bundle formats.
+`validation`, and `provenance`, with policy `quality_capped_2x`.
+`VGEC_classifier.json` excludes only explicit nonzero-label correct-sentence
+annotation contradictions; incomplete correction gold alone does not discard
+classification supervision. `VGEC_balanced.json` excludes ellipses in either
+text, parenthesized annotations and punctuation-only repairs under other labels.
+The `vgec-manifest-v3` manifest records separate correction `split` and
+`classifier_split` summaries. Augmentation reference/original partition counts
+are mandatory provenance; older cap policies are rejected. Rebuild bundles and
+fresh OOF hints after this cutover. The builder takes no seed CLI option;
+consumers reject seeds other than 42 and older bundle formats.
 
 ## Dataset inventory
 
@@ -54,21 +58,57 @@ Qwen3-4B QLoRA predicts class IDs 0–4; the corrector receives Vietnamese class
 ### Classification imbalance and workbook explanations
 
 The classifier uses `VGEC_classifier.json`, not the correction augmentation
-bundle. Seed-42 original training counts for classes 0–4 are **160, 78, 27, 26,
-29**; synthetic counts are **0, 78, 27, 26, 29**, giving **480** mixed rows with
-counts **160, 156, 54, 52, 58**. The unchanged holdout has **40, 20, 7, 7, 7**.
-The 460-row correction bundle's counts (**160, 156, 42, 46, 56**) are separate.
-`configs/classification.json` sets `training.class_weight_power` to 0.5:
-weights are proportional to mixed `count ** -0.5`, normalized so their
-training-row mean is one. Main-fit weights are approximately **0.802024,
-0.812241, 1.380545, 1.406843, 1.332090**. Each OOF fit excludes connected
-source/parent groups from both bundles, caps synthetic rows again at its own
-original count per class, and recomputes weights from that fit's mixed rows.
-Neither outer holdout labels nor OOF prediction rows enter its loss.
+bundle. Seed-42 raw original training counts for classes 0–4 are **160, 78, 27,
+26, 29**. Eight contradictory annotation rows are excluded, giving retained
+counts **160, 78, 23, 23, 28**. Synthetic counts **40, 78, 23, 23, 28** give
+**504** classifier rows with counts **200, 156, 46, 46, 56**. The unchanged
+holdout has **40, 20, 7, 7, 7**. Correction retains **160, 48, 2, 6, 1** originals
+and adds the same synthetic counts for **409** rows (**200, 126, 25, 29, 29**).
+Clean additions are capped at min(40, retained clean count); error additions at
+min(eligible classification originals, largest retained count - retained count).
+These limits prevent unlimited expansion, but do not prove linguistic quality.
+`configs/classification.json` uses `training.class_weight_power: 0.5`: mixed
+`count ** -0.5` weights normalized to training-row mean one. Current weights
+are approximately **0.747443, 0.846313, 1.558527, 1.558527, 1.412535**. Each OOF
+fit excludes connected source/parent/family/template groups, caps clean additions
+at min(40, its retained clean count) and error additions at its original count,
+then recomputes weights from its own mixed rows. Neither outer holdout labels nor
+OOF prediction rows enter its loss. Historical scores used the older bundles.
+The audited five-epoch Sailor classifier rerun scored Macro-F1 0.614473 versus
+0.607858 historically; both had Micro-F1 0.790123 (64/81 correct), with three
+fixes and three regressions. See [../README.md](../README.md) for per-class and
+serving evidence. This repeatedly selected holdout is not an independent test;
+filtering, synthetic coverage, weights and update horizon changed together.
+The audited run is now the user-selected baseline. Its saved weights retain
+R-Drop provenance; fresh active fits use single-forward training. No new
+correction or OOF training ran.
 Square-root weighting is a conservative choice relative to full inverse
 frequency because minority labels include annotation ambiguity. It is not
 evidence of improved Macro-F1; compare full runs with power 0 and 0.5 while
 holding other settings fixed, and inspect per-class recall and confusion.
+
+The rejected historical separate-weight Sailor ablation used
+`training.hierarchical_weighting: "separate"`; its standalone config and run
+were deleted during cleanup. The active shared-weight recipe now uses one
+training forward with no R-Drop. Detection counts **200/304** yield weights
+**1.128586/0.915404**, normalized to training-row mean one. Conditional subtype
+counts **156/46/46/56** yield weights **0.725729/1.336466/1.336466/1.211275**,
+normalized to error-row mean one; clean rows have zero supervised subtype loss.
+Both supervised terms divide by the accumulation-window row count, with the
+subtype coefficient still two. That historical run mistakenly retained R-Drop
+KL after user rejection; the reported scores do not evaluate the intended
+no-R-Drop recipe. No holdout labels entered weight construction.
+
+On the same ordered 81-row holdout, separate weighting scored Macro-F1
+**0.596330** versus **0.614473**, and Micro-F1 **0.802469** versus **0.790123**.
+Errors classified as clean fell from three to zero, with no clean false alarms,
+but phrase/function-word F1 declined. Two fixes and one regression gave one net
+correct row; conditional subtype accuracy on gold-error rows fell from 26/41
+to 25/41. The baseline is retained. The control artifacts were unchanged and
+neither retrained nor reloaded. Candidate CUDA adapter serving reproduced saved
+probabilities exactly before deletion. See [../README.md](../README.md) for
+retained historical evidence. This was a negative Macro-F1 ablation with R-Drop
+on a repeatedly selected holdout, not independent-test proof.
 
 `Error Description` is a **per-example annotation explaining the diagnosis**,
 not a fifth model input supplied at deployment. XML inspection found nonempty

@@ -142,8 +142,8 @@ def load_training_split(path: str | Path, validation_fraction: float, seed: int)
     """Use original grouped splits or a prebuilt split-before-augmentation bundle.
 
     A v3 bundle is never re-split: its validation records remain original gold.
-    Retained originals define capped per-class targets; only error classes gain
-    synthetic rows. Train-row provenance is optional, but when supplied its IDs,
+    Retained originals define capped per-class targets, including at most 40
+    exact-identity clean additions. Train-row provenance is optional, but its IDs,
     kinds and synthetic parents must agree with the original training partition.
     Only seed 42 is accepted, before opening the dataset; fractions must match.
     """
@@ -176,8 +176,9 @@ def load_training_split(path: str | Path, validation_fraction: float, seed: int)
     provenance = raw.get("provenance")
     if not isinstance(provenance, dict):
         raise ValueError("Bundle must include provenance")
-    if provenance.get("balance_policy") != "original_capped_2x":
-        raise ValueError("Bundle balance_policy must be original_capped_2x")
+    if (provenance.get("balance_policy") != "quality_capped_2x"
+            or ("balance_policy" in raw and raw["balance_policy"] != "quality_capped_2x")):
+        raise ValueError("Bundle balance_policy must be quality_capped_2x")
 
     def provenance_ids(name: str) -> set:
         values = provenance.get(name)
@@ -191,10 +192,13 @@ def load_training_split(path: str | Path, validation_fraction: float, seed: int)
     original_ids = provenance_ids("original_train_ids")
     retained_ids = provenance_ids("retained_original_train_ids")
     synthetic_ids = provenance_ids("selected_synthetic_ids")
+    quarantined_ids = provenance_ids("quarantined_ids")
     if original_ids & validation_ids:
         raise ValueError("Original training partition includes validation IDs")
     if not retained_ids <= original_ids:
         raise ValueError("Retained originals must belong to original training partition")
+    if quarantined_ids != original_ids - retained_ids:
+        raise ValueError("Quarantined IDs must exactly cover excluded original training IDs")
     if retained_ids & synthetic_ids:
         raise ValueError("Retained original and selected synthetic IDs must be disjoint")
     if synthetic_ids & original_ids:
@@ -204,18 +208,33 @@ def load_training_split(path: str | Path, validation_fraction: float, seed: int)
     original_counts = Counter(r["label"] for r in train if _id_key(r["id"]) in retained_ids)
     if set(original_counts) != set(LABELS):
         raise ValueError("Retained originals must represent all labels 0..4")
-    if any(r["label"] == 0 for r in train if _id_key(r["id"]) in synthetic_ids):
-        raise ValueError("Synthetic rows must have error labels 1..4")
+    if any(r["label"] == 0 and r["source"] != r["target"]
+           for r in train if _id_key(r["id"]) in synthetic_ids):
+        raise ValueError("Synthetic clean rows must have exact source/target identity")
+    reference_counts = provenance.get("augmentation_reference_counts")
+    partition_counts = provenance.get("original_train_class_counts")
+    for name, counts in (("augmentation_reference_counts", reference_counts),
+                         ("original_train_class_counts", partition_counts)):
+        if (not isinstance(counts, dict) or set(counts) != {str(label) for label in LABELS}
+                or any(type(value) is not int or value < 0 for value in counts.values())):
+            raise ValueError(f"Bundle provenance {name} must contain nonnegative integer counts for labels 0..4")
+    if sum(partition_counts.values()) != len(original_ids):
+        raise ValueError("Original training class counts must cover the original partition")
+    if any(not original_counts[label] <= reference_counts[str(label)] <= partition_counts[str(label)]
+           for label in LABELS):
+        raise ValueError("Augmentation reference counts must lie between retained and original class counts")
     largest = max(original_counts.values())
-    targets = {str(label): original_counts[label] if label == 0 else min(largest, 2 * original_counts[label])
+    targets = {str(label): (original_counts[label] + min(40, original_counts[label]) if label == 0
+                            else original_counts[label] + min(reference_counts[str(label)],
+                                                              max(0, largest - original_counts[label])))
                for label in LABELS}
     declared_targets = provenance.get("balance_targets_by_class")
     if (not isinstance(declared_targets, dict) or set(declared_targets) != set(targets)
             or any(type(value) is not int for value in declared_targets.values())
             or declared_targets != targets):
-        raise ValueError("Declared balance_targets_by_class must match original_capped_2x targets")
+        raise ValueError("Declared balance_targets_by_class must match quality_capped_2x targets")
     if _counts(train) != targets:
-        raise ValueError("Bundle training class counts must match original_capped_2x targets")
+        raise ValueError("Bundle training class counts must match quality_capped_2x targets")
     if "train_rows" in provenance:
         metadata_rows = provenance["train_rows"]
         if not isinstance(metadata_rows, list):
@@ -244,20 +263,40 @@ def load_training_split(path: str | Path, validation_fraction: float, seed: int)
 
 
 def load_classifier_split(original_path, bundle_path, validation_fraction, seed):
-    """Require capped augmentation of every original classifier training row."""
-    originals, validation = split_records(load_records(original_path), validation_fraction, seed)
+    """Validate classifier augmentation against the untouched organizer split.
+
+    Only nonzero originals whose parenthesized target explicitly says 'đúng'
+    may be quarantined. Other annotations and incomplete corrections remain
+    classifier supervision; no original may be repaired or relabeled.
+    """
+    original_raw = json.loads(Path(original_path).read_text(encoding="utf-8"))
+    originals, validation = split_records(_records_from_raw(original_raw), validation_fraction, seed)
     train, heldout, info = load_training_split(bundle_path, validation_fraction, seed)
     if info["format"] != "vgec-balanced-v3":
         raise ValueError("Classifier requires a mixed v3 training bundle")
     provenance = info["provenance"]
-    expected = {_id_key(row["id"]): row for row in originals}
+    expected_originals = {_id_key(row["id"]): row for row in originals}
+    expected_quarantine = {_id_key(row["id"]) for row in originals
+                           if row["label"] != 0 and row["target"].lstrip().startswith("(")
+                           and "đúng" in row["target"].casefold()}
+    expected = {key: row for key, row in expected_originals.items() if key not in expected_quarantine}
     retained = {_id_key(value) for value in provenance["retained_original_train_ids"]}
     declared = {_id_key(value) for value in provenance["original_train_ids"]}
-    if retained != set(expected) or declared != set(expected):
-        raise ValueError("Classifier bundle must retain every original training row")
+    quarantined = {_id_key(value) for value in provenance["quarantined_ids"]}
+    if declared != set(expected_originals) or retained != set(expected) or quarantined != expected_quarantine:
+        raise ValueError("Classifier bundle retention/quarantine differs from original annotation policy")
+    if (provenance["augmentation_reference_counts"] != _counts(list(expected.values()))
+            or provenance["original_train_class_counts"] != _counts(originals)):
+        raise ValueError("Classifier augmentation reference/original counts differ from organizer split")
     actual = {_id_key(row["id"]): row for row in train if _id_key(row["id"]) in retained}
     if actual != expected or heldout != validation:
         raise ValueError("Classifier bundle originals/holdout differ from original grouped split")
+    bundle_raw = json.loads(Path(bundle_path).read_text(encoding="utf-8"))
+    raw_by_id = {_id_key(row["ID"]): row for row in original_raw}
+    retained_raw = {_id_key(row["ID"]): row for row in bundle_raw["train"] if _id_key(row["ID"]) in retained}
+    if (retained_raw != {key: raw_by_id[key] for key in retained}
+            or bundle_raw["validation"] != [raw_by_id[_id_key(row["id"])] for row in validation]):
+        raise ValueError("Classifier bundle raw originals/holdout differ from organizer JSON")
     if info.get("original_sha256") != hashlib.sha256(Path(original_path).read_bytes()).hexdigest():
         raise ValueError("Classifier bundle original SHA256 differs")
     if "train_rows" not in provenance:

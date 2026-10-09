@@ -4,8 +4,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from model.data import load_records, load_training_split, split_records
-from tools.build_dataset import audit_record, build, build_split, id_key, normalized
+from model.data import load_classifier_split, load_records, load_training_split, split_records
+from tools.build_dataset import audit_record, build, build_split, id_key
 
 
 class DatasetBuilderTests(unittest.TestCase):
@@ -34,6 +34,12 @@ class DatasetBuilderTests(unittest.TestCase):
              "Output": {"Error_Type_Id": 2, "Fixed Sentence": "Safe synthetic corrected sentence."},
              "Provenance": {"template_rule": "local-pair", "parent_ids": []}},
         ]
+        self.pool_rows.extend(
+            {"ID": f"syn:clean:{i}", "Input": f"Authored clean sentence {i}.",
+             "Output": {"Error_Type_Id": 0, "Fixed Sentence": f"Authored clean sentence {i}."},
+             "Provenance": {"template_rule": "clean-identity", "parent_ids": []}}
+            for i in range(10)
+        )
         self.pool.write_text(json.dumps(self.pool_rows))
 
     def add_pool(self):
@@ -45,40 +51,29 @@ class DatasetBuilderTests(unittest.TestCase):
         )
         self.pool.write_text(json.dumps(self.pool_rows))
 
-    def test_original_abbreviations_and_punctuation_labels_are_retained(self):
-        train, _ = split_records(load_records(self.original), 0.2, 42)
+    def test_incomplete_and_mislabeled_punctuation_originals_are_not_repaired(self):
+        train, validation = split_records(load_records(self.original), 0.2, 42)
         ids = [r["id"] for r in train if r["label"] == 1][:2]
         by_id = {r["ID"]: r for r in self.raw}
         by_id[ids[0]]["Output"]["Fixed Sentence"] = "Original shortened correction..."
         by_id[ids[1]]["Output"]["Fixed Sentence"] = by_id[ids[1]]["Input"].rstrip(".") + "?"
         self.original.write_text(json.dumps(self.raw))
-        output = self.root / "retained"
-        build(self.original, self.pool, output, 0.2)
-        split = json.loads((output / "VGEC_balanced.json").read_text())
-        actual = {r["ID"]: r for r in split["train"]}
-        for identifier in ids:
-            self.assertEqual(actual[identifier], by_id[identifier])
-        self.assertNotIn(self.quarantined_id, actual)
-
-    def test_low_original_class_gets_only_one_synthetic_per_original(self):
-        self.raw.extend({"ID": 100 + i, "Input": f"extra clean {i}.",
-                         "Output": {"Error_Type_Id": 0, "Fixed Sentence": None}} for i in range(5))
-        self.original.write_text(json.dumps(self.raw))
-        train, _ = split_records(load_records(self.original), 0.2, 42)
-        class2 = [r["id"] for r in train if r["label"] == 2]
-        for r in self.raw:
-            if r["ID"] in class2[1:]:
-                r["Output"]["Fixed Sentence"] = "(Explanatory note)"
-        # Keep exactly one usable class-2 original, irrespective of shuffle order.
-        next(r for r in self.raw if r["ID"] == class2[0])["Output"]["Fixed Sentence"] = "Usable correction."
-        self.original.write_text(json.dumps(self.raw))
         self.add_pool()
-        output = self.root / "capped"
-        report = build(self.original, self.pool, output, 0.2)["split"]["class_counts"]
-        self.assertEqual(report["retained_original_train"]["2"], 1)
-        self.assertEqual(report["selected_synthetic"]["2"], 1)
-        self.assertEqual(report["balanced_train"]["2"], 2)
-        self.assertEqual(report["balanced_train"]["0"], 8)
+        before = self.original.read_bytes()
+        output = self.root / "strict-correction"
+        build(self.original, self.pool, output, 0.2)
+        correction = json.loads((output / "VGEC_balanced.json").read_text())
+        classifier = json.loads((output / "VGEC_classifier.json").read_text())
+        correction_ids = {r["ID"] for r in correction["train"]}
+        classifier_rows = {r["ID"]: r for r in classifier["train"]}
+        for identifier in ids:
+            self.assertNotIn(identifier, correction_ids)
+            self.assertEqual(classifier_rows[identifier], by_id[identifier])
+        self.assertNotIn(self.quarantined_id, correction_ids)
+        expected_validation = [by_id[r["id"]] for r in validation]
+        self.assertEqual(correction["validation"], expected_validation)
+        self.assertEqual(classifier["validation"], expected_validation)
+        self.assertEqual(self.original.read_bytes(), before)
 
     def test_original_target_overlap_excludes_whole_source_group(self):
         train, validation = split_records(load_records(self.original), 0.2, 42)
@@ -96,7 +91,7 @@ class DatasetBuilderTests(unittest.TestCase):
         self.assertNotIn(original["id"], [r["ID"] for r in split["train"]])
         exclusion = next(r for r in split["provenance"]["quarantine"] if r["original_id"] == original["id"])
         self.assertIn("original_source_group_overlaps_validation_source_or_target", exclusion["reasons"])
-        with self.assertRaisesRegex(ValueError, "full original training retention"):
+        with self.assertRaisesRegex(ValueError, "overlapping validation"):
             build(self.original, self.pool, output, 0.2)
         self.assertFalse(output.exists())
 
@@ -105,19 +100,15 @@ class DatasetBuilderTests(unittest.TestCase):
         output = self.root / "balanced"
         report = build(self.original, self.pool, output, 0.2)
         bundle = json.loads((output / "VGEC_balanced.json").read_text())
-        self.assertEqual(bundle["format"], "vgec-balanced-v3")
-        self.assertEqual(bundle["seed"], 42)
-        self.assertEqual(report["format"], "vgec-manifest-v3")
-        self.assertEqual(report["seed"], 42)
-        self.assertNotIn("splits", bundle)
-        self.assertNotIn("splits", report)
-        self.assertNotIn("seeds", report)
         split = bundle
         by_id = {r["ID"]: r for r in self.raw}
         self.assertEqual(split["validation"], [by_id[i] for i in self.validation_ids])
-        self.assertEqual(report["split"]["class_counts"]["balanced_train"], {str(i): 4 for i in range(5)})
+        self.assertEqual(report["split"]["class_counts"]["balanced_train"],
+                         {"0": 8, "1": 4, "2": 4, "3": 4, "4": 4})
         self.assertEqual(split["provenance"]["quarantined_ids"], [self.quarantined_id])
-        self.assertEqual(split["provenance"]["selected_synthetic_ids"], ["syn:safe"])
+        selected_errors = [r["ID"] for r in split["train"]
+                           if isinstance(r["ID"], str) and r["Output"]["Error_Type_Id"] != 0]
+        self.assertEqual(selected_errors, ["syn:safe"])
         self.assertTrue(any(r["synthetic_id"] == "syn:leak" for r in split["provenance"]["rejections"]))
         first = (output / "VGEC_balanced.json").read_bytes()
         build(self.original, self.pool, output, 0.2)
@@ -163,16 +154,93 @@ class DatasetBuilderTests(unittest.TestCase):
         self.assertEqual(provenance["quarantined_ids"], [])
         self.assertEqual(bundle["validation"], correction["validation"])
         self.assertEqual(bundle["validation"], [by_id[r["id"]] for r in validation])
-        self.assertEqual(manifest["classifier_split"]["class_counts"]["balanced_train"], {str(i): 8 for i in range(5)})
-        self.assertEqual(provenance["class_counts"]["selected_synthetic"], {"0": 0, "1": 4, "2": 4, "3": 4, "4": 4})
+        self.assertEqual(manifest["classifier_split"]["class_counts"]["balanced_train"],
+                         {"0": 16, "1": 8, "2": 8, "3": 8, "4": 8})
+        self.assertEqual(provenance["class_counts"]["selected_synthetic"],
+                         {"0": 8, "1": 4, "2": 4, "3": 4, "4": 4})
         rejected = {r["synthetic_id"]: r["reasons"] for r in provenance["rejections"]}
         self.assertIn("source_or_target_overlaps_original_validation_source_or_target", rejected["syn:leak"])
         self.assertIn("source_or_target_overlaps_original_validation_source_or_target", rejected["syn:target-leak"])
         self.assertIn("parent_not_in_original_training_partition", rejected["syn:bad-parent"])
         self.assertIn("VGEC_classifier.json", manifest["outputs"])
         loaded_train, loaded_validation, _ = load_training_split(output / "VGEC_classifier.json", 0.2, 42)
-        self.assertEqual(len(loaded_train), 40)
+        self.assertEqual(len(loaded_train), 48)
         self.assertEqual([r["id"] for r in loaded_validation], [r["id"] for r in validation])
+        classifier_train, _ = load_classifier_split(self.original, output / "VGEC_classifier.json", 0.2, 42)
+        self.assertEqual(classifier_train, loaded_train)
+
+    def test_correction_excludes_annotations_and_both_ellipsis_fields_without_changing_holdout(self):
+        train, validation = split_records(load_records(self.original), 0.2, 42)
+        ids = [r["id"] for r in train if r["label"] == 3]
+        by_id = {r["ID"]: r for r in self.raw}
+        by_id[ids[0]]["Input"] += "..."
+        by_id[ids[1]]["Output"]["Fixed Sentence"] = "Incomplete correction…"
+        by_id[ids[2]]["Output"]["Fixed Sentence"] = "(Organizer note)"
+        heldout = next(r for r in validation if r["label"] == 3)
+        by_id[heldout["id"]]["Output"]["Fixed Sentence"] = "(Heldout note) ..."
+        self.original.write_text(json.dumps(self.raw))
+        before = self.original.read_bytes()
+        expected_train, expected_validation = split_records(load_records(self.original), 0.2, 42)
+        self.assertTrue(set(ids[:3]) <= {r["id"] for r in expected_train})
+        self.add_pool()
+        output = self.root / "complete-corrections"
+        build(self.original, self.pool, output, 0.2)
+        correction = json.loads((output / "VGEC_balanced.json").read_text())
+        classifier = json.loads((output / "VGEC_classifier.json").read_text())
+        correction_ids = {r["ID"] for r in correction["train"]}
+        classifier_rows = {r["ID"]: r for r in classifier["train"]}
+        for identifier in ids[:3] + [self.quarantined_id]:
+            self.assertNotIn(identifier, correction_ids)
+            self.assertEqual(classifier_rows[identifier], by_id[identifier])
+        expected_holdout = [by_id[r["id"]] for r in expected_validation]
+        self.assertEqual(correction["validation"], expected_holdout)
+        self.assertEqual(classifier["validation"], expected_holdout)
+        self.assertEqual(self.original.read_bytes(), before)
+        load_classifier_split(self.original, output / "VGEC_classifier.json", 0.2, 42)
+
+    def test_classifier_quarantines_only_annotation_explicitly_declaring_source_correct(self):
+        train, validation = split_records(load_records(self.original), 0.2, 42)
+        contradictory = next(r for r in train if r["label"] == 1)
+        by_id = {r["ID"]: r for r in self.raw}
+        by_id[contradictory["id"]]["Output"]["Fixed Sentence"] = "  (Câu này ĐÚNG.)"
+        self.original.write_text(json.dumps(self.raw))
+        self.add_pool()
+        output = self.root / "contradictory"
+        build(self.original, self.pool, output, 0.2)
+        classifier = json.loads((output / "VGEC_classifier.json").read_text())
+        self.assertEqual(classifier["provenance"]["quarantined_ids"], [contradictory["id"]])
+        actual = {r["ID"]: r for r in classifier["train"]}
+        self.assertNotIn(contradictory["id"], actual)
+        self.assertEqual(actual[self.quarantined_id], by_id[self.quarantined_id])
+        self.assertEqual(classifier["validation"], [by_id[r["id"]] for r in validation])
+        load_classifier_split(self.original, output / "VGEC_classifier.json", 0.2, 42)
+
+    def test_entire_authored_family_is_rejected_if_any_member_matches_holdout(self):
+        for field in ("family_id", "template_id"):
+            with self.subTest(field=field):
+                self.pool_rows[0]["Provenance"] = {
+                    "template_rule": "forbidden-heldout-copy", "parent_ids": [], field: "leaking-family"}
+                companion = {"ID": "syn:family-companion", "Input": "Distinct companion error.",
+                             "Output": {"Error_Type_Id": 2, "Fixed Sentence": "Distinct companion repair."},
+                             "Provenance": {"template_rule": "local-pair", "parent_ids": [], field: "leaking-family"}}
+                self.pool.write_text(json.dumps(self.pool_rows + [companion]))
+                output = self.root / f"family-{field}"
+                build(self.original, self.pool, output, 0.2)
+                for filename in ("VGEC_balanced.json", "VGEC_classifier.json"):
+                    split = json.loads((output / filename).read_text())
+                    rejections = {r["synthetic_id"]: r["reasons"] for r in split["provenance"]["rejections"]}
+                    for identifier in ("syn:leak", companion["ID"]):
+                        self.assertIn("authored_family_overlaps_validation_text", rejections[identifier])
+                        self.assertNotIn(identifier, split["provenance"]["selected_synthetic_ids"])
+
+    def test_malformed_clean_pool_label_is_rejected_before_outputs_are_written(self):
+        clean = next(r for r in self.pool_rows if r["Output"]["Error_Type_Id"] == 0)
+        clean["Output"]["Fixed Sentence"] = "Different correction for a clean label."
+        self.pool.write_text(json.dumps(self.pool_rows))
+        output = self.root / "malformed-clean"
+        with self.assertRaises(ValueError):
+            build(self.original, self.pool, output, 0.2)
+        self.assertFalse(output.exists())
 
     def test_classifier_output_refuses_unrelated_file(self):
         output = self.root / "unrelated"

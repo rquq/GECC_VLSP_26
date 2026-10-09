@@ -84,7 +84,7 @@ def preflight(classification, correction, original, bundle):
     mixed_config["data"].update(path=classification["data"].get("augmentation_path"),
                                 filename=classification["data"]["augmentation_filename"])
     mixed_path = resolve_data(mixed_config, None)
-    classifier_train, _ = load_classifier_split(original, mixed_path, fraction, seed)
+    classifier_train, classifier_info = load_classifier_split(original, mixed_path, fraction, seed)
     train, validation, _ = load_training_split(bundle, fraction, seed)
     if original_validation != validation:
         raise ValueError("Correction validation must be the identical original holdout")
@@ -94,7 +94,9 @@ def preflight(classification, correction, original, bundle):
     placement = placement_preflight(correction["model"], correction["run"]["device"])
     report = {"seed": seed, "classification_train": len(classifier_train),
               "classification_original_train": len(original_train),
-              "classification_synthetic_train": len(classifier_train) - len(original_train),
+              "classification_retained_original_train": len(classifier_info["provenance"]["retained_original_train_ids"]),
+              "classification_quarantined_original_train": len(classifier_info["provenance"]["quarantined_ids"]),
+              "classification_synthetic_train": len(classifier_info["provenance"]["selected_synthetic_ids"]),
               "correction_train": len(train), "validation": len(validation),
               "original_data": str(original), "correction_data": str(bundle),
               "classification_placement": classifier_placement,
