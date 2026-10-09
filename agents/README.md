@@ -482,6 +482,38 @@ Shared project artifacts:
   epoch/trainer histories, manifest and matched `comparison.json`.
 - `runs/hierarchical-rdrop-seed42-config.json`: exact experiment controls.
 
+### Completed alpha/beta comparison
+
+Both requested experiments used the same ordered 480 training rows, 81 holdout
+rows, seed 42, Qwen3-4B revision, NF4/BF16 precision, LoRA settings, class weights,
+preprocessing and 300 optimizer updates. Epoch 5 was selected in both. Beta
+required `remove_unused_columns=False` to retain auxiliary labels; other Trainer
+arguments matched the hierarchy control except artifact paths. The control was
+reused, not retrained. No OOF or correction fits ran.
+
+| Measure | Hierarchy coefficient 2 | Alpha R-Drop | Beta localization |
+| --- | ---: | ---: | ---: |
+| Five-way Macro-F1 | 0.50845162 | 0.50845162 | 0.48774208 |
+| Micro-F1 / accuracy | 0.69135802 | 0.69135802 | 0.66666667 |
+| Correct subtype on 41 errors | 20 | 20 | 18 |
+| Clean false alarms | 4 | 4 | 4 |
+| Errors called clean | 0 | 0 | 0 |
+
+Alpha changed probabilities but no labels. Beta changed three labels: IDs 5
+and 43 became incorrect, while ID 120 moved between incorrect subtypes. Beta's
+Macro-F1 delta was -0.02070953; the descriptive paired class-stratified
+row-bootstrap 95% interval was [-0.05384649, +0.00196186]. This repeatedly
+selected holdout omits source dependence and recipe/checkpoint uncertainty;
+neither experiment demonstrates generalization improvement.
+
+Prefer the simpler hierarchy control on current evidence. The requested alpha
+R-Drop integration remains active in `rquq/test`; beta localization remains
+separate. Integrated notebook preflight and actual CUDA saved-classifier serving
+passed; beta serving also reproduced saved probabilities within 1e-6 for the
+three changed IDs and clean/punctuation examples. Beta evidence is preserved in
+`runs/hierarchical-localization-seed42/comparison.json`, its manifest and durable
+localization audit; alpha evidence is in `runs/hierarchical-rdrop-seed42/`.
+
 ## Paper evidence and improvement priorities
 
 The exact alpha architecture—binary clean/error probability multiplied by a
