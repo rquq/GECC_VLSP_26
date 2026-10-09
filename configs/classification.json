@@ -1,7 +1,7 @@
 {
   "task": "classification",
   "run": {
-    "name": "hierarchical-alpha",
+    "name": "hierarchical-rdrop-alpha",
     "output_root": "runs",
     "device": "cuda",
     "seed": 42
@@ -46,6 +46,7 @@
     "effective_batch_size": 8,
     "fp16_initial_scale": 1.0,
     "class_weight_power": 0.5,
+    "algorithm": {"name": "rdrop", "beta": 1.0},
     "args": {
       "num_train_epochs": 5,
       "max_steps": -1,

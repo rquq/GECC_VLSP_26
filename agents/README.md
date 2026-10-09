@@ -1,8 +1,8 @@
 # Vietnamese GEC: classification → correction
 
 The active alpha experiment is **soft hierarchical Qwen3-4B NF4 QLoRA
-classification with subtype loss coefficient 2**. Sailor2 correction and
-train-only OOF hint support remain available, but are not run in this ablation.
+classification with subtype loss coefficient 2 and R-Drop beta 1**. Sailor2
+correction and train-only OOF hint support remain available, but are not run in this ablation.
 
 ## Project layout
 
@@ -41,21 +41,27 @@ prediction export modules remain shared between the two tasks.
   punctuation. Training loss and inference composition use FP32 math.
   Prediction is joint argmax, **not a hard binary gate**.
   Five-class sample weights retain baseline inverse-square-root frequencies
-  (`training.class_weight_power: 0.5`) and mean sample weight one. The loss is
-  `sum_i w[y_i] * (BCE(z0, y_i>0) + 2 * I(y_i>0) * CE(z1..z4, y_i-1)) / N`,
-  where `N` is the full accumulation-window row count, including a partial
-  final window. The same sample weight multiplies both terms; detection and
-  subtype losses are not separately normalized. Clean rows have zero subtype
-  loss/gradient. This replaces lambda-one joint NLL; the coefficient is fixed
-  in code, not a new hyperparameter sweep. No pair augmentation, oversampling,
+  (`training.class_weight_power: 0.5`) and mean sample weight one. For each of
+  two independent dropout forwards, supervised loss is
+  `L_j = sum_i w[y_i] * (BCE(z0, y_i>0) + 2 * I(y_i>0) * CE(z1..z4, y_i-1)) / N`.
+  The complete training objective is `(L_1 + L_2)/2 + beta * sum_i w[y_i] *
+  (KL(p_1||p_2) + KL(p_2||p_1))/ (2*N)`, with **beta fixed to 1** and `p_j`
+  the composed five-class joint distribution. `N` includes every row in the
+  full or partial final accumulation window; Trainer must not divide again.
+  Symmetric KL is computed stably in FP32, with both distributions attached
+  to autograd. RNG is not reset between passes; LoRA dropout remains 0.05.
+  Clean rows have zero supervised subtype gradient, but their joint subtype
+  disagreement is regularized by KL. Evaluation/inference uses one forward
+  with dropout disabled and joint argmax. No pair augmentation, oversampling,
   separate head LR, threshold
   tuning or calibration is active. Synthetic class caps and the 480-row baseline
   training population are unchanged. Best checkpoint maximizes holdout Macro-F1.
-  Counts/weights and explicit architecture metadata are saved with the adapter.
-  `rquq/test` retains the flat baseline; `rquq/alpha` is the hierarchy ablation.
-  Saved architecture version 2 records the loss coefficient; earlier flat and
-  lambda-one checkpoints are rejected by the active loader. Their artifacts
-  and measured predictions remain unchanged.
+  Counts/weights, architecture metadata and separate `training_algorithm`
+  provenance (coefficient, KL convention, dropout and forward counts) are saved
+  with the adapter and manifest. R-Drop does not redefine the width-five
+  architecture version 2: existing lambda-two hierarchical adapters still load.
+  Earlier flat and lambda-one checkpoints remain incompatible; their artifacts
+  and measured predictions remain unchanged. No R-Drop result is claimed here.
 - Correction: `sail/Sailor2-8B-Chat`, **460 training rows** (310 retained originals
   + 150 synthetic), five epochs, rank 16 / alpha 32 QLoRA, LR 2e-5;
   NF4 double quantization, microbatch 1 / effective batch 8.
@@ -137,8 +143,8 @@ replacing its CUDA build.
 python -m model.classification --config configs/classification.json --skip-hints
 
 # Matched local run (from the alpha worktree; resolved data paths in this config).
-python -m model.classification --config ../runs/hierarchical-seed42-config.json \
-  --output-dir ../runs/hierarchical-seed42 --skip-hints
+python -m model.classification --config ../runs/hierarchical-rdrop-seed42-config.json \
+  --output-dir ../runs/hierarchical-rdrop-seed42 --skip-hints
 
 # Optional connected pipeline support, outside the current ablation.
 python -m model.classification --config configs/classification.json
@@ -203,10 +209,12 @@ follows `correction.run.archive`.
 The classifier stores `adapter_config.json`, adapter/head weights, tokenizer,
 `preprocessing.json` and `classifier_config.json` with the exact base revision,
 quantization/dtype, five-class mapping and `architecture` metadata. Architecture
-version 1 is `soft_hierarchical_error_type`; it records score-output order,
-conditional labels `[1,2,3,4]`, joint log-probability composition, objective and
-joint-argmax decision. Alpha rejects missing or incompatible metadata: old flat
-checkpoints must be evaluated from the baseline branch, not reinterpreted here.
+version 2 is `soft_hierarchical_error_type`; it records score-output order,
+conditional labels `[1,2,3,4]`, joint log-probability composition, supervised
+objective and joint-argmax decision. `training_algorithm` separately records
+R-Drop provenance without changing reload architecture. Alpha rejects missing
+or incompatible architecture metadata: old flat checkpoints must be evaluated
+from the baseline branch, not reinterpreted here.
 Inference keeps `{id, label, probabilities}` with five normalized joint scores.
 Pipeline reuse requires a compatible hierarchical mixed-data classifier and its
 complete OOF hints. Existing correction bundles and holdout are unchanged.
@@ -428,6 +436,17 @@ Artifacts (relative to this worktree):
   training histories, manifest and paired `comparison.json`.
 - `../runs/hierarchical-lambda2-seed42-config.json`: matched training controls.
 - `../runs/hierarchical-seed42/`: retained lambda-one control artifacts.
+
+### R-Drop implementation verification
+
+The fixed beta-one R-Drop recipe passed **69 behavior regressions**, including
+independent dropout gradients, stable extreme-logit KL and real Trainer updates
+for full and partial accumulation windows. A separate CPU tiny-Qwen smoke ran
+the actual `_fit` path, updated the score head by a maximum absolute **0.05**,
+updated LoRA weights, saved the adapter and reloaded normalized joint-argmax
+predictions. Notebook schema and code-cell compilation passed. The matched
+five-epoch Qwen3-4B GPU experiment is separate; no quality gain is established
+by this implementation smoke.
 
 ## Paper evidence and improvement priorities
 

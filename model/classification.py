@@ -271,12 +271,83 @@ def _weighted_hierarchical_loss(logits, labels, weights, num_items_in_batch=None
     return loss / denominator
 
 
+def _symmetric_joint_kl(first_logits, second_logits):
+    """Per-row 0.5 * (KL(p1 || p2) + KL(p2 || p1)), entirely in FP32.
+
+    Both distributions stay attached to autograd; no detached teacher. Computing
+    the symmetric expression together avoids cancellation between directed KLs.
+    """
+    first = _joint_log_probabilities(first_logits)
+    second = _joint_log_probabilities(second_logits)
+    return 0.5 * ((first.exp() - second.exp()) * (first - second)).sum(-1)
+
+
+def _weighted_rdrop_loss(first_logits, second_logits, labels, weights, num_items_in_batch=None):
+    """Mean supervised loss + beta=1 weighted symmetric joint KL / window rows."""
+    supervised = 0.5 * (
+        _weighted_hierarchical_loss(first_logits, labels, weights, num_items_in_batch)
+        + _weighted_hierarchical_loss(second_logits, labels, weights, num_items_in_batch))
+    denominator = labels.numel() if num_items_in_batch is None else num_items_in_batch
+    regularization = (weights[labels] * _symmetric_joint_kl(first_logits, second_logits)).sum()
+    return supervised + regularization / denominator
+
+
+def _rdrop_trainer_class():
+    """Keep optional Transformers imports lazy for dataset-only consumers."""
+    import torch
+    from transformers import Trainer
+
+    class RDropTrainer(Trainer):
+        def __init__(self, *args, loss_weights, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.loss_weights = loss_weights
+            # We consume Trainer's full/partial accumulation-window row count.
+            # This also disables its second division by accumulation steps;
+            # kwargs are consumed here, never forwarded to the Qwen model.
+            self.model_accepts_loss_kwargs = True
+
+        def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+            labels = inputs["labels"]
+            features = {key: value for key, value in inputs.items() if key != "labels"}
+            first = model(**features)
+            if model.training:
+                # No RNG reset, concatenation, detach or no_grad: independent
+                # dropout masks and gradients through both passes are required.
+                second = model(**features)
+                loss = _weighted_rdrop_loss(first.logits, second.logits, labels,
+                                           self.loss_weights, num_items_in_batch)
+            else:
+                loss = _weighted_hierarchical_loss(first.logits, labels, self.loss_weights,
+                                                   num_items_in_batch)
+            if not torch.isfinite(loss).all().item():
+                raise RuntimeError("Nonfinite classifier training loss")
+            return (loss, first) if return_outputs else loss
+
+    return RDropTrainer
+
+
+def _training_algorithm(config, model):
+    algorithm = config["training"].get("algorithm", {"name": "rdrop", "beta": 1.0})
+    if algorithm != {"name": "rdrop", "beta": 1.0}:
+        raise ValueError("Alpha requires fixed R-Drop beta=1")
+    return {
+        **algorithm, "supervised_pass_reduction": "mean of two weighted BCE + 2*CE losses",
+        "kl_convention": "0.5 * (KL(p1||p2) + KL(p2||p1)); five-class joint distributions",
+        "normalization": "class-weighted sum divided by full/partial accumulation-window rows",
+        "kl_dtype": "float32", "training_forwards": 2, "inference_forwards": 1,
+        "dropout_masks": "independent RNG draws; both passes retain autograd",
+        "lora_dropout": config["lora"]["lora_dropout"],
+        "base_attention_dropout": getattr(model.config, "attention_dropout", None),
+        "seed": "fit seed recorded in run manifest; no reseeding between passes",
+    }
+
+
 def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, preprocessing,
          fixed_epochs=None):
     """Fresh mixed-data LoRA/head fit; only main fit selects on outer holdout."""
     import torch
     from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
-    from transformers import (AutoTokenizer, DataCollatorWithPadding, Trainer,
+    from transformers import (AutoTokenizer, DataCollatorWithPadding,
                               TrainerCallback, TrainingArguments, set_seed)
 
     if not train:
@@ -312,6 +383,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         "pad_token_id": tokenizer.pad_token_id, "tokenizer_length": len(tokenizer),
         "added_pad_token": added_pad,
         "class_weighting": weighting,
+        "training_algorithm": _training_algorithm(config, model),
     }
     trainable_parameters = sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad)
     total_parameters = sum(parameter.numel() for parameter in model.parameters())
@@ -350,16 +422,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
 
     loss_weights = torch.tensor(weighting["weights"], dtype=torch.float32, device=device)
 
-    def classification_loss(outputs, labels, num_items_in_batch=None):
-        return _weighted_hierarchical_loss(outputs.logits, labels, loss_weights, num_items_in_batch)
-
-    class FiniteTrainer(Trainer):
-        def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
-            result = super().compute_loss(model, inputs, return_outputs=return_outputs, **kwargs)
-            loss = result[0] if return_outputs else result
-            if not torch.isfinite(loss).all().item():
-                raise RuntimeError("Nonfinite classifier training loss")
-            return result
+    RDropTrainer = _rdrop_trainer_class()
 
     class EpochEvaluation(TrainerCallback):
         def on_epoch_end(self, args, state, control, **kwargs):
@@ -378,12 +441,9 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
             model.train()
             return control
 
-    trainer = FiniteTrainer(model=model, args=training_args, train_dataset=encoded,
-                            data_collator=DataCollatorWithPadding(tokenizer), callbacks=[EpochEvaluation()],
-                            compute_loss_func=classification_loss)
-    # The custom loss receives the full accumulation-window row count, including
-    # partial final windows; Trainer must not divide it by accumulation again.
-    trainer.model_accepts_loss_kwargs = False
+    trainer = RDropTrainer(model=model, args=training_args, train_dataset=encoded,
+                          data_collator=DataCollatorWithPadding(tokenizer), callbacks=[EpochEvaluation()],
+                          loss_weights=loss_weights)
     if training_args.fp16:
         # Qwen3 NF4 backward overflowed at scale 4096 despite a finite forward loss.
         # Start unscaled; retain dynamic scaling and the nonfinite-statistic guard.
@@ -410,6 +470,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         "gradient_accumulation_steps": effective // microbatch,
         "effective_batch_size": effective, "training_args": training_args.to_dict(),
         "class_weighting": weighting,
+        "training_algorithm": classifier_config["training_algorithm"],
         "fp16_initial_scale": training.get("fp16_initial_scale", 1.0) if training_args.fp16 else None,
         "best_epoch": best["epoch"], "selection_macro_f1": best["macro_f1"],
         "selection_rule": ("highest outer-validation macro F1; ties retain earlier epoch"

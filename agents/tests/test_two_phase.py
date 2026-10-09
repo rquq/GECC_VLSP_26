@@ -248,7 +248,7 @@ class QwenClassifierTests(unittest.TestCase):
                 "model": {"name": str(base), "revision": "local", "load_in_4bit": False,
                           "compute_dtype": "float32", "quant_type": "nf4", "use_double_quant": True,
                           "attn_implementation": "eager"},
-                "lora": {"r": 2, "lora_alpha": 4, "lora_dropout": 0.0,
+                "lora": {"r": 2, "lora_alpha": 4, "lora_dropout": 0.3,
                          "target_modules": ["q_proj", "v_proj"], "bias": "none"},
                 "training": {"max_length": 32, "effective_batch_size": 2,
                              "args": {"num_train_epochs": 1, "max_steps": 1,
@@ -265,6 +265,9 @@ class QwenClassifierTests(unittest.TestCase):
             self.assertEqual(saved["model"], config["model"])
             self.assertEqual(saved["lora"]["modules_to_save"], ["score"])
             self.assertEqual(saved["architecture"], _architecture())
+            self.assertEqual(saved["training_algorithm"]["beta"], 1.0)
+            self.assertEqual(saved["training_algorithm"]["training_forwards"], 2)
+            self.assertEqual(saved["training_algorithm"]["lora_dropout"], 0.3)
             state = load_file(str(checkpoint / "adapter_model.safetensors"))
             head = next(value for key, value in state.items() if key.endswith(".score.weight"))
             self.assertFalse(torch.equal(head, initial_score))
