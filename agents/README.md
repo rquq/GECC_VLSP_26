@@ -448,6 +448,40 @@ predictions. Notebook schema and code-cell compilation passed. The matched
 five-epoch Qwen3-4B GPU experiment is separate; no quality gain is established
 by this implementation smoke.
 
+### Completed matched R-Drop ablation
+
+The beta-one R-Drop experiment completed five epochs / **300 optimizer updates**
+on Qwen3-4B NF4/BF16; epoch 5 was selected. Comparison assertions verified the
+same ordered 480 training rows, 81 holdout rows, model revision, LoRA settings,
+class weights, package versions, preprocessing and training arguments except
+artifact paths. The coefficient-two hierarchy control was reused, not retrained.
+Saved-adapter inference retained one forward, BF16 autocast and joint argmax.
+
+| Measure | Hierarchy coefficient 2 | R-Drop beta 1 |
+| --- | ---: | ---: |
+| Five-way Macro-F1 | 0.50845162 | 0.50845162 |
+| Micro-F1 / accuracy | 0.69135802 | 0.69135802 |
+| Gold-error subtype Macro-F1 | 0.41654457 | 0.41654457 |
+| Correct subtype on 41 errors | 20 | 20 |
+| Clean false alarms | 4 | 4 |
+| Errors called clean | 0 | 0 |
+
+All 81 predicted labels are identical: **zero fixes, zero regressions, zero
+Macro-F1 delta**. Joint probabilities changed by up to **0.06777167**, so this
+is not a reused prediction file. The paired row-bootstrap delta is [0, 0] only
+because these labels are identical; it does not prove generalization equivalence.
+The repeatedly selected holdout is not an independent test. Training loss was
+1.23480150 with finite parameters and statistics. R-Drop used two training
+forwards and took about 50.5 minutes; **no classification benefit was observed**.
+Prefer the simpler hierarchy control for efficiency on current evidence.
+R-Drop remains active in alpha and its requested integration into `rquq/test`;
+there is no silent algorithm rollback or localization merge.
+
+Shared project artifacts:
+- `runs/hierarchical-rdrop-seed42/`: adapter/head, saved predictions, metrics,
+  epoch/trainer histories, manifest and matched `comparison.json`.
+- `runs/hierarchical-rdrop-seed42-config.json`: exact experiment controls.
+
 ## Paper evidence and improvement priorities
 
 The exact alpha architecture—binary clean/error probability multiplied by a
