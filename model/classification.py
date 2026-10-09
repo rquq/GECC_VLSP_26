@@ -1,4 +1,4 @@
-"""Qwen QLoRA five-class classification and group-safe, train-only correction hints."""
+"""Qwen QLoRA soft hierarchical classification and train-only correction hints."""
 from __future__ import annotations
 
 import argparse
@@ -18,6 +18,37 @@ from .metrics import score
 from .runtime import write_json
 from .prediction_export import comparison_rows
 from .data import load_classifier_split
+
+
+def _architecture():
+    return {
+        "name": "soft_hierarchical_error_type", "version": 2,
+        "score_width": 5,
+        "score_outputs": ["error_logit", "sentence_logit", "phrase_logit",
+                          "function_word_logit", "punctuation_logit"],
+        "conditional_labels": [1, 2, 3, 4],
+        "joint_log_probabilities": "[logsigmoid(-z0), logsigmoid(z0) + log_softmax(z1..z4)]",
+        "subtype_loss_weight": 2.0,
+        "objective": "weighted binary + 2 * conditional subtype CE / accumulation-window row count",
+        "decision": "argmax joint probabilities; no hard gate",
+    }
+
+
+def _require_hierarchy(saved):
+    if saved.get("architecture") != _architecture():
+        raise ValueError("Alpha requires lambda-two soft hierarchical architecture metadata; "
+                         "reload earlier classifiers with their original experiment code")
+
+
+def _joint_log_probabilities(logits):
+    """Compose P(clean)=1-q and P(type=k)=q*r_k stably in FP32."""
+    import torch
+    import torch.nn.functional as F
+
+    logits = logits.float()
+    error = logits[..., :1]
+    return torch.cat((F.logsigmoid(-error),
+                      F.logsigmoid(error) + F.log_softmax(logits[..., 1:], dim=-1)), dim=-1)
 
 
 def _preprocessing(config):
@@ -108,6 +139,9 @@ def _load_base(settings, tokenizer, placement):
         model.resize_token_embeddings(len(tokenizer))
     model.config.pad_token_id = tokenizer.pad_token_id
     model.config.use_cache = False
+    # QLoRA preparation casts some weights to FP32; model.dtype alone would then
+    # misidentify the Trainer's mixed-precision forward context on reload.
+    model.config.classifier_compute_dtype = placement["compute_dtype"]
     if not placement["quantized"]:
         model.to(placement["device"])
     return model
@@ -122,19 +156,25 @@ def _encoded(tokenizer, records, preprocessing):
 
 def _predict(model, tokenizer, records, preprocessing, device, batch_size):
     import torch
+    from contextlib import nullcontext
 
     if type(batch_size) is not int or batch_size < 1:
         raise ValueError("batch_size must be a positive integer")
     model.eval()
     predictions = []
+    dtype = getattr(model.config, "classifier_compute_dtype", None)
+    compute_dtype = getattr(torch, dtype) if dtype is not None else model.dtype
+    use_autocast = torch.device(device).type == "cuda" and compute_dtype in (torch.bfloat16, torch.float16)
     with torch.inference_mode():
         for start in range(0, len(records), batch_size):
             batch = records[start:start + batch_size]
             tokens = tokenizer(_texts(batch, preprocessing), truncation=True,
                                max_length=preprocessing["max_length"], padding=True,
                                return_tensors="pt")
-            logits = model(**{key: value.to(device) for key, value in tokens.items()}).logits
-            probabilities = logits.float().softmax(dim=-1)
+            context = torch.autocast("cuda", dtype=compute_dtype) if use_autocast else nullcontext()
+            with context:
+                logits = model(**{key: value.to(device) for key, value in tokens.items()}).logits
+            probabilities = _joint_log_probabilities(logits).exp()
             if not torch.isfinite(probabilities).all().item():
                 raise RuntimeError("Classifier produced nonfinite probabilities")
             for row, values in zip(batch, probabilities.cpu().tolist()):
@@ -152,13 +192,14 @@ def _release(device):
 
 
 def classify(checkpoint, records, device="cuda", batch_size=8):
-    """Reload the exact base plus saved LoRA/score head and return five softmax scores."""
+    """Reload the saved hierarchical LoRA/score head and return five joint scores."""
     from peft import PeftModel, prepare_model_for_kbit_training
     from transformers import AutoTokenizer
 
     checkpoint = Path(checkpoint)
     preprocessing = json.loads((checkpoint / "preprocessing.json").read_text(encoding="utf-8"))
     saved = json.loads((checkpoint / "classifier_config.json").read_text(encoding="utf-8"))
+    _require_hierarchy(saved)
     if preprocessing["labels"] != list(LABELS) or saved["labels"] != list(LABELS):
         raise ValueError("Saved classifier label mapping must be 0..4")
     placement = placement_preflight(saved["model"], device)
@@ -211,36 +252,23 @@ def _class_weights(train, power):
             "normalization": "weighted sum divided by accumulation-batch row count"}
 
 
-def _weighted_cross_entropy(logits, labels, weights, num_items_in_batch=None):
-    """Do not divide by sum(weights): that cancels weighting for microbatch one."""
+def _weighted_hierarchical_loss(logits, labels, weights, num_items_in_batch=None):
+    """Weighted binary loss plus twice the subtype CE, normalized by row count.
+
+    Clean rows have no subtype loss/gradient. The same sample weight multiplies
+    both terms; normalization includes partial final accumulation windows.
+    """
     import torch.nn.functional as F
 
-    loss = F.cross_entropy(logits.float(), labels, weight=weights, reduction="sum")
+    logits = logits.float()
+    binary = F.binary_cross_entropy_with_logits(
+        logits[..., 0], (labels > 0).float(), reduction="none")
+    # Ignore clean rows without selecting a variable-size CUDA tensor. Their
+    # conditional target is -1; cross_entropy's ignore_index produces zero loss.
+    subtype = F.cross_entropy(logits[..., 1:], labels - 1, ignore_index=-1, reduction="none")
+    loss = (weights[labels] * (binary + 2.0 * subtype)).sum()
     denominator = labels.numel() if num_items_in_batch is None else num_items_in_batch
     return loss / denominator
-
-
-def _optimizer_groups(model, decay_names, lora_lr, head_lr, weight_decay):
-    """Partition only trainable adapters/head; retain Trainer's decay policy."""
-    for name, value in (("LoRA learning_rate", lora_lr), ("head_learning_rate", head_lr)):
-        if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
-            raise ValueError(f"{name} must be finite and positive")
-    buckets = {(role, decay): [] for role in ("lora", "head") for decay in (True, False)}
-    for name, parameter in model.named_parameters():
-        if not parameter.requires_grad:
-            continue
-        if "score" in name.split("."):
-            role = "head"
-        elif "lora_" in name:
-            role = "lora"
-        else:
-            raise ValueError(f"Unexpected trainable classifier parameter: {name}")
-        buckets[role, name in decay_names].append(parameter)
-    if any(not any(buckets[role, decay] for decay in (True, False)) for role in ("lora", "head")):
-        raise ValueError("Classifier optimizer requires trainable LoRA and score head parameters")
-    return [{"params": parameters, "lr": head_lr if role == "head" else lora_lr,
-             "weight_decay": weight_decay if decay else 0.0, "role": role}
-            for (role, decay), parameters in buckets.items() if parameters]
 
 
 def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, preprocessing,
@@ -279,11 +307,11 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         "lora": {**config["lora"], "task_type": "SEQ_CLS", "modules_to_save": ["score"],
                  "revision": settings["revision"]},
         "num_labels": len(LABELS), "labels": list(LABELS),
+        "architecture": _architecture(),
+        "inference_precision": "CUDA autocast at model.compute_dtype; FP32 composition; no CPU autocast",
         "pad_token_id": tokenizer.pad_token_id, "tokenizer_length": len(tokenizer),
         "added_pad_token": added_pad,
         "class_weighting": weighting,
-        "learning_rates": {"lora": config["training"]["args"]["learning_rate"],
-                           "head": config["training"]["head_learning_rate"]},
     }
     trainable_parameters = sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad)
     total_parameters = sum(parameter.numel() for parameter in model.parameters())
@@ -323,22 +351,9 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     loss_weights = torch.tensor(weighting["weights"], dtype=torch.float32, device=device)
 
     def classification_loss(outputs, labels, num_items_in_batch=None):
-        return _weighted_cross_entropy(outputs.logits, labels, loss_weights, num_items_in_batch)
+        return _weighted_hierarchical_loss(outputs.logits, labels, loss_weights, num_items_in_batch)
 
     class FiniteTrainer(Trainer):
-        def create_optimizer(self, model=None):
-            if self.optimizer is None:
-                if self.args.optim != "adamw_torch":
-                    raise ValueError("Separate head/LoRA rates require optim=adamw_torch")
-                opt_model = self.model if model is None else model
-                groups = _optimizer_groups(
-                    opt_model, self.get_decay_parameter_names(opt_model), self.args.learning_rate,
-                    training["head_learning_rate"], self.args.weight_decay)
-                self.optimizer = torch.optim.AdamW(
-                    groups, lr=self.args.learning_rate,
-                    betas=(self.args.adam_beta1, self.args.adam_beta2), eps=self.args.adam_epsilon)
-            return self.optimizer
-
         def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
             result = super().compute_loss(model, inputs, return_outputs=return_outputs, **kwargs)
             loss = result[0] if return_outputs else result
@@ -395,7 +410,6 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         "gradient_accumulation_steps": effective // microbatch,
         "effective_batch_size": effective, "training_args": training_args.to_dict(),
         "class_weighting": weighting,
-        "learning_rates": classifier_config["learning_rates"],
         "fp16_initial_scale": training.get("fp16_initial_scale", 1.0) if training_args.fp16 else None,
         "best_epoch": best["epoch"], "selection_macro_f1": best["macro_f1"],
         "selection_rule": ("highest outer-validation macro F1; ties retain earlier epoch"

@@ -1,7 +1,7 @@
 {
   "task": "classification",
   "run": {
-    "name": "qwen3-4b-qlora-head-lr-alpha",
+    "name": "hierarchical-alpha",
     "output_root": "runs",
     "device": "cuda",
     "seed": 42
@@ -46,7 +46,6 @@
     "effective_batch_size": 8,
     "fp16_initial_scale": 1.0,
     "class_weight_power": 0.5,
-    "head_learning_rate": 1e-4,
     "args": {
       "num_train_epochs": 5,
       "max_steps": -1,

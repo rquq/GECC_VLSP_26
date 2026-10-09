@@ -54,6 +54,8 @@ def validate_classifier_run(classifier_run, classification):
                                 "historical full-model PhoBERT checkpoints are incompatible")
     saved = json.loads(required[0].read_text(encoding="utf-8"))
     adapter = json.loads(required[1].read_text(encoding="utf-8"))
+    from .classification import _require_hierarchy
+    _require_hierarchy(saved)
     settings = classification["model"]
     model = saved.get("model", {})
     if (saved.get("num_labels") != 5 or adapter.get("task_type") != "SEQ_CLS"
