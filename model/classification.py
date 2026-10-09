@@ -1,4 +1,4 @@
-"""Qwen QLoRA soft hierarchical classification and train-only correction hints."""
+"""Qwen QLoRA hierarchical classification with train-only source edit localization."""
 from __future__ import annotations
 
 import argparse
@@ -36,7 +36,7 @@ def _architecture():
 
 def _require_hierarchy(saved):
     if saved.get("architecture") != _architecture():
-        raise ValueError("Alpha requires lambda-two soft hierarchical architecture metadata; "
+        raise ValueError("Beta requires lambda-two soft hierarchical architecture metadata; "
                          "reload earlier classifiers with their original experiment code")
 
 
@@ -276,8 +276,9 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     """Fresh mixed-data LoRA/head fit; only main fit selects on outer holdout."""
     import torch
     from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
-    from transformers import (AutoTokenizer, DataCollatorWithPadding, Trainer,
-                              TrainerCallback, TrainingArguments, set_seed)
+    from transformers import (AutoTokenizer, Trainer, TrainerCallback, TrainingArguments, set_seed)
+    from .localization import (LocalizationHead, LocalizationCollator, algorithm,
+                               encode_localization, localization_loss, save_head)
 
     if not train:
         raise ValueError("Every classifier fit needs training rows")
@@ -299,6 +300,8 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     lora = {**config["lora"], "task_type": TaskType.SEQ_CLS, "modules_to_save": ["score"],
             "revision": settings["revision"]}
     model = get_peft_model(model, LoraConfig(**lora))
+    # Separate train-only artifact: normal PEFT inference reload needs only score.
+    model.localization_head = LocalizationHead(model.config.hidden_size).to(device)
     # Trainer otherwise wraps any visible multi-GPU host in DataParallel.
     model.is_parallelizable = True
     model.model_parallel = True
@@ -308,6 +311,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
                  "revision": settings["revision"]},
         "num_labels": len(LABELS), "labels": list(LABELS),
         "architecture": _architecture(),
+        "training_algorithm": algorithm(),
         "inference_precision": "CUDA autocast at model.compute_dtype; FP32 composition; no CPU autocast",
         "pad_token_id": tokenizer.pad_token_id, "tokenizer_length": len(tokenizer),
         "added_pad_token": added_pad,
@@ -315,7 +319,8 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     }
     trainable_parameters = sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad)
     total_parameters = sum(parameter.numel() for parameter in model.parameters())
-    encoded = _encoded(tokenizer, train, preprocessing)
+    encoded, localization_audit = encode_localization(tokenizer, train, preprocessing["max_length"])
+    write_json(artifact_dir / "localization_audit.json", localization_audit)
     training = config["training"]
     args = dict(training["args"])
     microbatch = args["per_device_train_batch_size"]
@@ -332,7 +337,8 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         **args, output_dir=str(artifact_dir / "trainer"), use_cpu=device == "cpu",
         gradient_accumulation_steps=effective // microbatch,
         eval_strategy="no", save_strategy="no", report_to="none",
-        logging_nan_inf_filter=False, seed=seed, data_seed=seed, label_names=["labels"])
+        logging_nan_inf_filter=False, seed=seed, data_seed=seed, label_names=["labels"],
+        remove_unused_columns=False)
     # Prevent Trainer's implicit DataParallel when more than one GPU is visible.
     training_args._n_gpu = 0 if device == "cpu" else 1
     if str(training_args.device) != device:
@@ -347,6 +353,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         tokenizer.save_pretrained(checkpoint)
         write_json(checkpoint / "preprocessing.json", preprocessing)
         write_json(checkpoint / "classifier_config.json", classifier_config)
+        save_head(model.localization_head, checkpoint / "localization_head.pt")
 
     loss_weights = torch.tensor(weighting["weights"], dtype=torch.float32, device=device)
 
@@ -355,11 +362,26 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
 
     class FiniteTrainer(Trainer):
         def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
-            result = super().compute_loss(model, inputs, return_outputs=return_outputs, **kwargs)
-            loss = result[0] if return_outputs else result
+            labels = inputs.pop("labels")
+            error_labels = inputs.pop("error_labels")
+            insert_labels = inputs.pop("insert_labels")
+            captured = []
+            # Capture only the final backbone output. output_hidden_states=True
+            # would retain every transformer layer and is intentionally unused.
+            hook = model.get_base_model().model.register_forward_hook(
+                lambda module, args, output: captured.append(output.last_hidden_state))
+            try:
+                outputs = model(**inputs)
+            finally:
+                hook.remove()
+            error_logits, insert_logits = model.localization_head(
+                captured.pop(), inputs["attention_mask"], insert_labels != -100)
+            denominator = kwargs.get("num_items_in_batch")
+            loss = classification_loss(outputs, labels, denominator) + localization_loss(
+                error_logits, insert_logits, error_labels, insert_labels, denominator)
             if not torch.isfinite(loss).all().item():
-                raise RuntimeError("Nonfinite classifier training loss")
-            return result
+                raise RuntimeError("Nonfinite classifier/localization training loss")
+            return (loss, outputs) if return_outputs else loss
 
     class EpochEvaluation(TrainerCallback):
         def on_epoch_end(self, args, state, control, **kwargs):
@@ -379,7 +401,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
             return control
 
     trainer = FiniteTrainer(model=model, args=training_args, train_dataset=encoded,
-                            data_collator=DataCollatorWithPadding(tokenizer), callbacks=[EpochEvaluation()],
+                            data_collator=LocalizationCollator(tokenizer), callbacks=[EpochEvaluation()],
                             compute_loss_func=classification_loss)
     # The custom loss receives the full accumulation-window row count, including
     # partial final windows; Trainer must not divide it by accumulation again.
@@ -410,6 +432,8 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         "gradient_accumulation_steps": effective // microbatch,
         "effective_batch_size": effective, "training_args": training_args.to_dict(),
         "class_weighting": weighting,
+        "localization_audit": localization_audit["summary"],
+        "training_algorithm": algorithm(),
         "fp16_initial_scale": training.get("fp16_initial_scale", 1.0) if training_args.fp16 else None,
         "best_epoch": best["epoch"], "selection_macro_f1": best["macro_f1"],
         "selection_rule": ("highest outer-validation macro F1; ties retain earlier epoch"

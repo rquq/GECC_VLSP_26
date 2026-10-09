@@ -1,7 +1,7 @@
 {
   "task": "classification",
   "run": {
-    "name": "hierarchical-alpha",
+    "name": "hierarchical-localization-beta",
     "output_root": "runs",
     "device": "cuda",
     "seed": 42

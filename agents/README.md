@@ -1,8 +1,8 @@
 # Vietnamese GEC: classification → correction
 
-The active alpha experiment is **soft hierarchical Qwen3-4B NF4 QLoRA
-classification with subtype loss coefficient 2**. Sailor2 correction and
-train-only OOF hint support remain available, but are not run in this ablation.
+The active beta experiment is **soft hierarchical Qwen3-4B NF4 QLoRA
+classification with subtype loss coefficient 2 and source-only edit localization**.
+Sailor2 correction and train-only OOF hints remain available, but are not run in this ablation.
 
 ## Project layout
 
@@ -11,6 +11,7 @@ train-only OOF hint support remain available, but are not run in this ablation.
 | `configs/classification.json` | Qwen3-4B QLoRA classification and OOF settings |
 | `configs/correction.json` | Sailor2 QLoRA, prompt, decoding and checkpoint selection |
 | `model/classification.py` | Classifier training and leakage-safe correction hints |
+| `model/localization.py` | Conservative source ERROR / lexical-gap INSERT alignment, audit and auxiliary head |
 | `model/correction.py` | Correction-only QLoRA training and saved-adapter reload |
 | `model/two_phase.py` | Connected stages, preflight and artifact packaging |
 | `model/pipeline_predict.py` | Saved classifier + corrector inference |
@@ -52,10 +53,44 @@ prediction export modules remain shared between the two tasks.
   tuning or calibration is active. Synthetic class caps and the 480-row baseline
   training population are unchanged. Best checkpoint maximizes holdout Macro-F1.
   Counts/weights and explicit architecture metadata are saved with the adapter.
-  `rquq/test` retains the flat baseline; `rquq/alpha` is the hierarchy ablation.
-  Saved architecture version 2 records the loss coefficient; earlier flat and
-  lambda-one checkpoints are rejected by the active loader. Their artifacts
-  and measured predictions remain unchanged.
+  Branch `beta` adds localization, not R-Drop. Architecture version 2 remains
+  unchanged so lambda-two classifiers reload normally; algorithm provenance is
+  recorded separately. Earlier flat/lambda-one checkpoints remain incompatible.
+  Existing artifacts and measured predictions are not modified.
+  Localization adds eta **1** times the sum of two per-row means (valid source
+  ERROR BCE and valid lexical-gap INSERT BCE), then divides their eligible-row
+  sum by the same **full accumulation-window row count**, not eligible rows.
+  There is no auxiliary class reweighting. Ineligible rows remain in sentence
+  classification and provide exactly zero auxiliary gradient.
+  Unicode letters/marks/numbers form lexical units, punctuation is separate,
+  and Python code-point offsets refer to the unnormalized original source.
+  Unique unit-cost Levenshtein alignment marks substituted/deleted source units
+  ERROR; pure additions mark source gaps INSERT, including start/end. All source
+  tokenizer pieces overlapping an edited unit are positives. Only lexical
+  boundaries (not arbitrary within-word BPE boundaries) are valid gap negatives.
+  Offsets come from a fast tokenizer; target text is never model input.
+  Complete source/target pairs are conservatively filtered: both ellipses,
+  annotation prefixes, nonidentity parentheses/brackets, alternatives/newlines,
+  missing sentence endpoints (including list-leading colon), label/identity
+  mismatch, whitespace-only edits, nonunique optimal paths and unmappable lexical
+  boundaries are excluded. Entire truncated pairs are excluded, even if the only
+  reference edit disappears; this cannot create false-clean negatives. Exact
+  clean identities are allowed without requiring a sentence terminator.
+  These are **reference edit labels**, not claims of uniquely correct grammatical
+  error spans; stylistic/typographic reference changes can be supervised.
+  Every fit writes `localization_audit.json` with source/target hashes and text,
+  row eligibility/reason, offsets, spans/gaps, projected labels and aggregate
+  eligible classes/exclusions/token/gap counts. This is a durable reproducible
+  audit, not a manually invented correction target or holdout-derived allowlist.
+  A forward hook captures only the final backbone hidden state (not all layers).
+  ERROR uses its token state; INSERT concatenates neighboring states and learned
+  start/end boundary vectors. The head trains with backbone LoRA and shared LR,
+  but is retained separately as `classifier/localization_head.pt`, reloadable via
+  `model.localization.load_head`; the PEFT adapter remains score-only and normal
+  inference requires **no localization head**, uses one forward and joint argmax.
+  **Causal limitation:** a token state cannot see later suffix tokens. Interior
+  gaps use the right neighbor (one-unit lookahead, potentially only its first
+  tokenizer piece), not the full suffix; this is not bidirectional localization.
 - Correction: `sail/Sailor2-8B-Chat`, **460 training rows** (310 retained originals
   + 150 synthetic), five epochs, rank 16 / alpha 32 QLoRA, LR 2e-5;
   NF4 double quantization, microbatch 1 / effective batch 8.
@@ -78,7 +113,7 @@ The Qwen3 classifier uses one CUDA GPU; BF16 where supported, FP16 otherwise
 starts at 1: the local NF4 diagnostic overflowed at 4096 despite finite forward loss;
 nonfinite training statistics still fail the run. Resolved dtype and exact base
 settings are saved for reload. `bitsandbytes==0.49.2` is required for QLoRA.
-Alpha inference uses CUDA BF16/FP16 autocast at the resolved model precision,
+Beta inference uses CUDA BF16/FP16 autocast at the resolved model precision,
 matching Trainer, including FP32-prepared QLoRA norms/embeddings. Composition
 remains FP32 and CPU inference never enables autocast. Historical saved baseline
 scores used a different precision context; reevaluate the baseline under matching
@@ -133,12 +168,12 @@ PyTorch 2.7.1. The notebook refuses an incompatible torch image rather than
 replacing its CUDA build.
 
 ```bash
-# Active alpha classification-only experiment; no OOF or correction training.
+# Active beta localization classification-only experiment; no OOF or correction training.
 python -m model.classification --config configs/classification.json --skip-hints
 
-# Matched local run (from the alpha worktree; resolved data paths in this config).
-python -m model.classification --config ../runs/hierarchical-seed42-config.json \
-  --output-dir ../runs/hierarchical-seed42 --skip-hints
+# Matched local run from /home/quq/VLSP26_4/beta; artifacts are in the parent project.
+python -m model.classification --config /home/quq/machineLearning/competitions/VLSP26_4/runs/hierarchical-localization-seed42-config.json \
+  --output-dir /home/quq/machineLearning/competitions/VLSP26_4/runs/hierarchical-localization-seed42 --skip-hints
 
 # Optional connected pipeline support, outside the current ablation.
 python -m model.classification --config configs/classification.json
@@ -163,6 +198,19 @@ CLI data overrides: `--classification-data` / `--correction-data` on the pipelin
 `--data` on individual stages. Hint artifacts must match the correction bundle's
 SHA-256 and connected folds; never reuse hints merely because row counts agree.
 
+CPU verification entrypoints (run before the actual beta GPU fit):
+```bash
+python -m unittest discover -s agents/tests
+python -m tools.localization_smoke \
+  --output /home/quq/machineLearning/competitions/VLSP26_4/runs/hierarchical-localization-seed42-tokenizer-audit.json
+```
+The smoke uses only cached real tokenizer files, compares localization inputs
+with unchanged baseline source encoding, and retains the complete mixed-fit
+audit. `agents/tests/test_localization.py` exercises actual tiny Qwen/LoRA
+gradients, SGD accumulation equivalence (including partial windows), separate
+auxiliary reload and normal inference without the train-only head. These commands
+are instructions, not a claim that checks or GPU training have been run.
+
 ### Kaggle
 
 Publish the selected code branch; open `notebooks/kaggle_two_phase.ipynb`, enable
@@ -174,7 +222,7 @@ before uploading.
 Separate `CLASSIFICATION_OVERRIDES` and `CORRECTION_OVERRIDES` set seed 42 and
 clear `data.path`; classification also clears `data.augmentation_path` so
 private mounted files are discovered instead of relying on local paths.
-The alpha notebook defaults to classification only with `--skip-hints`; it does
+The beta notebook defaults to classification only with `--skip-hints`; it does
 not train OOF classifiers or Sailor2. Pipeline reuse additionally requires a
 hierarchical classifier's complete, compatible OOF artifacts.
 Training output streams into the notebook and a timestamped `.log`; interruption
@@ -428,6 +476,32 @@ Artifacts (relative to this worktree):
   training histories, manifest and paired `comparison.json`.
 - `../runs/hierarchical-lambda2-seed42-config.json`: matched training controls.
 - `../runs/hierarchical-seed42/`: retained lambda-one control artifacts.
+
+### Localization implementation verification
+
+The beta recipe passed **74 behavior regressions**, including Unicode alignment,
+truncation and ambiguous-edit exclusion, insertion-only gradients, padding-safe
+gap boundaries, zero auxiliary gradients for ineligible rows, and real Trainer
+full/partial accumulation equivalence. A separate CPU tiny-Qwen run exercised
+`_fit`: one optimizer update changed the score head by **0.05**, changed LoRA and
+auxiliary boundary weights, saved both artifacts and reloaded normalized
+joint-argmax predictions after removing the auxiliary head from the temporary
+checkpoint. This proves serving does not require the localization head.
+
+The actual cached Qwen tokenizer preserved every baseline source input feature
+on the matched **480 training / 81 validation** split. The durable tokenizer audit
+found **258 eligible rows**: 151 clean, 34 sentence, 26 phrase, 18 function-word
+and 29 punctuation. It excluded 96 ellipsis pairs, 105 ambiguous alignments,
+six annotation/alternative pairs, 11 token-crossing lexical gaps, three optional
+or parenthetical pairs and one incomplete pair. Valid labels included only
+**89 positive ERROR pieces versus 6,112 negatives**, and **63 positive INSERT
+gaps versus 5,391 negatives**. Sparse positives and causal context limit what
+this auxiliary task can teach; no localization quality or classification gain
+is established by the implementation smoke.
+
+Artifacts are in the shared project `runs/` directory:
+- `hierarchical-localization-seed42-config.json`: matched training controls.
+- `hierarchical-localization-seed42-tokenizer-audit.json`: real tokenizer audit.
 
 ## Paper evidence and improvement priorities
 
