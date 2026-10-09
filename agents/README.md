@@ -503,6 +503,49 @@ Artifacts are in the shared project `runs/` directory:
 - `hierarchical-localization-seed42-config.json`: matched training controls.
 - `hierarchical-localization-seed42-tokenizer-audit.json`: real tokenizer audit.
 
+### Completed matched localization ablation
+
+The eta-one localization run completed five epochs / **300 optimizer updates**
+on Qwen3-4B NF4/BF16; epoch 5 was selected. Comparison assertions verified the
+same ordered 480 training rows, 81 holdout rows, model revision, LoRA settings,
+class weights, package versions and preprocessing as the coefficient-two
+hierarchy control. Trainer arguments matched except artifact paths and the
+required `remove_unused_columns=False`, which preserves train-only ERROR/INSERT
+labels. The control was reused, not retrained. No OOF or correction fits ran.
+
+| Measure | Hierarchy coefficient 2 | Localization eta 1 |
+| --- | ---: | ---: |
+| Five-way Macro-F1 | 0.50845162 | 0.48774208 |
+| Micro-F1 / accuracy | 0.69135802 | 0.66666667 |
+| Gold-error subtype Macro-F1 | 0.41654457 | 0.38872180 |
+| Correct subtype on 41 errors | 20 | 18 |
+| Clean false alarms | 4 | 4 |
+| Errors called clean | 0 | 0 |
+
+Macro-F1 decreased **0.02070953** (2.07 percentage points). Three labels changed:
+IDs 5 and 43 regressed from correct sentence-structure predictions to function
+word and punctuation respectively; ID 120 moved between incorrect subtypes.
+There were **zero fixes and two regressions**, with unchanged binary decisions.
+Joint probabilities changed by up to 0.12277291. The descriptive 10,000-sample
+paired class-stratified row-bootstrap delta interval was **[-0.05384649,
++0.00196186]**. It includes zero and omits source dependence and recipe/checkpoint
+selection on this repeatedly used holdout; it is not an independent-test result.
+
+Training loss was 1.47175294, not directly comparable across objectives. Actual
+training and saved-adapter holdout evaluation completed in about 24.8 minutes.
+A separate CUDA serving smoke reloaded beta and reproduced saved probabilities
+within 1e-6 on all three changed IDs plus clean/punctuation examples. The
+implementation is runnable, but **no classification gain was observed**. Sparse
+edit positives and causal context are limitations, not demonstrated causes.
+Prefer the simpler hierarchy control on current evidence; beta retains its
+requested localization experiment and is not merged into `rquq/test`.
+
+Shared project artifacts:
+- `runs/hierarchical-localization-seed42/`: classification adapter/head,
+  separate `localization_head.pt`, durable `localization_audit.json`, saved
+  predictions, metrics, histories, manifest and paired `comparison.json`.
+- `runs/hierarchical-localization-seed42-config.json`: exact training controls.
+
 ## Paper evidence and improvement priorities
 
 The exact alpha architecture—binary clean/error probability multiplied by a
