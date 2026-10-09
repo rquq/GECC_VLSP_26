@@ -800,6 +800,13 @@ Selection is classification-only: five-epoch Macro-F1 0.607858, Micro-F1
 when reporting this baseline. Connecting it to correction requires fresh
 train-only OOF hints and end-to-end correction evaluation first.
 
+Integrated verification: all 80 regression tests passed. Data discovery from
+`rquq/test` reproduced the retained run's exact ordered 480 training and 81
+validation rows. Actual CUDA serving of its five-epoch recipe's selected
+adapter matched saved probabilities within atol 1e-6 / rtol 1e-5 and labels
+exactly on IDs 377, 60, 130, 140 and 197. No retraining or correction run was
+performed for this merge.
+
 ## Paper evidence and improvement priorities
 
 The exact alpha architecture—binary clean/error probability multiplied by a
