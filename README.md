@@ -18,6 +18,16 @@ the same audited dataset build, and Run All:
 - `VGEC_classifier.json`: capped mixed classifier dataset.
 - `VGEC_balanced.json`: correction dataset with split/provenance metadata.
 
+The local Kaggle checkout contains the ready-to-upload package:
+`kaggle-input.zip`. Its three JSON files are also in `dataset/kaggle-input/`.
+In Kaggle, create a **private Dataset**, upload that ZIP (or the three loose JSON
+files), then add the Dataset to the notebook using **Add Input**. Confirm the
+three JSON files appear under `/kaggle/input`, then Run All. Do not attach the
+ZIP as an unextracted file. No XLSX, audit, manifest or synthetic-pool upload is
+needed. The ZIP and corpus files are local-only and intentionally Git-ignored;
+a fresh Git clone does not contain restricted corpus data.
+
+
 The notebook clones `kaggle-linux`, checks the compatible splits and hardware,
 trains Task 1 and its OOF classifiers, then trains Task 2. Set explicit attachment
 paths in the parameter cell if filenames are ambiguous. Both configs discover
