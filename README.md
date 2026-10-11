@@ -14,6 +14,13 @@ Import `notebooks/kaggle_two_phase.ipynb` into a **private** Kaggle notebook.
 Enable Internet, select **GPU T4 ×2**, attach the following private files from
 the same audited dataset build, and Run All:
 
+The GitHub repository is **private**. Before Run All, create a fine-grained
+GitHub token restricted to `rquq/GECC_VLSP_26` with **Contents: Read-only**.
+In Kaggle **Add-ons → Secrets**, add it as `GITHUB_TOKEN` and enable notebook
+access. The Git bootstrap uses that secret for clone and fetch without storing
+it in the remote URL or Git config. This authenticates code access only; datasets
+still come from the private Kaggle Dataset attached through Add Input.
+
 - `VGEC 2026_v1.json`: original corpus.
 - `VGEC_classifier.json`: capped mixed classifier dataset.
 - `VGEC_balanced.json`: correction dataset with split/provenance metadata.
@@ -35,7 +42,8 @@ inputs under `/kaggle/input`; outputs use `/kaggle/output`, linked to
 `/kaggle/working/output` so Save Version retains artifacts. Keep notebook versions,
 datasets, checkpoints and text-containing outputs private.
 
-For a Kaggle terminal:
+For a Kaggle terminal, first configure Git authentication for the private
+repository; Kaggle Secrets are read automatically only by the notebook bootstrap:
 
 ```bash
 git clone --single-branch --branch kaggle-linux https://github.com/rquq/GECC_VLSP_26.git /kaggle/working/gecc-two-phase-source
