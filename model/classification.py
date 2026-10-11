@@ -114,13 +114,6 @@ def _configure_padding(tokenizer):
     return added
 
 
-def _load_base(settings, tokenizer, placement):
-    import torch
-    from transformers import AutoModelForSequenceClassification, BitsAndBytesConfig
-
-    dtype = getattr(torch, placement["compute_dtype"])
-    kwargs = {
-        "revision": settings["revision"], "num_labels": len(LABELS),
 def _load_tokenizer(path, **kwargs):
     """Reload either legacy vocabularies or a complete saved tokenizer backend."""
     from transformers import AutoTokenizer
@@ -147,6 +140,13 @@ def _load_tokenizer(path, **kwargs):
     return tokenizer
 
 
+def _load_base(settings, tokenizer, placement):
+    import torch
+    from transformers import AutoModelForSequenceClassification, BitsAndBytesConfig
+
+    dtype = getattr(torch, placement["compute_dtype"])
+    kwargs = {
+        "revision": settings["revision"], "num_labels": len(LABELS),
         "id2label": {label: str(label) for label in LABELS},
         "label2id": {str(label): label for label in LABELS},
         "problem_type": "single_label_classification", "torch_dtype": dtype,
@@ -424,6 +424,13 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         raise ValueError("effective_batch_size must be a positive multiple of the microbatch")
     if fixed_epochs is not None:
         args.update(num_train_epochs=fixed_epochs, max_steps=-1)
+    epochs = float(args["num_train_epochs"])
+    if args.get("max_steps", -1) < 1 and epochs >= 1 and epochs.is_integer():
+        # Trainer 4.x floors the estimated updates per epoch, although its loop
+        # updates the final partial accumulation window. Resolve an explicit
+        # budget so integer epoch requests consume every batch in every epoch.
+        microbatches = math.ceil(len(encoded) / microbatch)
+        args["max_steps"] = math.ceil(microbatches / (effective // microbatch)) * int(epochs)
     args.update(bf16=device.startswith("cuda") and placement["compute_dtype"] == "bfloat16",
                 fp16=device.startswith("cuda") and placement["compute_dtype"] == "float16",
                 gradient_checkpointing=gradient_checkpointing,
@@ -530,13 +537,6 @@ def _connected_folds(original_train, correction_train, provenance, folds, seed, 
     training = {_id_key(row["id"]): row for row in classifier_train}
     parent = {key: key for key in originals.keys() | corrections.keys() | training.keys()}
 
-    epochs = float(args["num_train_epochs"])
-    if args.get("max_steps", -1) < 1 and epochs >= 1 and epochs.is_integer():
-        # Trainer 4.x floors the estimated updates per epoch, although its loop
-        # updates the final partial accumulation window. Resolve an explicit
-        # budget so integer epoch requests consume every batch in every epoch.
-        microbatches = math.ceil(len(encoded) / microbatch)
-        args["max_steps"] = math.ceil(microbatches / (effective // microbatch)) * int(epochs)
     def find(key):
         while parent[key] != key:
             parent[key] = parent[parent[key]]
