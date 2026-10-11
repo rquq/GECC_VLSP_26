@@ -12,7 +12,8 @@ input reaches correction, including predicted class 0.
 
 Import `notebooks/kaggle_two_phase.ipynb` into a **private** Kaggle notebook.
 Enable Internet, select **GPU T4 ×2**, attach the following private files from
-the same audited dataset build, and Run All:
+the same audited dataset build. Use **Save Version → Save & Run All** for an
+unattended saved run; interactive Run All uses the same execution path:
 
 The GitHub repository is **private**. Before Run All, create a fine-grained
 GitHub token restricted to `rquq/GECC_VLSP_26` with **Contents: Read-only**.
@@ -55,10 +56,11 @@ repository; Kaggle Secrets are read automatically only by the notebook bootstrap
 ```bash
 git clone --single-branch --branch kaggle-linux https://github.com/rquq/GECC_VLSP_26.git /kaggle/working/gecc-two-phase-source
 cd /kaggle/working/gecc-two-phase-source
-python -m pip install -r requirements-kaggle.txt
+python -m venv --system-site-packages /tmp/gecc-training
+/tmp/gecc-training/bin/python -m pip install -r requirements-kaggle.txt
 mkdir -p /kaggle/working/output
 ln -s /kaggle/working/output /kaggle/output  # Only if this path does not already exist.
-python -m model.two_phase --classification-config configs/baseline.json \
+/tmp/gecc-training/bin/python -m model.two_phase --classification-config configs/baseline.json \
   --correction-config configs/correction.json
 ```
 
@@ -66,14 +68,15 @@ If `/kaggle/output` exists, ensure it resolves to `/kaggle/working/output`.
 `requirements-kaggle.txt` pins non-torch dependencies and preserves Kaggle's
 CUDA-enabled PyTorch. The notebook records the cloned commit and resolved configs.
 
-If installation replaces a loaded training/scientific package (including NumPy,
-SciPy or scikit-learn), the dependency cell requires a **kernel restart** before
-preflight. Restart the kernel without resetting the installed environment, then
-rerun from the parameter cell. Do not use `importlib.reload` for NumPy binaries.
-The bootstrap compares loaded module versions with installed versions and checks
-the lazy causal-model and sklearn imports in a fresh subprocess. Python 3.13 CPU
-smoke exercised the NumPy 2.3.3 → 2.2.6 restart guard and a tiny Qwen2 forward;
-this is not evidence of full Sailor2 NF4 training on Kaggle T4.
+The dependency cell creates a separate training virtual environment with
+`--system-site-packages`, reusing Kaggle's CUDA-enabled PyTorch while installing
+the pinned training packages locally. It never replaces the notebook kernel's
+NumPy or other packages, and **does not require a kernel restart**. Imports,
+pipeline preflight, DDP workers and training all use the fresh training
+interpreter. The notebook kernel only prepares paths/configs and streams output.
+Pip may still report unrelated preinstalled-app conflicts because the environment
+can see Kaggle's system packages; these do not imply installation failed. The
+training import check and subprocess exit codes remain required gates.
 
 ## Two-T4 training
 
@@ -158,6 +161,15 @@ correction hint coverage, updated both adapters, reloaded saved weights, generat
 new-input predictions, and retained the output link, ZIP and log. A complete
 correction epoch consumed its final partial accumulation window in both modes.
 
+Save Version bootstrap verification used real Papermill execution on Python 3.13
+with NumPy 2.3.3 preloaded in the notebook kernel. The kernel kept that version
+and its original module path; the separate training interpreter imported the
+pinned stack with NumPy 2.2.6 and ran a finite tiny Qwen2 forward. A second
+unattended run exercised the notebook's config and log-streaming cells through
+real CPU pipeline preflight on the audited 504/81 split. Seven existing Kaggle
+bootstrap/data regression tests also passed. These checks do not claim full
+Sailor2 GPU training or execution inside Kaggle's hosted image.
+
 
 Full Sailor2 training on Kaggle T4 ×2 has not been exercised locally; the local
 machine exposes only one CUDA GPU. Distributed CPU smoke evidence does not prove
@@ -173,3 +185,6 @@ Both stages now default to two-process data-parallel training.
 Fixed Transformers 4.51 epoch accounting and rank-local tail consumption so
 OOF and correction fits finish every configured epoch rather than silently
 dropping the last accumulation window.
+Save Version now isolates training dependencies from the notebook kernel and
+runs model preflight inside the training subprocess; unattended runs no longer
+stop at a loaded-NumPy restart guard.
