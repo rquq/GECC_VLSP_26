@@ -56,8 +56,8 @@ repository; Kaggle Secrets are read automatically only by the notebook bootstrap
 ```bash
 git clone --single-branch --branch kaggle-linux https://github.com/rquq/GECC_VLSP_26.git /kaggle/working/gecc-two-phase-source
 cd /kaggle/working/gecc-two-phase-source
-python -m venv --system-site-packages /tmp/gecc-training
-/tmp/gecc-training/bin/python -m pip install -r requirements-kaggle.txt
+python -m venv --without-pip --system-site-packages /tmp/gecc-training
+python -m pip --python /tmp/gecc-training/bin/python install -r requirements-kaggle.txt
 mkdir -p /kaggle/working/output
 ln -s /kaggle/working/output /kaggle/output  # Only if this path does not already exist.
 /tmp/gecc-training/bin/python -m model.two_phase --classification-config configs/baseline.json \
@@ -69,8 +69,10 @@ If `/kaggle/output` exists, ensure it resolves to `/kaggle/working/output`.
 CUDA-enabled PyTorch. The notebook records the cloned commit and resolved configs.
 
 The dependency cell creates a separate training virtual environment with
-`--system-site-packages`, reusing Kaggle's CUDA-enabled PyTorch while installing
-the pinned training packages locally. It never replaces the notebook kernel's
+`--without-pip --system-site-packages`, then uses Kaggle's existing pip with
+`--python` to install into it. This avoids the system Python's failing `ensurepip`
+bootstrap and requires pip 22.3 or newer. Kaggle's CUDA-enabled PyTorch is reused;
+the pinned training packages are installed locally. It never replaces the notebook kernel's
 NumPy or other packages, and **does not require a kernel restart**. Imports,
 pipeline preflight, DDP workers and training all use the fresh training
 interpreter. The notebook kernel only prepares paths/configs and streams output.
@@ -170,6 +172,12 @@ real CPU pipeline preflight on the audited 504/81 split. Seven existing Kaggle
 bootstrap/data regression tests also passed. These checks do not claim full
 Sailor2 GPU training or execution inside Kaggle's hosted image.
 
+The pipless bootstrap also passed real Papermill execution with `ensurepip`
+deliberately blocked in every child interpreter: training imports and a finite
+tiny Qwen2 forward passed while the kernel retained NumPy 2.3.3. A separate smoke
+used `/usr/bin/python3` 3.13 to create a pipless environment and install/import
+NumPy via host pip's `--python`. The seven Kaggle regression tests still passed.
+
 
 Full Sailor2 training on Kaggle T4 ×2 has not been exercised locally; the local
 machine exposes only one CUDA GPU. Distributed CPU smoke evidence does not prove
@@ -188,3 +196,5 @@ dropping the last accumulation window.
 Save Version now isolates training dependencies from the notebook kernel and
 runs model preflight inside the training subprocess; unattended runs no longer
 stop at a loaded-NumPy restart guard.
+Environment creation skips `ensurepip`; the existing host pip installs into the
+training interpreter using `--python`.
