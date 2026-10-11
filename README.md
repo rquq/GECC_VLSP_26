@@ -1,85 +1,141 @@
-# Kaggle Sailor2 classification baseline
+# Kaggle Sailor2 Task 1 → Task 2
 
-This branch trains and evaluates the Sailor2 classification baseline only. It
-contains no correction model, hint-generation stage, or ensemble pipeline.
+This branch keeps the existing Sailor2 Task 1 baseline and restores alpha's
+Task 2 correction stage. Task 2 prompts contain the source sentence and Task 1's
+predicted label plus error-type description. Training hints come from train-only
+out-of-fold (OOF) classifiers; validation hints come from the selected main
+classifier. Gold labels are not substituted into prompts. These are independently
+initialized QLoRA adapters, not classifier-to-corrector weight transfer. Every
+input reaches correction, including predicted class 0.
 
 ## Run on Kaggle
 
-Import `notebooks/kaggle_baseline.ipynb` into a **private** Kaggle notebook,
-enable Internet and a CUDA GPU, and attach the private inputs
-`VGEC 2026_v1.json` and `VGEC_classifier.json`. Run All. The notebook clones the
-`kaggle-linux` branch, checks the split, trains, and reloads the selected adapter
-for evaluation. Set explicit attachment paths in its parameter cell if matching
-filenames are ambiguous.
+Import `notebooks/kaggle_two_phase.ipynb` into a **private** Kaggle notebook.
+Enable Internet, select **GPU T4 ×2**, attach the following private files from
+the same audited dataset build, and Run All:
 
-`configs/baseline.json` discovers uploaded data under `/kaggle/input` and writes
-to `/kaggle/output`. The notebook links that output path to
-`/kaggle/working/output` so Save Version retains checkpoints, logs, resolved
-configs, and the artifact ZIP. Keep both the version and text-containing outputs
-private.
+- `VGEC 2026_v1.json`: original corpus.
+- `VGEC_classifier.json`: capped mixed classifier dataset.
+- `VGEC_balanced.json`: correction dataset with split/provenance metadata.
 
-For direct execution in a Kaggle terminal:
+The notebook clones `kaggle-linux`, checks the compatible splits and hardware,
+trains Task 1 and its OOF classifiers, then trains Task 2. Set explicit attachment
+paths in the parameter cell if filenames are ambiguous. Both configs discover
+inputs under `/kaggle/input`; outputs use `/kaggle/output`, linked to
+`/kaggle/working/output` so Save Version retains artifacts. Keep notebook versions,
+datasets, checkpoints and text-containing outputs private.
+
+For a Kaggle terminal:
 
 ```bash
-git clone --single-branch --branch kaggle-linux https://github.com/rquq/GECC_VLSP_26.git /kaggle/working/gecc-baseline-source
-cd /kaggle/working/gecc-baseline-source
+git clone --single-branch --branch kaggle-linux https://github.com/rquq/GECC_VLSP_26.git /kaggle/working/gecc-two-phase-source
+cd /kaggle/working/gecc-two-phase-source
 python -m pip install -r requirements-kaggle.txt
 mkdir -p /kaggle/working/output
-ln -s /kaggle/working/output /kaggle/output  # Only if /kaggle/output does not already exist.
-python -m model.classification --config configs/baseline.json
+ln -s /kaggle/working/output /kaggle/output  # Only if this path does not already exist.
+python -m model.two_phase --classification-config configs/baseline.json \
+  --correction-config configs/correction.json
 ```
 
-If `/kaggle/output` already exists, ensure it points to
-`/kaggle/working/output` before training; otherwise Save Version may not retain
-artifacts. `requirements-kaggle.txt` is the sole dependency recipe. It pins
-non-torch dependencies and preserves Kaggle's CUDA-enabled PyTorch installation.
-Precision resolves to BF16 on supported GPUs and FP16 otherwise.
+If `/kaggle/output` exists, ensure it resolves to `/kaggle/working/output`.
+`requirements-kaggle.txt` pins non-torch dependencies and preserves Kaggle's
+CUDA-enabled PyTorch. The notebook records the cloned commit and resolved configs.
 
-## Baseline recipe
+## Two-T4 training
 
-- Base model: `sail/Sailor2-8B-Chat`, pinned to revision
-  `577d5b2745863cec11e1b2f1c92586a91cea446e`.
-- NF4 QLoRA, rank 16; single-forward soft hierarchical BCE plus twice
-  conditional CE, with square-root class weights.
-- Five epochs, learning rate `5e-5`, effective batch size 8, fixed seed 42.
-- Split the 401-row raw corpus before augmentation: 312 retained original
-  training rows plus 192 capped synthetic rows = **504 training rows**;
-  **81 raw validation rows**.
+Both configs default to `run.world_size=2`. The pipeline launches each stage
+with `torchrun`, one NF4 model replica per GPU and synchronized adapter gradients.
+The main classifier, every OOF fit, and the corrector use both GPUs for training.
+Per-GPU microbatch 1 × two GPUs × four accumulation steps = global effective
+batch 8. T4 uses FP16; supported newer GPUs may use BF16.
 
-The best adapter is selected by validation macro F1. Fresh training is not a
-guarantee of historical scores or identical numerics across hardware and library
-versions. Full Sailor2 training inside Kaggle has not been run here.
+Epoch validation, hint prediction and correction generation run on rank 0 while
+the other rank waits. This is data parallelism for training throughput, not model
+splitting, and does not guarantee a 2× end-to-end speedup. Each replica must fit
+one T4. The default launch fails before downloads if two CUDA GPUs are unavailable.
+For deliberate single-GPU runs, set `run.world_size=1` in **both** copied configs.
+Direct stage entrypoints require a matching distributed launch:
 
-## Local checks and data provenance
+```bash
+python -m torch.distributed.run --standalone --nproc_per_node=2 \
+  -m model.classification --config configs/baseline.json
+```
 
-Run commands from this checkout. The shared local virtual environment is in the
-sibling `test` checkout:
+## Retained recipes
+
+Both stages use pinned `sail/Sailor2-8B-Chat` revision
+`577d5b2745863cec11e1b2f1c92586a91cea446e`, NF4 double quantization,
+LoRA rank 16 / alpha 32 / dropout 0.05, sequence length 512, effective batch 8,
+and seed 42.
+
+- **Task 1:** single-forward soft hierarchical BCE + twice conditional CE,
+  square-root class weights, five epochs, LR `5e-5`. The raw corpus is split
+  before augmentation: 312 retained original training rows + 192 synthetic rows
+  = 504 training rows; 81 raw validation rows. Selection: validation macro F1.
+- **OOF hints:** five connected folds, three epochs per fold, no outer-holdout
+  selection. Duplicate sources, synthetic parent relationships and contrast/template
+  families stay connected. Hints cover the correction training population,
+  including correction rows not retained in the main classifier's training set.
+- **Task 2:** alpha's response-only JSON supervision, four epochs, LR `2e-5`.
+  Prompt tokens are masked from loss; target completions are never truncated.
+  Selection: error-only GLEU+, then error-only exact match, then clean preservation;
+  ties retain the earlier epoch. Invalid generated JSON is reported with raw
+  generation and parse error, not replaced with a fake successful correction.
+
+Validation selection reuses the same holdout; reported scores are exploratory,
+not independent test performance. Fresh training need not reproduce historical
+scores or identical numerics across hardware/library versions.
+
+## Saved pipeline inference
+
+The run contains `classification/classifier`, `classification/hints.json`,
+`correction/adapter`, selected-adapter evaluations, epoch histories, predictions,
+metrics, resolved configs and `pipeline_manifest.json`. The notebook retains a
+ZIP and training log alongside the run.
+
+```bash
+python -m model.pipeline_predict \
+  --classifier /kaggle/output/RUN/classification/classifier \
+  --adapter /kaggle/output/RUN/correction/adapter \
+  --data /kaggle/input/DATA/input.json \
+  --output /kaggle/output/predictions.json
+```
+
+Use `--evaluate` for labeled records. To reuse a completed compatible Task 1 run,
+pass `--classifier-run /kaggle/input/DATA/completed-classification` to
+`model.two_phase`; its saved classifier, OOF hints and provenance are validated.
+
+## Local checks and provenance
+
+The local shared virtual environment is in sibling `test`:
 
 ```bash
 HF_HUB_OFFLINE=1 TOKENIZERS_PARALLELISM=false ../test/.venv/bin/python -m unittest discover -s agents/tests -q
-../test/.venv/bin/python -m model.classification --config configs/baseline.json --data '/path/to/VGEC 2026_v1.json' --output-dir runs/baseline-reproduction
 ```
 
-For local training, set `data.augmentation_path` in a local copy of the baseline
-config to the classifier dataset path and pass that config with `--config`;
-the checked-in config's automatic discovery targets `/kaggle/input`.
+Local runs need copied configs with explicit paths for all three datasets and
+an appropriate `run.world_size`. Dataset authoring/building utilities remain in
+`tools/` for provenance; training never authors or rebuilds attached inputs.
 
-Dataset authoring/building tools in `tools/` and the data/metric utilities remain
-for provenance and rebuilding private inputs. Training uses the uploaded raw and
-classifier datasets; it does not author or rebuild data during the run.
+Local verification passed 83 regression tests and real connected notebook-runtime
+smokes with tiny unquantized Qwen2 models at world sizes 1 and 2. The smokes used
+the attached audited 504/81 classifier split, trained two OOF folds with complete
+correction hint coverage, updated both adapters, reloaded saved weights, generated
+new-input predictions, and retained the output link, ZIP and log. A complete
+correction epoch consumed its final partial accumulation window in both modes.
 
-## Cleanup verification
 
-Removed correction/OOF, encoder and ensemble entrypoints, alternate experiment
-configs, separate-weighting loss code, stale pipeline guides, and duplicate
-dependency recipes. The notebook is now `notebooks/kaggle_baseline.ipynb`;
-classification needs no `--skip-hints` switch. Dataset-building utilities and
-their provenance/leakage checks remain.
+Full Sailor2 training on Kaggle T4 ×2 has not been exercised locally; the local
+machine exposes only one CUDA GPU. Distributed CPU smoke evidence does not prove
+T4 memory headroom or a measured throughput gain.
 
-The retained suite passed 74 tests. A local execution of the notebook's config,
-training and artifact cells used simulated Kaggle mounts and the actual 504/81
-split, performed a tiny Qwen2 CPU optimizer update, changed LoRA and score-head
-weights, reloaded the selected adapter, and retained the output link, ZIP and log.
-This verifies the launch/artifact path, not full Sailor2 GPU training or Kaggle's
-host permissions.
+## Branch changes
 
+Restored alpha correction, response-only collation, connected OOF handoff,
+saved pipeline inference, and the full two-phase notebook. Kept the existing
+Task 1 loss and dataset recipe; did not restore alpha experimental losses,
+encoder/ensemble paths, alternate experiment configs or duplicate dependencies.
+Both stages now default to two-process data-parallel training.
+Fixed Transformers 4.51 epoch accounting and rank-local tail consumption so
+OOF and correction fits finish every configured epoch rather than silently
+dropping the last accumulation window.

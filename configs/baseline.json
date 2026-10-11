@@ -4,11 +4,14 @@
     "name": "sailor2-baseline-seed42",
     "output_root": "/kaggle/output",
     "device": "cuda",
+    "world_size": 2,
     "seed": 42
   },
   "data": {
     "path": null,
     "filename": "VGEC 2026_v1.json",
+    "correction_path": null,
+    "correction_filename": "VGEC_balanced.json",
     "input_root": "/kaggle/input",
     "validation_fraction": 0.2,
     "augmentation_path": null,
@@ -67,5 +70,10 @@
       "adam_beta2": 0.999,
       "adam_epsilon": 1e-08
     }
+  },
+  "oof": {
+    "enabled": true,
+    "folds": 5,
+    "epochs": 3
   }
 }

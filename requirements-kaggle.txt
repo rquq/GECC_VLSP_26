@@ -1,4 +1,4 @@
-# Kaggle baseline: keep the image's CUDA-enabled torch; do not install a torch wheel.
+# Kaggle two-phase QLoRA: keep the image's CUDA-enabled torch; do not install a torch wheel.
 transformers==4.51.3
 peft==0.15.2
 accelerate==1.6.0

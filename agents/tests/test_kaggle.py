@@ -30,13 +30,14 @@ class NotebookSourceTests(unittest.TestCase):
         self.git(self.origin, "switch", "-c", "test/baseline")
         self.write_project("baseline contents")
         self.git(self.origin, "commit", "-am", "Baseline fixture")
-        notebook = json.loads((PROJECT / "notebooks/kaggle_baseline.ipynb").read_text())
+        notebook = json.loads((PROJECT / "notebooks/kaggle_two_phase.ipynb").read_text())
         self.source = "".join(notebook["cells"][2]["source"])
         self.namespace = {"Path": Path, "subprocess": subprocess, "json": json,
                           "sys": __import__("sys"), "urllib": __import__("urllib.request"),
                           "REPO_URL": self.origin.as_uri(), "BRANCH": "test/baseline",
                           "PROJECT_SUBDIR": ".", "CLONE_DIR": self.clone,
-                          "CLASSIFICATION_CONFIG": "configs/baseline.json"}
+                          "CLASSIFICATION_CONFIG": "configs/baseline.json",
+                          "CORRECTION_CONFIG": "configs/correction.json"}
 
     def git(self, directory, *args):
         return subprocess.check_output(["git", "-C", str(directory), *args],
@@ -44,7 +45,8 @@ class NotebookSourceTests(unittest.TestCase):
 
     def write_project(self, marker):
         (self.origin / "README.md").write_text(marker)
-        for name in ["requirements-kaggle.txt", "model/classification.py", "configs/baseline.json"]:
+        for name in ["requirements-kaggle.txt", "model/classification.py", "model/correction.py",
+                     "model/two_phase.py", "configs/baseline.json", "configs/correction.json"]:
             path = self.origin / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("" if path.suffix != ".json" else "{}")

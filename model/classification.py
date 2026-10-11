@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import argparse
-from collections import Counter
+from collections import Counter, defaultdict
 import copy
 import gc
 import hashlib
@@ -11,10 +11,11 @@ import json
 import math
 import os
 from pathlib import Path
+import random
 
-from .data import LABELS, _id_key, _source_key, load_records, split_records
+from .data import LABELS, _id_key, _source_key, load_records, load_training_split, split_records
 from .metrics import score
-from .runtime import load_config, resolve_data, stage_output, write_json
+from .runtime import CompleteEpochMixin, load_config, resolve_data, stage_output, write_json
 from .prediction_export import comparison_rows
 from .data import load_classifier_split
 
@@ -73,11 +74,9 @@ def _texts(records, preprocessing):
 
 
 def placement_preflight(settings, device="cuda"):
-    """Resolve single-device placement and supported precision without loading weights."""
+    """Resolve rank-local placement and supported precision without loading weights."""
     import torch
 
-    if int(os.environ.get("WORLD_SIZE", "1")) != 1:
-        raise ValueError("Classification uses a single-process QLoRA fit, not DDP")
     device = torch.device(device)
     quantized = settings["load_in_4bit"]
     if device.type == "cpu":
@@ -88,7 +87,8 @@ def placement_preflight(settings, device="cuda"):
         raise ValueError("Classifier device must be CUDA or CPU")
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA was requested but is unavailable")
-    index = torch.cuda.current_device() if device.index is None else device.index
+    index = int(os.environ.get("LOCAL_RANK", "0")) if device.index is None and int(os.environ.get("WORLD_SIZE", "1")) > 1 else (
+        torch.cuda.current_device() if device.index is None else device.index)
     requested = settings["compute_dtype"]
     if requested not in ("bfloat16", "float16", "float32"):
         raise ValueError("model.compute_dtype must be bfloat16, float16, or float32")
@@ -296,7 +296,7 @@ def _hierarchical_trainer_class():
     import torch
     from transformers import Trainer
 
-    class HierarchicalTrainer(Trainer):
+    class HierarchicalTrainer(CompleteEpochMixin, Trainer):
         def __init__(self, *args, loss_weights, **kwargs):
             super().__init__(*args, **kwargs)
             self.loss_weights = loss_weights
@@ -304,6 +304,7 @@ def _hierarchical_trainer_class():
             # This also disables its second division by accumulation steps;
             # kwargs are consumed here, never forwarded to the Qwen model.
             self.model_accepts_loss_kwargs = True
+
 
         def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
             labels = inputs["labels"]
@@ -331,12 +332,19 @@ def _training_algorithm(config, model):
     }
 
 
-def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, preprocessing):
-    """Fresh mixed-data LoRA/head fit with outer-holdout epoch selection."""
+def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, preprocessing,
+         fixed_epochs=None):
+    """Fresh mixed-data LoRA/head fit; only main fit selects on outer holdout."""
     import torch
     from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
     from transformers import (DataCollatorWithPadding, TrainerCallback,
                               TrainingArguments, set_seed)
+    world_size = int(os.environ.get("WORLD_SIZE", "1"))
+    rank = int(os.environ.get("RANK", "0"))
+
+    def barrier():
+        if world_size > 1:
+            torch.distributed.barrier()
 
     if not train:
         raise ValueError("Every classifier fit needs training rows")
@@ -360,9 +368,10 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     lora = {**config["lora"], "task_type": TaskType.SEQ_CLS, "modules_to_save": ["score"],
             "revision": settings["revision"]}
     model = get_peft_model(model, LoraConfig(**lora))
-    # Trainer otherwise wraps any visible multi-GPU host in DataParallel.
-    model.is_parallelizable = True
-    model.model_parallel = True
+    if world_size == 1:
+        # Avoid implicit DataParallel for explicitly single-process runs.
+        model.is_parallelizable = True
+        model.model_parallel = True
     classifier_config = {
         "model": settings, "requested_compute_dtype": config["model"]["compute_dtype"],
         "lora": {**config["lora"], "task_type": "SEQ_CLS", "modules_to_save": ["score"],
@@ -382,35 +391,45 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     args = dict(training["args"])
     microbatch = args["per_device_train_batch_size"]
     effective = training["effective_batch_size"]
-    if type(microbatch) is not int or microbatch < 1 or type(effective) is not int or effective < microbatch or effective % microbatch:
-        raise ValueError("effective_batch_size must be a positive multiple of the microbatch")
+    if type(microbatch) is not int or microbatch < 1 or type(effective) is not int or effective < microbatch * world_size or effective % (microbatch * world_size):
+        raise ValueError("effective_batch_size must be a positive multiple of microbatch * WORLD_SIZE")
+    accumulation = effective // (microbatch * world_size)
+    if fixed_epochs is not None:
+        args.update(num_train_epochs=fixed_epochs, max_steps=-1)
     epochs = float(args["num_train_epochs"])
-    if args.get("max_steps", -1) < 1 and epochs >= 1 and epochs.is_integer():
+    if fixed_epochs is None and args.get("max_steps", -1) < 1 and epochs >= 1 and epochs.is_integer():
         # Trainer 4.x floors the estimated updates per epoch, although its loop
         # updates the final partial accumulation window. Resolve an explicit
         # budget so integer epoch requests consume every batch in every epoch.
-        microbatches = math.ceil(len(encoded) / microbatch)
-        args["max_steps"] = math.ceil(microbatches / (effective // microbatch)) * int(epochs)
+        microbatches = math.ceil(math.ceil(len(encoded) / world_size) / microbatch)
+        args["max_steps"] = math.ceil(microbatches / accumulation) * int(epochs)
     args.update(bf16=device.startswith("cuda") and placement["compute_dtype"] == "bfloat16",
                 fp16=device.startswith("cuda") and placement["compute_dtype"] == "float16",
                 gradient_checkpointing=gradient_checkpointing,
                 gradient_checkpointing_kwargs=checkpoint_kwargs)
+    if world_size > 1:
+        args.update(ddp_find_unused_parameters=False, ddp_broadcast_buffers=False,
+                    ddp_timeout=86400, average_tokens_across_devices=False)
     training_args = TrainingArguments(
         **args, output_dir=str(artifact_dir / "trainer"), use_cpu=device == "cpu",
-        gradient_accumulation_steps=effective // microbatch,
+        gradient_accumulation_steps=accumulation,
         eval_strategy="no", save_strategy="no", report_to="none",
         logging_nan_inf_filter=False, seed=seed, data_seed=seed, label_names=["labels"])
-    # Prevent Trainer's implicit DataParallel when more than one GPU is visible.
-    training_args._n_gpu = 0 if device == "cpu" else 1
-    if str(training_args.device) != device:
-        raise ValueError("Pin the classifier GPU with CUDA_VISIBLE_DEVICES before starting the process")
+    if world_size == 1:
+        # Prevent Trainer's implicit DataParallel for a single-process fit.
+        training_args._n_gpu = 0 if device == "cpu" else 1
+    actual_device = training_args.device
+    expected_device = torch.device(device)
+    if (actual_device.type != expected_device.type
+            or (expected_device.type == "cuda" and actual_device.index != expected_device.index)):
+        raise ValueError(f"Classifier device {actual_device} must match rank-local {expected_device}")
     history = []
     best = {"epoch": None, "macro_f1": None}
     batch_size = args.get("per_device_eval_batch_size", 8)
 
     def save_model():
         checkpoint.mkdir(parents=True, exist_ok=True)
-        model.save_pretrained(checkpoint, save_embedding_layers=added_pad)
+        trainer.accelerator.unwrap_model(model).save_pretrained(checkpoint, save_embedding_layers=added_pad)
         tokenizer.save_pretrained(checkpoint)
         write_json(checkpoint / "preprocessing.json", preprocessing)
         write_json(checkpoint / "classifier_config.json", classifier_config)
@@ -421,19 +440,27 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
 
     class EpochEvaluation(TrainerCallback):
         def on_epoch_end(self, args, state, control, **kwargs):
+            barrier()
             _finite_parameters(model)
-            entry = {"epoch": state.epoch, "optimizer_steps": state.global_step}
-            if validation is not None:
-                predictions = _predict(model, tokenizer, validation, preprocessing, device, batch_size)
-                metrics = _classification_metrics(validation, predictions)
-                entry["classification"] = metrics
-                if best["macro_f1"] is None or metrics["macro_f1"] > best["macro_f1"]:
-                    best.update(epoch=state.epoch, macro_f1=metrics["macro_f1"])
-                    save_model()
-            history.append(entry)
-            write_json(artifact_dir / "epoch_history.json", history)
-            print(json.dumps(entry, ensure_ascii=False), flush=True)
-            model.train()
+            if rank == 0:
+                unwrapped = trainer.accelerator.unwrap_model(model)
+                entry = {"epoch": state.epoch, "optimizer_steps": state.global_step}
+                if validation is not None:
+                    predictions = _predict(unwrapped, tokenizer, validation, preprocessing, device, batch_size)
+                    metrics = _classification_metrics(validation, predictions)
+                    entry["classification"] = metrics
+                    if best["macro_f1"] is None or metrics["macro_f1"] > best["macro_f1"]:
+                        best.update(epoch=state.epoch, macro_f1=metrics["macro_f1"])
+                        save_model()
+                history.append(entry)
+                write_json(artifact_dir / "epoch_history.json", history)
+                print(json.dumps(entry, ensure_ascii=False), flush=True)
+                unwrapped.train()
+            if world_size > 1:
+                selected = [best if rank == 0 else None]
+                torch.distributed.broadcast_object_list(selected, src=0)
+                best.update(selected[0])
+            barrier()
             return control
 
     trainer = HierarchicalTrainer(model=model, args=training_args, train_dataset=encoded,
@@ -452,18 +479,21 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         for key in ("loss", "grad_norm", "learning_rate", "train_loss"):
             if key in entry and not math.isfinite(entry[key]):
                 raise RuntimeError(f"Nonfinite classifier training statistic: {key}")
-    if validation is None:
-        save_model()
-    elif best["epoch"] is None:
-        raise RuntimeError("Main classifier did not evaluate or save an epoch")
-    write_json(artifact_dir / "trainer_history.json", trainer.state.log_history)
+    barrier()
+    if rank == 0:
+        if validation is None:
+            save_model()
+        elif best["epoch"] is None:
+            raise RuntimeError("Main classifier did not evaluate or save an epoch")
+        write_json(artifact_dir / "trainer_history.json", trainer.state.log_history)
+    barrier()
     stats = {
         "training_loss": result.training_loss, "optimizer_steps": result.global_step,
         "trainable_parameters": trainable_parameters, "total_parameters": total_parameters,
         "classifier_config": classifier_config, "placement": placement,
         "parameters_finite": True, "loss_finite": True,
-        "gradient_accumulation_steps": effective // microbatch,
-        "effective_batch_size": effective, "training_args": training_args.to_dict(),
+        "gradient_accumulation_steps": accumulation,
+        "effective_batch_size": effective, "world_size": world_size, "training_args": training_args.to_dict(),
         "class_weighting": weighting,
         "training_algorithm": classifier_config["training_algorithm"],
         "fp16_initial_scale": training.get("fp16_initial_scale", 1.0) if training_args.fp16 else None,
@@ -483,25 +513,194 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     return stats
 
 
+def _connected_folds(original_train, correction_train, provenance, folds, seed, classifier_train):
+    """Keep source duplicates, synthetic parents and contrast/template families together."""
+    if type(folds) is not int or folds < 2:
+        raise ValueError("OOF folds must be an integer of at least two")
+    originals = {_id_key(row["id"]): row for row in original_train}
+    corrections = {_id_key(row["id"]): row for row in correction_train}
+    training = {_id_key(row["id"]): row for row in classifier_train}
+    parent = {key: key for key in originals.keys() | corrections.keys() | training.keys()}
+
+    def find(key):
+        while parent[key] != key:
+            parent[key] = parent[parent[key]]
+            key = parent[key]
+        return key
+
+    def union(first, second):
+        parent[find(second)] = find(first)
+
+    sources = {}
+    for row in original_train + correction_train + classifier_train:
+        key = _id_key(row["id"])
+        source = _source_key(row["source"])
+        if source in sources:
+            union(key, sources[source])
+        else:
+            sources[source] = key
+    families = {}
+    for row in provenance.get("train_rows", []):
+        key = _id_key(row["id"])
+        metadata = row.get("authored_provenance", {})
+        for field in ("family_id", "template_id"):
+            value = metadata.get(field)
+            if value:
+                family = (field, value)
+                if family in families:
+                    union(key, families[family])
+                else:
+                    families[family] = key
+        for value in row.get("parent_ids", []):
+            original = _id_key(value)
+            if original not in originals:
+                raise ValueError("Synthetic OOF parent is not an original training ID")
+            union(key, original)
+    components = defaultdict(list)
+    for key in parent:
+        components[find(key)].append(key)
+    groups = []
+    for keys in components.values():
+        original_keys = [key for key in keys if key in originals]
+        correction_keys = [key for key in keys if key in corrections]
+        counts = Counter(originals[key]["label"] for key in original_keys)
+        groups.append({"keys": keys, "original_keys": original_keys,
+                       "correction_keys": correction_keys, "counts": counts})
+    if sum(bool(group["correction_keys"]) for group in groups) < folds:
+        raise ValueError("Too few independent correction source/parent groups for the requested OOF folds")
+    # Stabilize before seeded tie breaking; typed IDs remain distinct throughout.
+    groups.sort(key=lambda group: min(json.dumps([key[0].__name__, key[1]], ensure_ascii=False) for key in group["keys"]))
+    rng = random.Random(seed)
+    rng.shuffle(groups)
+    totals = Counter(row["label"] for row in original_train)
+    groups.sort(key=lambda group: (max((count / totals[label] for label, count in group["counts"].items()), default=0),
+                                   len(group["original_keys"]), len(group["correction_keys"])), reverse=True)
+    fold_counts = [Counter() for _ in range(folds)]
+    fold_original_sizes = [0] * folds
+    fold_correction_sizes = [0] * folds
+    assignments = {}
+    tie_order = list(range(folds))
+    rng.shuffle(tie_order)
+    for group in groups:
+        candidates = tie_order
+        if group["correction_keys"] and any(size == 0 for size in fold_correction_sizes):
+            candidates = [fold for fold in tie_order if fold_correction_sizes[fold] == 0]
+
+        def balance_cost(fold):
+            cost = sum(((fold_counts[fold][label] + group["counts"][label]) ** 2
+                        - fold_counts[fold][label] ** 2) / max(1, totals[label]) ** 2 for label in LABELS)
+            cost += ((fold_original_sizes[fold] + len(group["original_keys"])) ** 2
+                     - fold_original_sizes[fold] ** 2) / len(original_train) ** 2
+            cost += ((fold_correction_sizes[fold] + len(group["correction_keys"])) ** 2
+                     - fold_correction_sizes[fold] ** 2) / len(correction_train) ** 2
+            return cost
+
+        fold = min(candidates, key=balance_cost)
+        fold_counts[fold].update(group["counts"])
+        fold_original_sizes[fold] += len(group["original_keys"])
+        fold_correction_sizes[fold] += len(group["correction_keys"])
+        assignments.update((key, fold) for key in group["keys"])
+    plans = []
+    for fold in range(folds):
+        train = [row for row in classifier_train if assignments[_id_key(row["id"])] != fold]
+        # Group exclusion can change ratios; cap again within each OOF fit.
+        original_counts = Counter(row["label"] for row in train if _id_key(row["id"]) in originals)
+        synthetic_counts = Counter()
+        capped = []
+        for row in train:
+            if _id_key(row["id"]) not in originals:
+                label = row["label"]
+                limit = min(40, original_counts[label]) if label == 0 else original_counts[label]
+                if synthetic_counts[label] >= limit:
+                    continue
+                synthetic_counts[label] += 1
+            capped.append(row)
+        train = capped
+        heldout = [row for row in original_train if assignments[_id_key(row["id"])] == fold]
+        predict = [row for row in correction_train if assignments[_id_key(row["id"])] == fold]
+        if not train or not predict:
+            raise ValueError("Every OOF fold must have classifier training and correction prediction rows")
+        plans.append((train, heldout, predict))
+    return plans
+
+
+def _correction_split(config, original_path, original_train, original_validation, explicit):
+    from .runtime import resolve_data
+
+    correction_config = copy.deepcopy(config)
+    correction_config["data"].update(path=config["data"].get("correction_path"),
+                                     filename=config["data"].get("correction_filename", "VGEC_balanced.json"))
+    path = resolve_data(correction_config, explicit)
+    seed = config["run"]["seed"]
+    fraction = config["data"]["validation_fraction"]
+    train, validation, info = load_training_split(path, fraction, seed)
+    if info["format"] not in {"vgec-balanced-v3", "vgec-reviewed-v1"}:
+        raise ValueError("Correction hints require a seed-42 balanced or reviewed bundle")
+    expected = {_id_key(row["id"]): (row["source"], row["label"], row["target"]) for row in original_validation}
+    actual = {_id_key(row["id"]): (row["source"], row["label"], row["target"]) for row in validation}
+    if actual != expected:
+        raise ValueError("Original and correction holdouts must have identical typed IDs, sources, labels, and targets")
+    provenance = info["provenance"]
+    if {_id_key(value) for value in provenance["original_train_ids"]} != {_id_key(row["id"]) for row in original_train}:
+        raise ValueError("Correction bundle original_train_ids differ from the original classifier training partition")
+    original_hash = hashlib.sha256(original_path.read_bytes()).hexdigest()
+    if info.get("original_sha256") not in (None, original_hash):
+        raise ValueError("Correction bundle was built from different original data")
+    original_rows = {_id_key(row["id"]): row for row in original_train}
+    reviewed_labels = {}
+    if info["format"] == "vgec-reviewed-v1":
+        original_raw = {_id_key(row["ID"]): row for row in json.loads(original_path.read_text())}
+        for review in provenance["authored_overrides"]:
+            key = _id_key(review["before"]["ID"])
+            if review["before"] != original_raw.get(key):
+                raise ValueError("Correction review original differs from organizer JSON")
+            reviewed_labels[key] = review["after"]["Output"]["Error_Type_Id"]
+    for row in train:
+        key = _id_key(row["id"])
+        if key in original_rows and (row["source"], row["label"]) != (original_rows[key]["source"], reviewed_labels.get(key, original_rows[key]["label"])):
+            raise ValueError("Retained correction originals must preserve original sources and labels")
+    return path, train, validation, provenance
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True)
     parser.add_argument("--data")
+    parser.add_argument("--correction-data")
     parser.add_argument("--output-dir")
     parser.add_argument("--device", choices=["cuda", "cpu"])
+    parser.add_argument("--skip-hints", action="store_true", help="Train the main classifier only; not a connected pipeline run.")
     args = parser.parse_args()
-    config = load_config(args.config)
+    config = load_config(args.config, expected_task="classification")
     device = args.device or config["run"]["device"]
     config["run"]["device"] = device
     seed = config["run"]["seed"]
-    if int(os.environ.get("WORLD_SIZE", "1")) != 1:
-        raise ValueError("Classification uses a single-process QLoRA fit, not DDP")
     import torch
+    from datetime import timedelta
+
+    world_size = int(os.environ.get("WORLD_SIZE", "1"))
+    rank = int(os.environ.get("RANK", "0"))
+    requested_world_size = config["run"].get("world_size", 1)
+    if type(requested_world_size) is not int or requested_world_size not in (1, 2):
+        raise ValueError("run.world_size must be 1 or 2")
+    if world_size != requested_world_size:
+        raise ValueError(f"run.world_size={requested_world_size} requires torchrun --standalone --nproc_per_node={requested_world_size} -m model.classification; actual WORLD_SIZE={world_size}")
+
+    def barrier():
+        if world_size > 1:
+            torch.distributed.barrier()
 
     if device not in ("cuda", "cpu"):
         raise ValueError("run.device must be cuda or cpu")
     if device == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("CUDA was requested but is unavailable")
+    if device == "cuda":
+        if torch.cuda.device_count() < world_size:
+            raise RuntimeError(f"Classification requires {world_size} visible CUDA devices")
+        torch.cuda.set_device(int(os.environ.get("LOCAL_RANK", "0")))
+    if world_size > 1:
+        torch.distributed.init_process_group(
+            backend="nccl" if device == "cuda" else "gloo", timeout=timedelta(seconds=86400))
     path = resolve_data(config, args.data)
     fraction = config["data"]["validation_fraction"]
     original_train, validation = split_records(load_records(path), fraction, seed)
@@ -511,41 +710,108 @@ def main():
     mixed_path = resolve_data(mixed_config, None)
     train, classifier_info = load_classifier_split(path, mixed_path, fraction, seed)
     preprocessing = _preprocessing(config)
-    output = stage_output(config, args.output_dir)
-    output.mkdir(parents=True, exist_ok=True)
+    enabled = config.get("oof", {}).get("enabled", True) and not args.skip_hints
+    plans = []
+    if enabled:
+        correction_path, correction_train, correction_validation, provenance = _correction_split(
+            config, path, original_train, validation, args.correction_data)
+        epochs = config["oof"]["epochs"]
+        if type(epochs) is not int or epochs < 1:
+            raise ValueError("oof.epochs must be a positive integer")
+        grouping = {"train_rows": provenance["train_rows"] + classifier_info["provenance"]["train_rows"]}
+        plans = _connected_folds(original_train, correction_train, grouping, config["oof"]["folds"], seed, train)
+    resolved_output = [str(stage_output(config, args.output_dir)) if rank == 0 else None]
+    if world_size > 1:
+        torch.distributed.broadcast_object_list(resolved_output, src=0)
+    output = Path(resolved_output[0])
+    if rank == 0:
+        output.mkdir(parents=True, exist_ok=True)
+    barrier()
     checkpoint = output / "classifier"
     config["data"]["path"] = str(path)
     config["data"]["augmentation_path"] = str(mixed_path)
-    write_json(output / "config.json", config)
-    write_json(output / "train.json", train)
-    write_json(output / "validation.json", validation)
-    write_json(output / "preprocessing.json", preprocessing)
+    if enabled:
+        config["data"]["correction_path"] = str(correction_path)
+    if rank == 0:
+        write_json(output / "config.json", config)
+        write_json(output / "train.json", train)
+        write_json(output / "validation.json", validation)
+        write_json(output / "preprocessing.json", preprocessing)
+    barrier()
     stats = _fit(config, train, validation, checkpoint, output, device, seed, preprocessing)
     batch_size = config["training"]["args"].get("per_device_eval_batch_size", 8)
-    predictions = classify(checkpoint, validation, device, batch_size)
-    metrics = {"count": len(validation), "classification": _classification_metrics(validation, predictions),
-               "training": stats}
-    write_json(output / "predictions.json", comparison_rows(validation, predictions))
-    write_json(output / "metrics.json", metrics)
-    manifest = {
-        "task": "classification", "config": config, "seed": seed, "validation_fraction": fraction,
-        "device": device, "world_size": 1, "output_dir": str(output), "classifier_path": str(checkpoint),
-        "data_path": str(path), "data_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-        "classifier_data_path": str(mixed_path),
-        "classifier_data_sha256": hashlib.sha256(mixed_path.read_bytes()).hexdigest(),
-        "original_train_count": len(original_train),
-        "retained_original_train_count": len(classifier_info["provenance"]["retained_original_train_ids"]),
-        "quarantined_original_train_count": len(classifier_info["provenance"]["quarantined_ids"]),
-        "synthetic_train_count": len(classifier_info["provenance"]["selected_synthetic_ids"]),
-        "model": config["model"], "resolved_model_revision": config["model"]["revision"],
-        "preprocessing": preprocessing, "saved_classifier_reloaded_for_evaluation": True,
-        "train_count": len(train), "validation_count": len(validation),
-        **stats,
-        "versions": {name: importlib.metadata.version(name) for name in ("torch", "transformers", "accelerate", "peft", "bitsandbytes")},
-    }
-    write_json(output / "run_manifest.json", manifest)
-    print(json.dumps({"output_dir": str(output), "classifier_path": str(checkpoint),
-                      "macro_f1": metrics["classification"]["macro_f1"]}), flush=True)
+    if rank == 0:
+        predictions = classify(checkpoint, validation, device, batch_size)
+        metrics = {"count": len(validation), "classification": _classification_metrics(validation, predictions),
+                   "training": stats}
+        write_json(output / "predictions.json", comparison_rows(validation, predictions))
+        write_json(output / "metrics.json", metrics)
+        manifest = {
+            "task": "classification", "config": config, "seed": seed, "validation_fraction": fraction,
+            "device": device, "world_size": world_size, "output_dir": str(output), "classifier_path": str(checkpoint),
+            "data_path": str(path), "data_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "classifier_data_path": str(mixed_path),
+            "classifier_data_sha256": hashlib.sha256(mixed_path.read_bytes()).hexdigest(),
+            "original_train_count": len(original_train),
+            "retained_original_train_count": len(classifier_info["provenance"]["retained_original_train_ids"]),
+            "quarantined_original_train_count": len(classifier_info["provenance"]["quarantined_ids"]),
+            "synthetic_train_count": len(classifier_info["provenance"]["selected_synthetic_ids"]),
+            "model": config["model"], "resolved_model_revision": config["model"]["revision"],
+            "preprocessing": preprocessing, "saved_classifier_reloaded_for_evaluation": True,
+            "train_count": len(train), "validation_count": len(validation),
+            "hints_enabled": bool(enabled), **stats,
+            "versions": {name: importlib.metadata.version(name) for name in ("torch", "transformers", "accelerate", "peft", "bitsandbytes")},
+        }
+    barrier()
+    if enabled:
+        if rank == 0:
+            hints = {"seed": seed, "validation_fraction": fraction,
+                     "classifier_provenance": classifier_info["provenance"],
+                     "correction_data_sha256": hashlib.sha256(correction_path.read_bytes()).hexdigest(),
+                     "train": [], "validation": classify(checkpoint, correction_validation, device, batch_size), "folds": []}
+        barrier()
+        for fold, (fold_train, heldout_originals, fold_predict) in enumerate(plans):
+            fold_dir = output / "oof" / f"fold-{fold}"
+            if rank == 0:
+                fold_dir.mkdir(parents=True)
+            barrier()
+            fold_checkpoint = fold_dir / "classifier"
+            artifact = {"fold": fold, "train_ids": [row["id"] for row in fold_train],
+                        "predict_ids": [row["id"] for row in fold_predict],
+                        "heldout_original_ids": [row["id"] for row in heldout_originals],
+                        "epochs": epochs, "seed": seed + fold + 1,
+                        "grouping": "normalized source union synthetic parents and contrast/template families across both mixed datasets",
+                        "training_labels": "quality-selected originals plus capped synthetic contrasts", "outer_validation_used": False}
+            if rank == 0:
+                write_json(fold_dir / "fold.json", artifact)
+            barrier()
+            fold_stats = _fit(config, fold_train, None, fold_checkpoint, fold_dir,
+                              device, artifact["seed"], preprocessing, fixed_epochs=epochs)
+            if rank == 0:
+                fold_predictions = classify(fold_checkpoint, fold_predict, device, batch_size)
+                hints["train"].extend({**row, "fold": fold} for row in fold_predictions)
+                hints["folds"].append(artifact)
+                write_json(fold_dir / "predictions.json", comparison_rows(fold_predict, fold_predictions))
+                write_json(fold_dir / "run_manifest.json", {**artifact, **fold_stats,
+                           "model": config["model"], "preprocessing": preprocessing,
+                           "saved_classifier_reloaded_for_prediction": True})
+            barrier()
+        if rank == 0:
+            by_id = {_id_key(row["id"]): row for row in hints["train"]}
+            if len(hints["train"]) != len(correction_train) or set(by_id) != {_id_key(row["id"]) for row in correction_train}:
+                raise RuntimeError("OOF predictions must cover every correction training row exactly once")
+            hints["train"] = [by_id[_id_key(row["id"])] for row in correction_train]
+            write_json(output / "hints.json", hints)
+            manifest.update(correction_data_path=str(correction_path),
+                            correction_data_sha256=hints["correction_data_sha256"],
+                            hints_path=str(output / "hints.json"), oof_folds=hints["folds"])
+    if rank == 0:
+        write_json(output / "run_manifest.json", manifest)
+        print(json.dumps({"output_dir": str(output), "classifier_path": str(checkpoint),
+                          "macro_f1": metrics["classification"]["macro_f1"], "hints_enabled": bool(enabled)}), flush=True)
+    barrier()
+    if world_size > 1:
+        torch.distributed.destroy_process_group()
 
 
 if __name__ == "__main__":
