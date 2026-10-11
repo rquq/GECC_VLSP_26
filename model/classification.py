@@ -121,6 +121,32 @@ def _load_base(settings, tokenizer, placement):
     dtype = getattr(torch, placement["compute_dtype"])
     kwargs = {
         "revision": settings["revision"], "num_labels": len(LABELS),
+def _load_tokenizer(path, **kwargs):
+    """Reload either legacy vocabularies or a complete saved tokenizer backend."""
+    from transformers import AutoTokenizer
+    directory = Path(path)
+    metadata = directory / "tokenizer_config.json"
+    saved = json.loads(metadata.read_text()) if metadata.is_file() else {}
+    generic_fast = saved.get("tokenizer_class") in {"PreTrainedTokenizer", "PreTrainedTokenizerFast"}
+    # Transformers 5 writes a list here; 4.x expects a mapping. These tokens
+    # already have IDs in the backend, so register them without changing IDs.
+    if isinstance(saved.get("extra_special_tokens"), list):
+        kwargs.setdefault("extra_special_tokens", {})
+        kwargs.setdefault("additional_special_tokens", list(dict.fromkeys(
+            saved.get("additional_special_tokens", []) + saved["extra_special_tokens"])))
+    # Newer Transformers can save Qwen's backend without vocab.json/merges.txt,
+    # while its metadata still names Qwen2Tokenizer. The slow loader cannot open
+    # that layout. Use the saved backend directly, without rebuilding its rules.
+    backend_only = ((directory / "tokenizer.json").is_file() and
+                    not (directory / "vocab.json").is_file() and
+                    not (directory / "merges.txt").is_file())
+    tokenizer = AutoTokenizer.from_pretrained(path, use_fast=generic_fast or backend_only, **kwargs)
+    # Decoder classifiers have no token-type input; generic tokenizer reloads
+    # otherwise silently restore the encoder-style default input names.
+    tokenizer.model_input_names = ["input_ids", "attention_mask"]
+    return tokenizer
+
+
         "id2label": {label: str(label) for label in LABELS},
         "label2id": {str(label): label for label in LABELS},
         "problem_type": "single_label_classification", "torch_dtype": dtype,
@@ -204,7 +230,7 @@ def classify(checkpoint, records, device="cuda", batch_size=8):
         raise ValueError("Saved classifier label mapping must be 0..4")
     placement = placement_preflight(saved["model"], device)
     print(json.dumps({"classifier_placement": placement}), flush=True)
-    tokenizer = AutoTokenizer.from_pretrained(checkpoint, use_fast=False)
+    tokenizer = _load_tokenizer(checkpoint)
     _configure_padding(tokenizer)
     if tokenizer.pad_token_id != saved["pad_token_id"] or len(tokenizer) != saved["tokenizer_length"]:
         raise ValueError("Saved classifier tokenizer vocabulary or padding changed")
@@ -360,7 +386,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     device = placement["device"]
     print(json.dumps({"classifier_placement": placement}), flush=True)
     settings = {**config["model"], "compute_dtype": placement["compute_dtype"]}
-    tokenizer = AutoTokenizer.from_pretrained(settings["name"], revision=settings["revision"], use_fast=False)
+    tokenizer = _load_tokenizer(settings["name"], revision=settings["revision"])
     added_pad = _configure_padding(tokenizer)
     model = _load_base(settings, tokenizer, placement)
     checkpoint_kwargs = {"use_reentrant": False}
@@ -504,6 +530,13 @@ def _connected_folds(original_train, correction_train, provenance, folds, seed, 
     training = {_id_key(row["id"]): row for row in classifier_train}
     parent = {key: key for key in originals.keys() | corrections.keys() | training.keys()}
 
+    epochs = float(args["num_train_epochs"])
+    if args.get("max_steps", -1) < 1 and epochs >= 1 and epochs.is_integer():
+        # Trainer 4.x floors the estimated updates per epoch, although its loop
+        # updates the final partial accumulation window. Resolve an explicit
+        # budget so integer epoch requests consume every batch in every epoch.
+        microbatches = math.ceil(len(encoded) / microbatch)
+        args["max_steps"] = math.ceil(microbatches / (effective // microbatch)) * int(epochs)
     def find(key):
         while parent[key] != key:
             parent[key] = parent[parent[key]]

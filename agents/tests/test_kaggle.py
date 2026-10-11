@@ -45,7 +45,7 @@ class NotebookSourceTests(unittest.TestCase):
 
     def write_project(self, marker):
         (self.origin / "README.md").write_text(marker)
-        for name in ["requirements.txt", "model/classification.py", "model/correction.py", "model/two_phase.py",
+        for name in ["requirements-kaggle.txt", "model/classification.py", "model/correction.py", "model/two_phase.py",
                      "configs/classification.json", "configs/correction.json"]:
             path = self.origin / name
             path.parent.mkdir(parents=True, exist_ok=True)
