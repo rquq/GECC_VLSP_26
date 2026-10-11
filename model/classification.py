@@ -1,8 +1,8 @@
-"""Qwen QLoRA soft hierarchical classification and train-only correction hints."""
+"""Sailor2 QLoRA soft hierarchical classification baseline."""
 from __future__ import annotations
 
 import argparse
-from collections import Counter, defaultdict
+from collections import Counter
 import copy
 import gc
 import hashlib
@@ -11,11 +11,10 @@ import json
 import math
 import os
 from pathlib import Path
-import random
 
-from .data import LABELS, _id_key, _source_key, load_records, load_training_split, split_records
+from .data import LABELS, _id_key, _source_key, load_records, split_records
 from .metrics import score
-from .runtime import write_json
+from .runtime import load_config, resolve_data, stage_output, write_json
 from .prediction_export import comparison_rows
 from .data import load_classifier_split
 
@@ -36,7 +35,7 @@ def _architecture():
 
 def _require_hierarchy(saved):
     if saved.get("architecture") != _architecture():
-        raise ValueError("Alpha requires lambda-two soft hierarchical architecture metadata; "
+        raise ValueError("Baseline requires lambda-two soft hierarchical architecture metadata; "
                          "reload earlier classifiers with their original experiment code")
 
 
@@ -220,7 +219,6 @@ def _release(device):
 def classify(checkpoint, records, device="cuda", batch_size=8):
     """Reload the saved hierarchical LoRA/score head and return five joint scores."""
     from peft import PeftModel, prepare_model_for_kbit_training
-    from transformers import AutoTokenizer
 
     checkpoint = Path(checkpoint)
     preprocessing = json.loads((checkpoint / "preprocessing.json").read_text(encoding="utf-8"))
@@ -278,35 +276,8 @@ def _class_weights(train, power):
             "normalization": "weighted sum divided by accumulation-batch row count"}
 
 
-def _loss_weighting(train, power, scheme):
-    weighting = _class_weights(train, power)
-    if scheme == "shared":
-        return weighting
-    if scheme != "separate":
-        raise ValueError("hierarchical_weighting must be shared or separate")
-    counts = weighting["counts"]
-    binary_counts = [counts[0], sum(counts[1:])]
-
-    def normalized_weights(frequencies):
-        raw = [count ** (-power) for count in frequencies]
-        mean = sum(count * weight for count, weight in zip(frequencies, raw)) / sum(frequencies)
-        return [weight / mean for weight in raw]
-
-    return {**weighting, "scheme": "separate",
-            "detection_counts": binary_counts,
-            "detection_weights": normalized_weights(binary_counts),
-            "subtype_counts": counts[1:],
-            "subtype_weights": [0.0, *normalized_weights(counts[1:])],
-            "supervised_normalization": "binary expectation one over all rows; subtype expectation one over error rows; both losses divided by accumulation-window row count"}
-
-
-def _weighted_hierarchical_loss(logits, labels, weights, num_items_in_batch=None,
-                                detection_weights=None, subtype_weights=None):
-    """Weighted binary + twice subtype CE; clean rows have no subtype gradient.
-
-    Separate mode uses binary-frequency detection weights and error-only subtype
-    weights. Both terms retain the baseline accumulation-window row denominator.
-    """
+def _weighted_hierarchical_loss(logits, labels, weights, num_items_in_batch=None):
+    """Weighted binary + twice subtype CE; clean rows have no subtype gradient."""
     import torch.nn.functional as F
 
     logits = logits.float()
@@ -315,11 +286,7 @@ def _weighted_hierarchical_loss(logits, labels, weights, num_items_in_batch=None
     # Ignore clean rows without selecting a variable-size CUDA tensor. Their
     # conditional target is -1; cross_entropy's ignore_index produces zero loss.
     subtype = F.cross_entropy(logits[..., 1:], labels - 1, ignore_index=-1, reduction="none")
-    if detection_weights is None:
-        loss = (weights[labels] * (binary + 2.0 * subtype)).sum()
-    else:
-        loss = (detection_weights[(labels > 0).long()] * binary
-                + 2.0 * subtype_weights[labels] * subtype).sum()
+    loss = (weights[labels] * (binary + 2.0 * subtype)).sum()
     denominator = labels.numel() if num_items_in_batch is None else num_items_in_batch
     return loss / denominator
 
@@ -330,11 +297,9 @@ def _hierarchical_trainer_class():
     from transformers import Trainer
 
     class HierarchicalTrainer(Trainer):
-        def __init__(self, *args, loss_weights, detection_weights=None, subtype_weights=None, **kwargs):
+        def __init__(self, *args, loss_weights, **kwargs):
             super().__init__(*args, **kwargs)
             self.loss_weights = loss_weights
-            self.detection_weights = detection_weights
-            self.subtype_weights = subtype_weights
             # We consume Trainer's full/partial accumulation-window row count.
             # This also disables its second division by accumulation steps;
             # kwargs are consumed here, never forwarded to the Qwen model.
@@ -345,8 +310,7 @@ def _hierarchical_trainer_class():
             features = {key: value for key, value in inputs.items() if key != "labels"}
             output = model(**features)
             loss = _weighted_hierarchical_loss(output.logits, labels, self.loss_weights,
-                                               num_items_in_batch,
-                                               self.detection_weights, self.subtype_weights)
+                                               num_items_in_batch)
             if not torch.isfinite(loss).all().item():
                 raise RuntimeError("Nonfinite classifier training loss")
             return (loss, output) if return_outputs else loss
@@ -367,20 +331,18 @@ def _training_algorithm(config, model):
     }
 
 
-def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, preprocessing,
-         fixed_epochs=None):
-    """Fresh mixed-data LoRA/head fit; only main fit selects on outer holdout."""
+def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, preprocessing):
+    """Fresh mixed-data LoRA/head fit with outer-holdout epoch selection."""
     import torch
     from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
-    from transformers import (AutoTokenizer, DataCollatorWithPadding,
-                              TrainerCallback, TrainingArguments, set_seed)
+    from transformers import (DataCollatorWithPadding, TrainerCallback,
+                              TrainingArguments, set_seed)
 
     if not train:
         raise ValueError("Every classifier fit needs training rows")
     if "algorithm" in config["training"]:
         raise ValueError("training.algorithm is obsolete; classifier training uses single-forward hierarchical loss")
-    weighting = _loss_weighting(train, config["training"].get("class_weight_power", 0.0),
-                                config["training"].get("hierarchical_weighting", "shared"))
+    weighting = _class_weights(train, config["training"].get("class_weight_power", 0.0))
     set_seed(seed)
     placement = placement_preflight(config["model"], device)
     device = placement["device"]
@@ -422,8 +384,6 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     effective = training["effective_batch_size"]
     if type(microbatch) is not int or microbatch < 1 or type(effective) is not int or effective < microbatch or effective % microbatch:
         raise ValueError("effective_batch_size must be a positive multiple of the microbatch")
-    if fixed_epochs is not None:
-        args.update(num_train_epochs=fixed_epochs, max_steps=-1)
     epochs = float(args["num_train_epochs"])
     if args.get("max_steps", -1) < 1 and epochs >= 1 and epochs.is_integer():
         # Trainer 4.x floors the estimated updates per epoch, although its loop
@@ -456,10 +416,6 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         write_json(checkpoint / "classifier_config.json", classifier_config)
 
     loss_weights = torch.tensor(weighting["weights"], dtype=torch.float32, device=device)
-    detection_weights = subtype_weights = None
-    if weighting.get("scheme") == "separate":
-        detection_weights = torch.tensor(weighting["detection_weights"], dtype=torch.float32, device=device)
-        subtype_weights = torch.tensor(weighting["subtype_weights"], dtype=torch.float32, device=device)
 
     HierarchicalTrainer = _hierarchical_trainer_class()
 
@@ -482,8 +438,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
 
     trainer = HierarchicalTrainer(model=model, args=training_args, train_dataset=encoded,
                           data_collator=DataCollatorWithPadding(tokenizer), callbacks=[EpochEvaluation()],
-                          loss_weights=loss_weights, detection_weights=detection_weights,
-                          subtype_weights=subtype_weights)
+                          loss_weights=loss_weights)
     if training_args.fp16:
         # Qwen3 NF4 backward overflowed at scale 4096 despite a finite forward loss.
         # Start unscaled; retain dynamic scaling and the nonfinite-statistic guard.
@@ -528,159 +483,14 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     return stats
 
 
-def _connected_folds(original_train, correction_train, provenance, folds, seed, classifier_train):
-    """Keep source duplicates, synthetic parents and contrast/template families together."""
-    if type(folds) is not int or folds < 2:
-        raise ValueError("OOF folds must be an integer of at least two")
-    originals = {_id_key(row["id"]): row for row in original_train}
-    corrections = {_id_key(row["id"]): row for row in correction_train}
-    training = {_id_key(row["id"]): row for row in classifier_train}
-    parent = {key: key for key in originals.keys() | corrections.keys() | training.keys()}
-
-    def find(key):
-        while parent[key] != key:
-            parent[key] = parent[parent[key]]
-            key = parent[key]
-        return key
-
-    def union(first, second):
-        parent[find(second)] = find(first)
-
-    sources = {}
-    for row in original_train + correction_train + classifier_train:
-        key = _id_key(row["id"])
-        source = _source_key(row["source"])
-        if source in sources:
-            union(key, sources[source])
-        else:
-            sources[source] = key
-    families = {}
-    for row in provenance.get("train_rows", []):
-        key = _id_key(row["id"])
-        metadata = row.get("authored_provenance", {})
-        for field in ("family_id", "template_id"):
-            value = metadata.get(field)
-            if value:
-                family = (field, value)
-                if family in families:
-                    union(key, families[family])
-                else:
-                    families[family] = key
-        for value in row.get("parent_ids", []):
-            original = _id_key(value)
-            if original not in originals:
-                raise ValueError("Synthetic OOF parent is not an original training ID")
-            union(key, original)
-    components = defaultdict(list)
-    for key in parent:
-        components[find(key)].append(key)
-    groups = []
-    for keys in components.values():
-        original_keys = [key for key in keys if key in originals]
-        correction_keys = [key for key in keys if key in corrections]
-        counts = Counter(originals[key]["label"] for key in original_keys)
-        groups.append({"keys": keys, "original_keys": original_keys,
-                       "correction_keys": correction_keys, "counts": counts})
-    if sum(bool(group["correction_keys"]) for group in groups) < folds:
-        raise ValueError("Too few independent correction source/parent groups for the requested OOF folds")
-    # Stabilize before seeded tie breaking; typed IDs remain distinct throughout.
-    groups.sort(key=lambda group: min(json.dumps([key[0].__name__, key[1]], ensure_ascii=False) for key in group["keys"]))
-    rng = random.Random(seed)
-    rng.shuffle(groups)
-    totals = Counter(row["label"] for row in original_train)
-    groups.sort(key=lambda group: (max((count / totals[label] for label, count in group["counts"].items()), default=0),
-                                   len(group["original_keys"]), len(group["correction_keys"])), reverse=True)
-    fold_counts = [Counter() for _ in range(folds)]
-    fold_original_sizes = [0] * folds
-    fold_correction_sizes = [0] * folds
-    assignments = {}
-    tie_order = list(range(folds))
-    rng.shuffle(tie_order)
-    for group in groups:
-        candidates = tie_order
-        if group["correction_keys"] and any(size == 0 for size in fold_correction_sizes):
-            candidates = [fold for fold in tie_order if fold_correction_sizes[fold] == 0]
-
-        def balance_cost(fold):
-            cost = sum(((fold_counts[fold][label] + group["counts"][label]) ** 2
-                        - fold_counts[fold][label] ** 2) / max(1, totals[label]) ** 2 for label in LABELS)
-            cost += ((fold_original_sizes[fold] + len(group["original_keys"])) ** 2
-                     - fold_original_sizes[fold] ** 2) / len(original_train) ** 2
-            cost += ((fold_correction_sizes[fold] + len(group["correction_keys"])) ** 2
-                     - fold_correction_sizes[fold] ** 2) / len(correction_train) ** 2
-            return cost
-
-        fold = min(candidates, key=balance_cost)
-        fold_counts[fold].update(group["counts"])
-        fold_original_sizes[fold] += len(group["original_keys"])
-        fold_correction_sizes[fold] += len(group["correction_keys"])
-        assignments.update((key, fold) for key in group["keys"])
-    plans = []
-    for fold in range(folds):
-        train = [row for row in classifier_train if assignments[_id_key(row["id"])] != fold]
-        # Group exclusion can change ratios; cap again within each OOF fit.
-        original_counts = Counter(row["label"] for row in train if _id_key(row["id"]) in originals)
-        synthetic_counts = Counter()
-        capped = []
-        for row in train:
-            if _id_key(row["id"]) not in originals:
-                label = row["label"]
-                limit = min(40, original_counts[label]) if label == 0 else original_counts[label]
-                if synthetic_counts[label] >= limit:
-                    continue
-                synthetic_counts[label] += 1
-            capped.append(row)
-        train = capped
-        heldout = [row for row in original_train if assignments[_id_key(row["id"])] == fold]
-        predict = [row for row in correction_train if assignments[_id_key(row["id"])] == fold]
-        if not train or not predict:
-            raise ValueError("Every OOF fold must have classifier training and correction prediction rows")
-        plans.append((train, heldout, predict))
-    return plans
-
-
-def _correction_split(config, original_path, original_train, original_validation, explicit):
-    from .two_phase import resolve_data
-
-    correction_config = copy.deepcopy(config)
-    correction_config["data"].update(path=config["data"].get("correction_path"),
-                                     filename=config["data"].get("correction_filename", "VGEC_balanced.json"))
-    path = resolve_data(correction_config, explicit)
-    seed = config["run"]["seed"]
-    fraction = config["data"]["validation_fraction"]
-    train, validation, info = load_training_split(path, fraction, seed)
-    if info["format"] != "vgec-balanced-v3":
-        raise ValueError("Correction hints require the seed-42 balanced v3 bundle")
-    expected = {_id_key(row["id"]): (row["source"], row["label"], row["target"]) for row in original_validation}
-    actual = {_id_key(row["id"]): (row["source"], row["label"], row["target"]) for row in validation}
-    if actual != expected:
-        raise ValueError("Original and correction holdouts must have identical typed IDs, sources, labels, and targets")
-    provenance = info["provenance"]
-    if {_id_key(value) for value in provenance["original_train_ids"]} != {_id_key(row["id"]) for row in original_train}:
-        raise ValueError("Correction bundle original_train_ids differ from the original classifier training partition")
-    original_hash = hashlib.sha256(original_path.read_bytes()).hexdigest()
-    if info.get("original_sha256") not in (None, original_hash):
-        raise ValueError("Correction bundle was built from different original data")
-    original_rows = {_id_key(row["id"]): row for row in original_train}
-    for row in train:
-        key = _id_key(row["id"])
-        if key in original_rows and (row["source"], row["label"]) != (original_rows[key]["source"], original_rows[key]["label"]):
-            raise ValueError("Retained correction originals must preserve original sources and labels")
-    return path, train, validation, provenance
-
-
 def main():
-    from .two_phase import load_stage_config, resolve_data, stage_output
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True)
     parser.add_argument("--data")
-    parser.add_argument("--correction-data")
     parser.add_argument("--output-dir")
     parser.add_argument("--device", choices=["cuda", "cpu"])
-    parser.add_argument("--skip-hints", action="store_true", help="Train the main classifier only; not a connected pipeline run.")
     args = parser.parse_args()
-    config = load_stage_config(args.config, expected_task="classification")
+    config = load_config(args.config)
     device = args.device or config["run"]["device"]
     config["run"]["device"] = device
     seed = config["run"]["seed"]
@@ -701,23 +511,11 @@ def main():
     mixed_path = resolve_data(mixed_config, None)
     train, classifier_info = load_classifier_split(path, mixed_path, fraction, seed)
     preprocessing = _preprocessing(config)
-    enabled = config.get("oof", {}).get("enabled", True) and not args.skip_hints
-    plans = []
-    if enabled:
-        correction_path, correction_train, correction_validation, provenance = _correction_split(
-            config, path, original_train, validation, args.correction_data)
-        epochs = config["oof"]["epochs"]
-        if type(epochs) is not int or epochs < 1:
-            raise ValueError("oof.epochs must be a positive integer")
-        grouping = {"train_rows": provenance["train_rows"] + classifier_info["provenance"]["train_rows"]}
-        plans = _connected_folds(original_train, correction_train, grouping, config["oof"]["folds"], seed, train)
     output = stage_output(config, args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
     checkpoint = output / "classifier"
     config["data"]["path"] = str(path)
     config["data"]["augmentation_path"] = str(mixed_path)
-    if enabled:
-        config["data"]["correction_path"] = str(correction_path)
     write_json(output / "config.json", config)
     write_json(output / "train.json", train)
     write_json(output / "validation.json", validation)
@@ -742,45 +540,12 @@ def main():
         "model": config["model"], "resolved_model_revision": config["model"]["revision"],
         "preprocessing": preprocessing, "saved_classifier_reloaded_for_evaluation": True,
         "train_count": len(train), "validation_count": len(validation),
-        "hints_enabled": bool(enabled), **stats,
+        **stats,
         "versions": {name: importlib.metadata.version(name) for name in ("torch", "transformers", "accelerate", "peft", "bitsandbytes")},
     }
-    if enabled:
-        hints = {"seed": seed, "validation_fraction": fraction,
-                 "classifier_provenance": classifier_info["provenance"],
-                 "correction_data_sha256": hashlib.sha256(correction_path.read_bytes()).hexdigest(),
-                 "train": [], "validation": classify(checkpoint, correction_validation, device, batch_size), "folds": []}
-        for fold, (fold_train, heldout_originals, fold_predict) in enumerate(plans):
-            fold_dir = output / "oof" / f"fold-{fold}"
-            fold_dir.mkdir(parents=True)
-            fold_checkpoint = fold_dir / "classifier"
-            artifact = {"fold": fold, "train_ids": [row["id"] for row in fold_train],
-                        "predict_ids": [row["id"] for row in fold_predict],
-                        "heldout_original_ids": [row["id"] for row in heldout_originals],
-                        "epochs": epochs, "seed": seed + fold + 1,
-                        "grouping": "normalized source union synthetic parents and contrast/template families across both mixed datasets",
-                        "training_labels": "quality-selected originals plus capped synthetic contrasts", "outer_validation_used": False}
-            write_json(fold_dir / "fold.json", artifact)
-            fold_stats = _fit(config, fold_train, None, fold_checkpoint, fold_dir,
-                              device, artifact["seed"], preprocessing, fixed_epochs=epochs)
-            fold_predictions = classify(fold_checkpoint, fold_predict, device, batch_size)
-            hints["train"].extend({**row, "fold": fold} for row in fold_predictions)
-            hints["folds"].append(artifact)
-            write_json(fold_dir / "predictions.json", comparison_rows(fold_predict, fold_predictions))
-            write_json(fold_dir / "run_manifest.json", {**artifact, **fold_stats,
-                       "model": config["model"], "preprocessing": preprocessing,
-                       "saved_classifier_reloaded_for_prediction": True})
-        by_id = {_id_key(row["id"]): row for row in hints["train"]}
-        if len(hints["train"]) != len(correction_train) or set(by_id) != {_id_key(row["id"]) for row in correction_train}:
-            raise RuntimeError("OOF predictions must cover every correction training row exactly once")
-        hints["train"] = [by_id[_id_key(row["id"])] for row in correction_train]
-        write_json(output / "hints.json", hints)
-        manifest.update(correction_data_path=str(correction_path),
-                        correction_data_sha256=hints["correction_data_sha256"],
-                        hints_path=str(output / "hints.json"), oof_folds=hints["folds"])
     write_json(output / "run_manifest.json", manifest)
     print(json.dumps({"output_dir": str(output), "classifier_path": str(checkpoint),
-                      "macro_f1": metrics["classification"]["macro_f1"], "hints_enabled": bool(enabled)}), flush=True)
+                      "macro_f1": metrics["classification"]["macro_f1"]}), flush=True)
 
 
 if __name__ == "__main__":

@@ -1,71 +1,85 @@
-# Reproducible Sailor classification baseline
+# Kaggle Sailor2 classification baseline
 
-## Kaggle Linux branch
+This branch trains and evaluates the Sailor2 classification baseline only. It
+contains no correction model, hint-generation stage, or ensemble pipeline.
 
-`kaggle-linux` runs the existing Sailor2 classification baseline, not the
-Task 1 to Task 2 pipeline. Import `notebooks/kaggle_two_phase.ipynb` into
-a private Kaggle notebook, enable Internet and a CUDA GPU, attach the same
-private `VGEC 2026_v1.json` and `VGEC_classifier.json` used locally, then Run All.
-The notebook clones this branch, checks the split before training, trains five
-epochs and reloads the selected adapter for evaluation. No correction dataset
-or OOF training is needed. Explicit attachment paths are configurable in the
-parameter cell when filenames are ambiguous.
+## Run on Kaggle
 
-`configs/baseline.json` discovers input under `/kaggle/input` and writes to
-`/kaggle/output`. The notebook links that path to `/kaggle/working/output`,
-so Save Version retains checkpoints, logs, resolved configs and the artifact ZIP.
-Save a private version; the corpus and text-containing outputs must stay private.
-`requirements-kaggle.txt` pins the tested non-torch dependencies and preserves
-Kaggle's CUDA-enabled PyTorch instead of forcing a different CUDA wheel.
-GPU precision resolves to BF16 when supported, FP16 otherwise. Fresh GPU fits
-are not a guarantee of identical historical scores.
+Import `notebooks/kaggle_baseline.ipynb` into a **private** Kaggle notebook,
+enable Internet and a CUDA GPU, and attach the private inputs
+`VGEC 2026_v1.json` and `VGEC_classifier.json`. Run All. The notebook clones the
+`kaggle-linux` branch, checks the split, trains, and reloads the selected adapter
+for evaluation. Set explicit attachment paths in its parameter cell if matching
+filenames are ambiguous.
 
-Direct Kaggle terminal execution:
+`configs/baseline.json` discovers uploaded data under `/kaggle/input` and writes
+to `/kaggle/output`. The notebook links that output path to
+`/kaggle/working/output` so Save Version retains checkpoints, logs, resolved
+configs, and the artifact ZIP. Keep both the version and text-containing outputs
+private.
+
+For direct execution in a Kaggle terminal:
 
 ```bash
 git clone --single-branch --branch kaggle-linux https://github.com/rquq/GECC_VLSP_26.git /kaggle/working/gecc-baseline-source
 cd /kaggle/working/gecc-baseline-source
 python -m pip install -r requirements-kaggle.txt
 mkdir -p /kaggle/working/output
-ln -s /kaggle/working/output /kaggle/output  # Once; skip if already linked.
-python -m model.classification --config configs/baseline.json --skip-hints
+ln -s /kaggle/working/output /kaggle/output  # Only if /kaggle/output does not already exist.
+python -m model.classification --config configs/baseline.json
 ```
 
-Verification: real local-Git notebook clone/update checks and tiny-model
-training/reload tests pass. A clean clone of the committed branch executed the
-notebook's configuration, training and artifact cells with simulated Kaggle mounts
-and the actual 504/81 baseline split: one tiny-model CPU optimizer update, saved
-adapter reload, no OOF hints, and retained ZIP/log. Full Sailor2
-training inside Kaggle has not been run here.
+If `/kaggle/output` already exists, ensure it points to
+`/kaggle/working/output` before training; otherwise Save Version may not retain
+artifacts. `requirements-kaggle.txt` is the sole dependency recipe. It pins
+non-torch dependencies and preserves Kaggle's CUDA-enabled PyTorch installation.
+Precision resolves to BF16 on supported GPUs and FP16 otherwise.
 
-## Local baseline reference
+## Baseline recipe
 
-Run commands from this checkout. The selected checkpoint remains unchanged;
-historical manifests retain their original paths as provenance of the old layout.
+- Base model: `sail/Sailor2-8B-Chat`, pinned to revision
+  `577d5b2745863cec11e1b2f1c92586a91cea446e`.
+- NF4 QLoRA, rank 16; single-forward soft hierarchical BCE plus twice
+  conditional CE, with square-root class weights.
+- Five epochs, learning rate `5e-5`, effective batch size 8, fixed seed 42.
+- Split the 401-row raw corpus before augmentation: 312 retained original
+  training rows plus 192 capped synthetic rows = **504 training rows**;
+  **81 raw validation rows**.
+
+The best adapter is selected by validation macro F1. Fresh training is not a
+guarantee of historical scores or identical numerics across hardware and library
+versions. Full Sailor2 training inside Kaggle has not been run here.
+
+## Local checks and data provenance
+
+Run commands from this checkout. The shared local virtual environment is in the
+sibling `test` checkout:
 
 ```bash
-HF_HUB_OFFLINE=1 TOKENIZERS_PARALLELISM=false .venv/bin/python -m unittest discover -s agents/tests -q
-HF_HUB_OFFLINE=1 TOKENIZERS_PARALLELISM=false .venv/bin/python -m model.classification --config configs/baseline.json --output-dir runs/baseline-reproduction --skip-hints
+HF_HUB_OFFLINE=1 TOKENIZERS_PARALLELISM=false ../test/.venv/bin/python -m unittest discover -s agents/tests -q
+../test/.venv/bin/python -m model.classification --config configs/baseline.json --data '/path/to/VGEC 2026_v1.json' --output-dir runs/baseline-reproduction
 ```
 
-Baseline: Sailor2-8B-Chat at its pinned revision, NF4 QLoRA, rank 16,
-single-forward soft hierarchical BCE + twice conditional CE, square-root class
-weights, effective batch 8, learning rate 5e-5, five epochs. Epoch 3 was selected
-by outer-validation macro F1. The split seed is fixed at 42 before augmentation.
+For local training, set `data.augmentation_path` in a local copy of the baseline
+config to the classifier dataset path and pass that config with `--config`;
+the checked-in config's automatic discovery targets `/kaggle/input`.
 
-The unchanged raw corpus has 401 rows. Baseline classification uses 312 retained
-original training rows plus 192 capped synthetic rows, and 81 raw validation rows.
-Selected results: macro F1 0.6327503693, accuracy 0.8024691358 (65/81).
-Baseline classification does not train or run a correction model.
+Dataset authoring/building tools in `tools/` and the data/metric utilities remain
+for provenance and rebuilding private inputs. Training uses the uploaded raw and
+classifier datasets; it does not author or rebuild data during the run.
 
-The historical checkpoint manifest records Transformers 5.9.0 and PEFT 0.21.2.
-`requirements-baseline.txt` retains that dependency recipe. The current tested
-environment uses Transformers 4.51.3 and PEFT 0.15.2, pinned in `requirements.txt`.
-The reproduction command above runs in the current environment; it is not a
-claim of identical training numerics across library versions.
+## Cleanup verification
 
-The loader supports the checkpoint's backend-only Qwen tokenizer and its newer
-special-token metadata without changing saved files. All 401 original sentences
-produce identical token IDs to the saved backend and pinned base tokenizer;
-padding and vocabulary size are also verified. Saved weights remain unchanged.
-Use `../alpha/` for reviewed data and new model experiments.
+Removed correction/OOF, encoder and ensemble entrypoints, alternate experiment
+configs, separate-weighting loss code, stale pipeline guides, and duplicate
+dependency recipes. The notebook is now `notebooks/kaggle_baseline.ipynb`;
+classification needs no `--skip-hints` switch. Dataset-building utilities and
+their provenance/leakage checks remain.
+
+The retained suite passed 74 tests. A local execution of the notebook's config,
+training and artifact cells used simulated Kaggle mounts and the actual 504/81
+split, performed a tiny Qwen2 CPU optimizer update, changed LoRA and score-head
+weights, reloaded the selected adapter, and retained the output link, ZIP and log.
+This verifies the launch/artifact path, not full Sailor2 GPU training or Kaggle's
+host permissions.
+

@@ -1,8 +1,8 @@
-"""Data discovery and checkout provenance for separate-task runs."""
+"""Data discovery and checkout provenance for baseline runs."""
 from pathlib import Path
 import subprocess
 
-DATA_FILENAME = "VGEC_balanced.json"
+DATA_FILENAME = "VGEC 2026_v1.json"
 
 
 def discover_data(explicit, project_root, input_root=Path("/kaggle/input"), filename=DATA_FILENAME):
