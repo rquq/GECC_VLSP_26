@@ -35,7 +35,7 @@ class NotebookSourceTests(unittest.TestCase):
         self.namespace = {"Path": Path, "subprocess": subprocess, "json": json,
                           "sys": __import__("sys"), "urllib": __import__("urllib.request"),
                           "REPO_URL": self.origin.as_uri(), "BRANCH": "test/baseline",
-                          "PROJECT_SUBDIR": ".", "CLONE_DIR": self.clone,
+                          "PROJECT_SUBDIR": ".", "SOURCE_ROOT": self.folder,
                           "CLASSIFICATION_CONFIG": "configs/baseline.json",
                           "CORRECTION_CONFIG": "configs/correction.json"}
 
@@ -54,6 +54,7 @@ class NotebookSourceTests(unittest.TestCase):
     def run_cell(self):
         with contextlib.redirect_stdout(io.StringIO()):
             exec(compile(self.source, "kaggle-source-cell", "exec"), self.namespace)
+        self.clone = self.namespace["PROJECT_DIR"]
 
     def test_clones_requested_branch_at_repository_root(self):
         self.run_cell()
@@ -61,7 +62,7 @@ class NotebookSourceTests(unittest.TestCase):
         self.assertEqual(self.namespace.get("SOURCE_INFO", {}).get("commit"),
                          self.git(self.origin, "rev-parse", "HEAD"))
 
-    def test_rerun_reuses_clone_and_fetches_branch_updates(self):
+    def test_rerun_clones_current_branch_updates(self):
         self.run_cell()
         self.write_project("updated baseline")
         self.git(self.origin, "commit", "-am", "Update baseline")
@@ -69,19 +70,15 @@ class NotebookSourceTests(unittest.TestCase):
         self.assertEqual((self.clone / "README.md").read_text(), "updated baseline")
         self.assertEqual(self.namespace["SOURCE_INFO"]["commit"], self.git(self.origin, "rev-parse", "HEAD"))
 
-    def test_dirty_clone_is_preserved_and_rejected(self):
+    def test_rerun_preserves_dirty_source_and_uses_fresh_code(self):
         self.run_cell()
-        (self.clone / "README.md").write_text("local changes")
-        with self.assertRaisesRegex(RuntimeError, "local changes"):
-            self.run_cell()
-        self.assertEqual((self.clone / "README.md").read_text(), "local changes")
-
-    def test_another_repository_is_rejected_without_changing_clone(self):
+        previous = self.clone
+        (previous / "README.md").write_text("local changes")
         self.run_cell()
-        self.namespace["REPO_URL"] = str(self.folder / "another-repository")
-        with self.assertRaisesRegex(RuntimeError, "different repository"):
-            self.run_cell()
-        self.assertEqual(self.git(self.clone, "remote", "get-url", "origin"), self.origin.as_uri())
+        self.assertNotEqual(self.clone, previous)
+        self.assertEqual((previous / "README.md").read_text(), "local changes")
+        self.assertEqual((self.clone / "README.md").read_text(), "baseline contents")
+        self.assertEqual(self.namespace["SOURCE_INFO"]["commit"], self.git(self.origin, "rev-parse", "HEAD"))
 
     def test_missing_branch_has_actionable_error(self):
         self.namespace["BRANCH"] = "not-published"

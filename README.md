@@ -17,9 +17,11 @@ the same audited dataset build, and Run All:
 The GitHub repository is **private**. Before Run All, create a fine-grained
 GitHub token restricted to `rquq/GECC_VLSP_26` with **Contents: Read-only**.
 In Kaggle **Add-ons → Secrets**, add it as `GITHUB_TOKEN` and enable notebook
-access. The Git bootstrap uses that secret for clone and fetch without storing
-it in the remote URL or Git config. This authenticates code access only; datasets
-still come from the private Kaggle Dataset attached through Add Input.
+access. The Git bootstrap uses that secret to clone without storing it in the
+remote URL or Git config. Each run creates a fresh `gecc-two-phase-source-*`
+directory under `/kaggle/working`; old source edits and outputs are untouched,
+so a dirty checkout never blocks Run All. This authenticates code access only;
+datasets still come from the private Kaggle Dataset attached through Add Input.
 
 If Git access fails, the bootstrap reports sanitized Git stderr and the exit code:
 authentication failures require checking the token's repository access and expiry;
