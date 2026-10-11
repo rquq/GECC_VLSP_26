@@ -21,6 +21,11 @@ access. The Git bootstrap uses that secret for clone and fetch without storing
 it in the remote URL or Git config. This authenticates code access only; datasets
 still come from the private Kaggle Dataset attached through Add Input.
 
+If Git access fails, the bootstrap reports sanitized Git stderr and the exit code:
+authentication failures require checking the token's repository access and expiry;
+DNS/connection failures require checking Kaggle Internet. Never paste tokens into
+notebook source, output or chat. Revoke any exposed token and replace the Secret.
+
 - `VGEC 2026_v1.json`: original corpus.
 - `VGEC_classifier.json`: capped mixed classifier dataset.
 - `VGEC_balanced.json`: correction dataset with split/provenance metadata.
