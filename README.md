@@ -64,6 +64,15 @@ If `/kaggle/output` exists, ensure it resolves to `/kaggle/working/output`.
 `requirements-kaggle.txt` pins non-torch dependencies and preserves Kaggle's
 CUDA-enabled PyTorch. The notebook records the cloned commit and resolved configs.
 
+If installation replaces a loaded training/scientific package (including NumPy,
+SciPy or scikit-learn), the dependency cell requires a **kernel restart** before
+preflight. Restart the kernel without resetting the installed environment, then
+rerun from the parameter cell. Do not use `importlib.reload` for NumPy binaries.
+The bootstrap compares loaded module versions with installed versions and checks
+the lazy causal-model and sklearn imports in a fresh subprocess. Python 3.13 CPU
+smoke exercised the NumPy 2.3.3 → 2.2.6 restart guard and a tiny Qwen2 forward;
+this is not evidence of full Sailor2 NF4 training on Kaggle T4.
+
 ## Two-T4 training
 
 Both configs default to `run.world_size=2`. The pipeline launches each stage
