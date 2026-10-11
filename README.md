@@ -32,10 +32,10 @@ python -m model.classification --config configs/baseline.json --skip-hints
 ```
 
 Verification: real local-Git notebook clone/update checks and tiny-model
-training/reload tests pass. A local execution of the notebook's configuration,
-training and artifact cells with simulated Kaggle mounts used the actual 504/81
-baseline split, performed one tiny-model CPU optimizer update, reloaded the
-adapter, omitted OOF hints and created the retained ZIP and log. Full Sailor2
+training/reload tests pass. A clean clone of the committed branch executed the
+notebook's configuration, training and artifact cells with simulated Kaggle mounts
+and the actual 504/81 baseline split: one tiny-model CPU optimizer update, saved
+adapter reload, no OOF hints, and retained ZIP/log. Full Sailor2
 training inside Kaggle has not been run here.
 
 ## Local baseline reference
