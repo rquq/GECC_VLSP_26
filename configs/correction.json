@@ -36,7 +36,7 @@
     "effective_batch_size": 8,
     "fp16_initial_scale": 1.0,
     "args": {
-      "num_train_epochs": 4,
+      "num_train_epochs": 8,
       "max_steps": -1,
       "per_device_train_batch_size": 1,
       "learning_rate": 2e-5,
@@ -55,7 +55,7 @@
     }
   },
   "inference": {
-    "prompt": "Hãy sửa lỗi ngữ pháp Tiếng Việt. Nhãn dự đoán chỉ là gợi ý, có thể sai; hãy tự xét câu, không bắt buộc sửa theo nhãn. Sửa ít nhất có thể, giữ nguyên ý nghĩa; giữ nguyên câu đúng. Chỉ trả lời JSON với duy nhất khóa corrected_sentence chứa câu hoàn chỉnh; không giải thích.",
+    "prompt": "Hãy sửa lỗi ngữ pháp Tiếng Việt. Nhãn dự đoán chỉ là gợi ý, không bắt buộc sửa theo nhãn. Sửa ít nhất có thể, giữ nguyên ý nghĩa và hãy giữ nguyên câu đúng. Chỉ trả lời JSON với duy nhất khóa corrected_sentence chứa câu hoàn chỉnh; không giải thích.",
     "hint_descriptions": [
       "câu không có lỗi",
       "lỗi cấu trúc câu (quan hệ chủ ngữ, vị ngữ, các vế câu)",
