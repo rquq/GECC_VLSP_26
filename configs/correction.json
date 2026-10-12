@@ -8,6 +8,14 @@
     "seed": 42,
     "archive": true
   },
+  "tracking": {
+    "enabled": true,
+    "project": "vlsp26-gec",
+    "entity": null,
+    "mode": "online",
+    "log_models": true,
+    "log_text": false
+  },
   "data": {
     "path": null,
     "filename": "VGEC_balanced.json",

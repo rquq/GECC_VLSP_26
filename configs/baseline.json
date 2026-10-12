@@ -7,6 +7,14 @@
     "world_size": 2,
     "seed": 42
   },
+  "tracking": {
+    "enabled": true,
+    "project": "vlsp26-gec",
+    "entity": null,
+    "mode": "online",
+    "log_models": true,
+    "log_text": false
+  },
   "data": {
     "path": null,
     "filename": "VGEC 2026_v1.json",

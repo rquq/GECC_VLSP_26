@@ -191,8 +191,11 @@ class QwenClassifierTests(unittest.TestCase):
                                           "per_device_train_batch_size": microbatch, "learning_rate": 0.01,
                                           "optim": "adamw_torch", "disable_tqdm": True}},
                 }
-                stats = _fit(config, records, None, root / "classifier", root, "cpu", 42,
-                             _preprocessing(config), fixed_epochs=3)
+                from model.tracking import TrackingRun
+                config["tracking"] = {"enabled": False}
+                with TrackingRun() as tracking:
+                    stats = _fit(config, records, None, root / "classifier", root, "cpu", 42,
+                                 _preprocessing(config), fixed_epochs=3, tracking=tracking)
                 self.assertEqual(stats["optimizer_steps"], 6)
                 history = json.loads((root / "epoch_history.json").read_text())
                 self.assertEqual([row["epoch"] for row in history], [1.0, 2.0, 3.0])
@@ -226,7 +229,11 @@ class QwenClassifierTests(unittest.TestCase):
                                       "logging_steps": 1, "disable_tqdm": True}},
             }
             checkpoint = root / "classifier"
-            stats = _fit(config, records, None, checkpoint, root, "cpu", 42, _preprocessing(config))
+            from model.tracking import TrackingRun
+            config["tracking"] = {"enabled": False}
+            with TrackingRun() as tracking:
+                stats = _fit(config, records, None, checkpoint, root, "cpu", 42,
+                             _preprocessing(config), tracking=tracking)
             self.assertEqual(stats["optimizer_steps"], 1)
             self.assertLess(stats["trainable_parameters"], stats["total_parameters"])
             saved = json.loads((checkpoint / "classifier_config.json").read_text())

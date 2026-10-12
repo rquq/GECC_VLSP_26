@@ -218,6 +218,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+.env
+.env.*
+.netrc
+wandb/
+
 
 # VGEC competition inputs and generated artifacts.
 *.py[cod]

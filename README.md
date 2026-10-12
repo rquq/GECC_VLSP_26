@@ -1,4 +1,4 @@
-# Kaggle Sailor2 Task 1 → Task 2
+# Sailor2 Task 1 → Task 2: Kaggle and local
 
 This branch keeps the existing Sailor2 Task 1 baseline and restores alpha's
 Task 2 correction stage. Task 2 prompts contain the source sentence and Task 1's
@@ -7,6 +7,42 @@ out-of-fold (OOF) classifiers; validation hints come from the selected main
 classifier. Gold labels are not substituted into prompts. These are independently
 initialized QLoRA adapters, not classifier-to-corrector weight transfer. Every
 input reaches correction, including predicted class 0.
+
+## Run locally
+
+All branches share the same training code, configs and both notebooks. Use
+`notebooks/local_two_phase.ipynb` on `main`, `beta`, `rquq/test` and `rquq/alpha`;
+use `notebooks/kaggle_two_phase.ipynb` on Kaggle. The local notebook operates on
+the current checkout, never clones it, discovers private data locally, chooses
+one CUDA GPU by default, and writes resolved configs, logs and outputs to
+`runs/`. It supports the same Task 1/Task 2, OOF, saved-run continuation and
+diagnostic controls as the Kaggle notebook. Training runs in subprocesses, not
+inside the notebook kernel. Dependencies use `requirements-kaggle.txt` while
+retaining the installed CUDA PyTorch.
+
+## Weights & Biases
+
+W&B is enabled in both configs and notebooks. Local authentication uses
+`WANDB_API_KEY` in the environment or an existing `wandb login`; Kaggle reads
+the `WANDB_API_KEY` Secret. Never put credentials into source, configs or outputs.
+Rotate the key previously pasted into chat before using it in future runs.
+`WANDB_MODE=offline` retains runs for later `wandb sync`; set
+`tracking.enabled=false` (or notebook `TRACKING_ENABLED=False`) to disable it.
+
+Main classification, each OOF fit, correction and paired diagnostics have
+distinct W&B runs in one `WANDB_RUN_GROUP`. Tracking records optimizer-step
+loss/LR/gradient metrics, epoch validation, final selected/reloaded metrics,
+per-class tables, confusion matrices, data hashes/counts, Git provenance,
+selected adapter artifacts and reused-adapter lineage. `wandb_run.json` records
+the run ID, URL, group, status and artifact references next to local outputs.
+Only rank zero logs in distributed jobs; a failed fit finishes with failed status.
+No model watching or source-code upload is enabled.
+
+The default `tracking.log_text=false` excludes corpus text and hint tables;
+`tracking.log_models=true` uploads adapters/tokenizers, not datasets. Disable
+model uploads with `WANDB_LOG_MODELS=False` in the notebook. Enable
+`WANDB_LOG_TEXT=True` only with permission to upload licensed examples. Keep
+the W&B project private; derived weights and diagnostics may be sensitive too.
 
 ## Run on Kaggle
 
@@ -274,6 +310,36 @@ This recovers predictions and metrics only; it does not fabricate the missing
 run/pipeline completion manifests or reproduce lost trainer optimizer state.
 
 
+## Recommended local correction experiments
+
+Keep the audited split, seed 42 and Task 1/OOF artifacts fixed when changing
+only Task 2. Do not use gold labels in correction prompts or skip predicted
+class 0. Compare error-only GLEU+, error-only exact match, clean preservation,
+invalid response rate and per-error-type results, not classifier accuracy alone.
+The current 81-row selection holdout is exploratory; repeated tuning needs a
+separate untouched evaluation set before claiming a quality improvement.
+
+1. Run `HINT_ABLATION=True` on the saved corrector with `RUN_TRAINING=False`.
+   This paired inference comparison costs no training. A no-hint prompt changes
+   the training distribution: if it helps, train a fresh `hint_mode="none"`
+   corrector before drawing a final conclusion.
+2. Train fresh sentence-output correctors at LR `1e-5`, `2e-5` and `5e-5`,
+   leaving the eight-epoch budget and effective batch eight unchanged. Compare
+   selected, reloaded adapters; do not continue one adapter across this ablation.
+3. Compare a fresh `EDIT_CORRECTION=True` run against sentence output using the
+   same hints and optimizer budget. Localized edits preserve untouched spans,
+   but invalid JSON/offsets remain failures; they are not silently repaired.
+4. Evaluate `CANDIDATE_RERANKING=True` on a saved adapter after measuring the
+   greedy baseline. It adds beam generation, frozen-base grammaticality scoring
+   and a multilingual encoder; accept its added inference cost only if paired
+   metrics improve without damaging clean preservation.
+5. After isolating a useful Task 2 recipe, consider reviewed training-only
+   corrections and realistic minimal-edit/clean examples. Changing dataset
+   contents requires rebuilding and retraining Task 1 OOF coverage; old hint
+   artifacts are not valid for a modified corpus.
+
+These are experiment priorities, not measured correction improvements.
+
 ## Local checks and provenance
 
 The local shared virtual environment is in sibling `test`:
@@ -359,3 +425,16 @@ Compatible prior correctors can continue fine-tuning with a new optimizer;
 incompatible prompt/output/LoRA contracts fail before model loading. Saved
 classifier validation accepts PEFT's automatically added classification-head
 metadata while still requiring configured modules and saved score weights.
+
+W&B integration adds explicit grouped runs for pipeline orchestration, main/OOF
+fits, correction and saved diagnostics; metrics, safe reports, selected adapters
+and input lineage are tracked without automatic corpus/code uploads. The local
+notebook uses an existing interpreter and checkout, with no package mutation.
+The unchanged 99-test suite passed with tracking disabled. A real local notebook
+execution used tiny CPU Qwen2 adapters and the audited data, completed Task 1
+plus two OOF fits and Task 2, and ran paired hint diagnostics: six distinct
+finished offline W&B runs shared one group. Safe report payloads excluded corpus
+fields. Authenticated online verification checked server-side metrics,
+successful/failed lifecycle status, model/text-upload opt-outs, adapter artifact
+lineage, sanitized artifact JSON and rank-one suppression in a private project.
+This does not claim full Sailor2 training or a correction-quality gain.

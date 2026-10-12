@@ -15,6 +15,7 @@ from .data import _id_key, _source_key, _valid_label, load_training_split
 from .runtime import CompleteEpochMixin, balanced_limit, load_config, resolve_data, selection_key, stage_output, write_json
 from .prediction_export import comparison_rows
 from .correction_edits import EDIT_PROMPT, SENTENCE_NO_HINT_PROMPT, encode_edits, parse_edits
+from .tracking import records_identity, tracked_entrypoint
 
 
 def prepare_training_inference(config):
@@ -481,7 +482,8 @@ def load_corrector(adapter, device="cuda"):
     return model, tokenizer, inference
 
 
-def main():
+@tracked_entrypoint
+def main(*, tracking):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True)
     parser.add_argument("--data")
@@ -524,6 +526,13 @@ def main():
     artifact = json.loads((classifier_run / "hints.json").read_text(encoding="utf-8"))
     classifier_train = json.loads((classifier_run / "train.json").read_text(encoding="utf-8"))
     train, validation, provenance = load_training_split(data_path, fraction, seed)
+    tracking.start(config, output, "correction", group=output.parent.name,
+                   metadata={"train": records_identity(train), "validation": records_identity(validation),
+                             "data_sha256": hashlib.sha256(data_path.read_bytes()).hexdigest(),
+                             "hints_sha256": hashlib.sha256((classifier_run / "hints.json").read_bytes()).hexdigest()})
+    tracking.use_model(classifier_run / "classifier", "classifier")
+    if initial:
+        tracking.use_model(initial["path"], "corrector")
     train_hints, validation_hints = validate_hints(
         artifact, train, validation, provenance, classifier_train, data_path, seed, fraction)
     # Limits are diagnostics only, after validating the entire connected pipeline.
@@ -594,6 +603,9 @@ def main():
         baseline_metrics = experiment_report(validation, baseline_predictions)
         write_json(output / "baseline_predictions.json", comparison_rows(validation, baseline_predictions))
         write_json(output / "baseline_metrics.json", baseline_metrics)
+        tracking.evaluation(baseline_metrics, "baseline")
+        tracking.report("baseline", baseline_metrics)
+        tracking.predictions("baseline/predictions", comparison_rows(validation, baseline_predictions))
     barrier()
     model.config.use_cache = False
     if placement["quantized"]:
@@ -643,8 +655,13 @@ def main():
                 epoch_dir.mkdir()
                 write_json(epoch_dir / "predictions.json", comparison_rows(validation, predictions))
                 write_json(epoch_dir / "metrics.json", metrics)
+                tracking.evaluation(metrics, "validation", optimizer_step=state.global_step, epoch=state.epoch)
+                tracking.predictions("validation/predictions", comparison_rows(validation, predictions))
+                tracking.report(f"epoch-{len(history) + 1}", metrics)
                 if config["evaluation"].get("save_epoch_adapters", False):
                     save_adapter(current, epoch_dir / "adapter")
+                    tracking.model(epoch_dir / "adapter", f"corrector-epoch-{len(history) + 1}",
+                                   metadata={"epoch": state.epoch}, aliases=["latest"])
                 key = selection_key(metrics, SELECTION_METRICS)
                 history.append({"epoch": state.epoch, "optimizer_steps": state.global_step,
                                 "metrics": metrics, "selection_values": key})
@@ -653,6 +670,8 @@ def main():
                     best.update(key=key, epoch=state.epoch)
                     save_adapter(current, adapter_path)
                 print(json.dumps({"epoch": state.epoch, "selection_values": key, "best_epoch": best["epoch"]}), flush=True)
+                tracking.summary({"best_epoch": best["epoch"], "selection_values": best["key"],
+                                  "selection_metrics": list(SELECTION_METRICS)})
             if world_size > 1:
                 shared_best = [best if rank == 0 else None]
                 torch.distributed.broadcast_object_list(shared_best, src=0)
@@ -662,7 +681,8 @@ def main():
             return control
 
     trainer = CorrectionTrainer(model=model, args=training_args, train_dataset=encoded,
-                                data_collator=ResponseCollator(tokenizer.pad_token_id), callbacks=[EpochEvaluation()])
+                                data_collator=ResponseCollator(tokenizer.pad_token_id),
+                                callbacks=[EpochEvaluation(), tracking.callback()])
     if trainer.accelerator.num_processes != world_size or trainer.args.n_gpu > 1:
         raise RuntimeError("Correction requires one replica per DDP rank, never DataParallel")
     if training_args.fp16:
@@ -698,6 +718,15 @@ def main():
     metrics = experiment_report(validation, predictions)
     write_json(output / "predictions.json", comparison_rows(validation, predictions))
     write_json(output / "metrics.json", metrics)
+    tracking.evaluation(metrics, "final")
+    tracking.report("final", metrics)
+    tracking.predictions("final/predictions", comparison_rows(validation, predictions))
+    tracking.model(adapter_path, "corrector", metadata={"best_epoch": best["epoch"],
+                                                     "selection_values": best["key"]}, aliases=["latest", "selected"])
+    del reloaded, reloaded_tokenizer
+    gc.collect()
+    if device == "cuda":
+        torch.cuda.empty_cache()
     manifest = {
         "config": config, "resolved_model_revision": settings["revision"], "model": settings,
         "adapter_path": str(adapter_path), "output_dir": str(output), "seed": seed,
@@ -726,6 +755,8 @@ def main():
         "devices": [torch.cuda.get_device_name(i) for i in range(world_size if settings["device_map"] == "single" else 2)] if device == "cuda" else ["cpu"] * world_size,
     }
     write_json(output / "run_manifest.json", manifest)
+    tracking.log(manifest, "training")
+    tracking.report("provenance", manifest)
     print(json.dumps({"output_dir": str(output), "adapter_path": str(adapter_path),
                       "best_epoch": best["epoch"], "error_gleu_plus": metrics["corrections"]["error_only"]["gleu_plus"]}), flush=True)
     barrier()

@@ -12,6 +12,7 @@ from .metrics import experiment_report
 from .prediction_export import comparison_rows
 from .runtime import write_json
 from .run_reuse import resolve_run, validate_classifier_run
+from .tracking import records_identity, tracked_entrypoint
 
 
 def _json(path):
@@ -89,13 +90,15 @@ def paired_rows(records, predictions):
             for record in records]
 
 
-def main():
+@tracked_entrypoint
+def main(*, tracking):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run", required=True, help="Completed portable pipeline root or correction stage")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--device", choices=("cuda", "cpu"), default="cuda")
     parser.add_argument("--hint-ablation", action="store_true")
     parser.add_argument("--rerank", action="store_true")
+    parser.add_argument("--tracking-config", help="JSON with top-level tracking or a tracking settings object")
     args = parser.parse_args()
     if not args.hint_ablation and not args.rerank:
         parser.error("Select --hint-ablation and/or --rerank")
@@ -103,6 +106,13 @@ def main():
     if output.exists() and any(output.iterdir()):
         raise ValueError("Experiment output directory must be empty")
     stage, records, hints = load_experiment_inputs(args.run)
+    config = _json(stage / "config.json")
+    if args.tracking_config:
+        override = _json(args.tracking_config)
+        config["tracking"] = override.get("tracking", override)
+    tracking.start(config, output, "correction-diagnostics", group=stage.parent.name,
+                   metadata={"validation": records_identity(records), "training_performed": False})
+    tracking.use_model(stage / "adapter", "corrector")
     model, tokenizer, inference = load_corrector(stage / "adapter", args.device)
     variants = experiment_variants(inference, hint_ablation=args.hint_ablation, rerank=args.rerank)
     output.mkdir(parents=True, exist_ok=True)
@@ -115,6 +125,9 @@ def main():
         write_json(destination / "inference.json", variant)
         write_json(destination / "predictions.json", comparison_rows(records, predictions[name]))
         write_json(destination / "metrics.json", reports[name])
+        tracking.evaluation(reports[name], f"variants/{name}")
+        tracking.report(name, {"inference": variant, "metrics": reports[name]})
+        tracking.predictions(f"variants/{name}/predictions", comparison_rows(records, predictions[name]))
     write_json(output / "paired_predictions.json", paired_rows(records, predictions))
     write_json(output / "metrics.json", reports)
     write_json(output / "experiment_manifest.json", {
@@ -124,6 +137,9 @@ def main():
         "training_performed": False, "hints": "saved outer-holdout predictions from validated OOF artifact",
         "ranking": "deterministic beams plus unchanged source; adapter-disabled base Có/Không teacher-forced judgment; CPU multilingual cosine; weighted scores then edited-character tie-break",
     })
+    tracking.report("diagnostics", {"variants": variants, "reports": reports,
+                                   "validation": records_identity(records), "training_performed": False})
+    del model, tokenizer
     print(json.dumps({"output_dir": str(output), "variants": list(variants)}, ensure_ascii=False))
 
 

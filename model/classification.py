@@ -18,6 +18,7 @@ from .metrics import score
 from .runtime import CompleteEpochMixin, load_config, resolve_data, stage_output, write_json
 from .prediction_export import comparison_rows
 from .data import load_classifier_split
+from .tracking import TrackingRun, records_identity, tracked_entrypoint
 
 
 def _architecture():
@@ -333,7 +334,7 @@ def _training_algorithm(config, model):
 
 
 def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, preprocessing,
-         fixed_epochs=None):
+         fixed_epochs=None, *, tracking):
     """Fresh mixed-data LoRA/head fit; only main fit selects on outer holdout."""
     import torch
     from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
@@ -341,6 +342,12 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
                               TrainingArguments, set_seed)
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
     rank = int(os.environ.get("RANK", "0"))
+    tracking.start(config, artifact_dir, "classification-oof" if fixed_epochs is not None else "classification",
+                   group=config.get("_tracking_group"),
+                   metadata={"seed": seed, "fixed_epochs": fixed_epochs,
+                             "fold": artifact_dir.name if fixed_epochs is not None else None,
+                             "train": records_identity(train),
+                             "validation": records_identity(validation or [])})
 
     def barrier():
         if world_size > 1:
@@ -426,6 +433,11 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     history = []
     best = {"epoch": None, "macro_f1": None}
     batch_size = args.get("per_device_eval_batch_size", 8)
+    if rank == 0 and validation is not None:
+        baseline = _classification_metrics(validation, _predict(model, tokenizer, validation, preprocessing, device, batch_size))
+        tracking.evaluation(baseline, "baseline/classification")
+        tracking.report("baseline", {"classification": baseline})
+        model.train()
 
     def save_model():
         checkpoint.mkdir(parents=True, exist_ok=True)
@@ -449,6 +461,8 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
                     predictions = _predict(unwrapped, tokenizer, validation, preprocessing, device, batch_size)
                     metrics = _classification_metrics(validation, predictions)
                     entry["classification"] = metrics
+                    tracking.evaluation(metrics, "validation/classification", optimizer_step=state.global_step, epoch=state.epoch)
+                    tracking.predictions("validation/predictions", comparison_rows(validation, predictions))
                     if best["macro_f1"] is None or metrics["macro_f1"] > best["macro_f1"]:
                         best.update(epoch=state.epoch, macro_f1=metrics["macro_f1"])
                         save_model()
@@ -464,7 +478,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
             return control
 
     trainer = HierarchicalTrainer(model=model, args=training_args, train_dataset=encoded,
-                          data_collator=DataCollatorWithPadding(tokenizer), callbacks=[EpochEvaluation()],
+                          data_collator=DataCollatorWithPadding(tokenizer), callbacks=[EpochEvaluation(), tracking.callback()],
                           loss_weights=loss_weights)
     if training_args.fp16:
         # Qwen3 NF4 backward overflowed at scale 4096 despite a finite forward loss.
@@ -504,8 +518,18 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         "train_ids": [row["id"] for row in train],
         "validation_ids": [row["id"] for row in validation] if validation is not None else [],
     }
+    if rank == 0:
+        tracking.log(stats, "training")
+        tracking.summary({"best_epoch": best["epoch"], "selection_macro_f1": best["macro_f1"],
+                          "selection_rule": stats["selection_rule"]})
+        tracking.report("training", stats)
+        tracking.model(checkpoint, "classifier", metadata={"seed": seed, "best_epoch": best["epoch"],
+                                                        "selection_macro_f1": best["macro_f1"]}, aliases=["latest", "selected"])
     trainer.model = None
     trainer.model_wrapped = None
+    trainer.callback_handler.model = None
+    trainer.callback_handler.optimizer = None
+    trainer.callback_handler.lr_scheduler = None
     trainer.optimizer = None
     trainer.accelerator.free_memory()
     del trainer, model, tokenizer
@@ -662,7 +686,8 @@ def _correction_split(config, original_path, original_train, original_validation
     return path, train, validation, provenance
 
 
-def main():
+@tracked_entrypoint
+def main(*, tracking):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True)
     parser.add_argument("--data")
@@ -738,7 +763,8 @@ def main():
         write_json(output / "validation.json", validation)
         write_json(output / "preprocessing.json", preprocessing)
     barrier()
-    stats = _fit(config, train, validation, checkpoint, output, device, seed, preprocessing)
+    config["_tracking_group"] = os.environ.get("WANDB_RUN_GROUP") or output.name
+    stats = _fit(config, train, validation, checkpoint, output, device, seed, preprocessing, tracking=tracking)
     batch_size = config["training"]["args"].get("per_device_eval_batch_size", 8)
     if rank == 0:
         predictions = classify(checkpoint, validation, device, batch_size)
@@ -746,6 +772,9 @@ def main():
                    "training": stats}
         write_json(output / "predictions.json", comparison_rows(validation, predictions))
         write_json(output / "metrics.json", metrics)
+        tracking.evaluation(metrics, "final")
+        tracking.report("final-metrics", metrics)
+        tracking.predictions("final/predictions", comparison_rows(validation, predictions))
         manifest = {
             "task": "classification", "config": config, "seed": seed, "validation_fraction": fraction,
             "device": device, "world_size": world_size, "output_dir": str(output), "classifier_path": str(checkpoint),
@@ -785,17 +814,23 @@ def main():
             if rank == 0:
                 write_json(fold_dir / "fold.json", artifact)
             barrier()
-            fold_stats = _fit(config, fold_train, None, fold_checkpoint, fold_dir,
-                              device, artifact["seed"], preprocessing, fixed_epochs=epochs)
-            if rank == 0:
-                fold_predictions = classify(fold_checkpoint, fold_predict, device, batch_size)
-                hints["train"].extend({**row, "fold": fold} for row in fold_predictions)
-                hints["folds"].append(artifact)
-                write_json(fold_dir / "predictions.json", comparison_rows(fold_predict, fold_predictions))
-                write_json(fold_dir / "run_manifest.json", {**artifact, **fold_stats,
-                           "model": config["model"], "preprocessing": preprocessing,
-                           "saved_classifier_reloaded_for_prediction": True})
-            barrier()
+            with TrackingRun() as fold_tracking:
+                fold_stats = _fit(config, fold_train, None, fold_checkpoint, fold_dir,
+                                  device, artifact["seed"], preprocessing, fixed_epochs=epochs,
+                                  tracking=fold_tracking)
+                if rank == 0:
+                    fold_predictions = classify(fold_checkpoint, fold_predict, device, batch_size)
+                    fold_metrics = _classification_metrics(fold_predict, fold_predictions)
+                    fold_tracking.evaluation(fold_metrics, "final/classification")
+                    fold_tracking.report("final", {**artifact, "classification": fold_metrics, "training": fold_stats})
+                    fold_tracking.predictions("final/predictions", comparison_rows(fold_predict, fold_predictions))
+                    hints["train"].extend({**row, "fold": fold} for row in fold_predictions)
+                    hints["folds"].append(artifact)
+                    write_json(fold_dir / "predictions.json", comparison_rows(fold_predict, fold_predictions))
+                    write_json(fold_dir / "run_manifest.json", {**artifact, **fold_stats,
+                               "model": config["model"], "preprocessing": preprocessing,
+                               "saved_classifier_reloaded_for_prediction": True})
+                barrier()
         if rank == 0:
             by_id = {_id_key(row["id"]): row for row in hints["train"]}
             if len(hints["train"]) != len(correction_train) or set(by_id) != {_id_key(row["id"]) for row in correction_train}:
@@ -807,6 +842,7 @@ def main():
                             hints_path=str(output / "hints.json"), oof_folds=hints["folds"])
     if rank == 0:
         write_json(output / "run_manifest.json", manifest)
+        tracking.report("provenance", manifest)
         print(json.dumps({"output_dir": str(output), "classifier_path": str(checkpoint),
                           "macro_f1": metrics["classification"]["macro_f1"], "hints_enabled": bool(enabled)}), flush=True)
     barrier()

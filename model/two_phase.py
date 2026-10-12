@@ -2,6 +2,7 @@
 import argparse
 import copy
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -10,6 +11,7 @@ import sys
 from .runtime import PROJECT_ROOT, load_config, resolve_data, stage_output, write_json
 from .run_reuse import (copy_classifier_run, resolve_adapter, resolve_run,
                         validate_classifier_run, validate_reuse_data, write_handoff)
+from .tracking import tracked_entrypoint
 
 
 def _stage_placement(config, task):
@@ -106,7 +108,8 @@ def stage_command(module, config):
     return [sys.executable, "-m", module]
 
 
-def main():
+@tracked_entrypoint
+def main(*, tracking):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("task1", "task2", "both"), default="both")
     parser.add_argument("--classification-config", default="configs/baseline.json")
@@ -158,6 +161,15 @@ def main():
         if output == source or output.is_relative_to(source):
             raise ValueError("Output directory must not be inside read-only reused input artifacts")
     output.mkdir(parents=True, exist_ok=True)
+    tracking.start(output_config, output, "pipeline", group=output.name,
+                   metadata={"mode": args.mode, "classifier_reused": classifier_run is not None,
+                             "initial_adapter_reused": initial_adapter is not None})
+    child_env = os.environ.copy()
+    child_env["WANDB_RUN_GROUP"] = os.environ.get("WANDB_RUN_GROUP") or output.name
+    if classifier_run is not None:
+        tracking.use_model(classifier_run / "classifier", "classifier")
+    if initial_adapter is not None:
+        tracking.use_model(initial_adapter, "corrector")
     from tools.runtime import source_identity
     write_json(output / "source_manifest.json", source_identity(PROJECT_ROOT))
     write_json(output / "classification_config.json", classifier)
@@ -170,7 +182,7 @@ def main():
             "--output-dir", str(packaged_classifier)]
         if bundle is not None:
             command += ["--correction-data", str(bundle)]
-        subprocess.run(command, cwd=PROJECT_ROOT, check=True)
+        subprocess.run(command, cwd=PROJECT_ROOT, env=child_env, check=True)
     else:
         copy_classifier_run(classifier_run, packaged_classifier)
     # The first completed stage is already reusable if a later stage fails.
@@ -183,7 +195,7 @@ def main():
             "--classifier-run", str(packaged_classifier), "--output-dir", str(output / "correction")]
         if initial_adapter is not None:
             command += ["--initial-adapter", str(initial_adapter)]
-        subprocess.run(command, cwd=PROJECT_ROOT, check=True)
+        subprocess.run(command, cwd=PROJECT_ROOT, env=child_env, check=True)
         write_handoff(output, correction=True)
     manifest = {"mode": args.mode, "classifier": "classification/classifier",
                 "seed": classifier["run"]["seed"], "classifier_reused": classifier_run is not None,
@@ -192,6 +204,13 @@ def main():
         manifest.update(corrector="correction/adapter",
                         correction_metrics=json.loads((output / "correction" / "metrics.json").read_text()))
     write_json(output / "pipeline_manifest.json", manifest)
+    tracking.evaluation(manifest["classification_metrics"], "classification")
+    if classifier_run is None:
+        tracking.use_model(packaged_classifier / "classifier", "classifier")
+    if corrector is not None:
+        tracking.evaluation(manifest["correction_metrics"], "correction")
+        tracking.use_model(output / "correction" / "adapter", "corrector")
+    tracking.report("pipeline", manifest)
     if output_config["run"].get("archive", True):
         archive = shutil.make_archive(str(output) + "-artifacts", "zip", output.parent, output.name)
         print(f"Artifacts: {archive}", flush=True)
