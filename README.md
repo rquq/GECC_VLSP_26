@@ -13,8 +13,8 @@ input reaches correction, including predicted class 0.
 All branches share the same training code, configs and both notebooks. Use
 `notebooks/local_two_phase.ipynb` on `main`, `beta`, `rquq/test` and `rquq/alpha`;
 use `notebooks/kaggle_two_phase.ipynb` on Kaggle. The local notebook operates on
-the current checkout, never clones it, discovers private data locally, chooses
-one CUDA GPU by default, and writes resolved configs, logs and outputs to
+the current checkout, never clones it, discovers private data locally, defaults
+to one CUDA GPU, and writes resolved configs, logs and outputs to
 `runs/`. It supports the same Task 1/Task 2, OOF, saved-run continuation and
 diagnostic controls as the Kaggle notebook. Training runs in subprocesses, not
 inside the notebook kernel. Dependencies use `requirements-kaggle.txt` while
