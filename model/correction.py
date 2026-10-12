@@ -560,8 +560,15 @@ def main():
     trainable_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total_parameters = sum(p.numel() for p in model.parameters())
     peak_memory = {f"cuda:{i}": torch.cuda.max_memory_allocated(i) for i in range(torch.cuda.device_count())} if device == "cuda" else {}
+    # Callbacks retain their own model/optimizer references independently of
+    # Trainer and Accelerator. Detach every training owner before loading a
+    # second base, including wrapped DDP models and optimizer state tensors.
+    trainer.callback_handler.model = None
+    trainer.callback_handler.optimizer = None
+    trainer.callback_handler.lr_scheduler = None
     trainer.model = trainer.model_wrapped = trainer.optimizer = trainer.lr_scheduler = None
     trainer.accelerator.free_memory()
+    trainer.accelerator.scaler = None
     del trainer, model
     gc.collect()
     if device == "cuda":

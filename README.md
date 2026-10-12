@@ -144,6 +144,51 @@ Use `--evaluate` for labeled records. To reuse a completed compatible Task 1 run
 pass `--classifier-run /kaggle/input/DATA/completed-classification` to
 `model.two_phase`; its saved classifier, OOF hints and provenance are validated.
 
+### Recover a run that failed after training
+
+If training finished but the final `load_corrector` call failed its GPU-memory
+preflight, the selected checkpoint is already in `correction/adapter`. Preserve
+the entire run directory before restarting the Kaggle session. Do not rerun
+training merely to evaluate that checkpoint. In `epoch_history.json`, the highest
+`selection_values` tuple wins (earliest epoch on ties); the saved adapter is not
+necessarily from the last epoch.
+
+Run this notebook cell after the dependency bootstrap, with `RUN` set to the
+preserved run directory. It evaluates the saved corrector in a fresh subprocess
+using the original validation hints, without loading a second classifier or
+changing the configured memory reserve:
+
+```python
+RUN = Path("/kaggle/working/output/YOUR_COMPLETED_RUN")
+recovery = r'''
+import json, sys
+from pathlib import Path
+from model.correction import load_corrector, correct
+from model.data import _id_key
+from model.metrics import experiment_report
+from model.prediction_export import comparison_rows
+from model.runtime import write_json
+run = Path(sys.argv[1])
+stage = run / "correction"
+records = json.loads((stage / "validation.json").read_text())
+ids = {_id_key(row["id"]) for row in records}
+hints = json.loads((run / "classification" / "hints.json").read_text())["validation"]
+hints = [row for row in hints if _id_key(row["id"]) in ids]
+model, tokenizer, inference = load_corrector(stage / "adapter", device=sys.argv[2])
+predictions = correct(model, tokenizer, records, hints, inference)
+metrics = experiment_report(records, predictions)
+write_json(stage / "predictions.json", comparison_rows(records, predictions))
+write_json(stage / "metrics.json", metrics)
+print(json.dumps(metrics, ensure_ascii=False, indent=2))
+'''
+subprocess.run([str(TRAINING_PYTHON), "-c", recovery, str(RUN), "cuda"],
+               cwd=PROJECT_DIR, check=True)
+```
+
+This recovers predictions and metrics only; it does not fabricate the missing
+run/pipeline completion manifests or reproduce lost trainer optimizer state.
+
+
 ## Local checks and provenance
 
 The local shared virtual environment is in sibling `test`:
@@ -178,6 +223,16 @@ tiny Qwen2 forward passed while the kernel retained NumPy 2.3.3. A separate smok
 used `/usr/bin/python3` 3.13 to create a pipless environment and install/import
 NumPy via host pip's `--python`. The seven Kaggle regression tests still passed.
 
+Correction reload cleanup was exercised with a real tiny NF4 Qwen2 CUDA fit
+and two-process CPU DDP. Each fit completed two epochs including partial
+accumulation windows; saved selected-adapter tensors matched the reloaded
+adapter exactly. A retained callback-handler smoke failed before cleanup was
+fixed and passed afterward with zero live training-model/parameter references
+before reload. The ordinary old-code tiny runs did not reproduce the hosted
+T4 memory failure; this proves the ownership cleanup, not its complete cause
+in that image or full Sailor2 T4 memory headroom.
+The current full local regression suite passed 82 tests.
+
 
 Full Sailor2 training on Kaggle T4 ×2 has not been exercised locally; the local
 machine exposes only one CUDA GPU. Distributed CPU smoke evidence does not prove
@@ -198,3 +253,7 @@ runs model preflight inside the training subprocess; unattended runs no longer
 stop at a loaded-NumPy restart guard.
 Environment creation skips `ensurepip`; the existing host pip installs into the
 training interpreter using `--python`.
+Correction cleanup now detaches callback-handler model/optimizer/scheduler
+references and clears the training scaler before collecting GPU allocations
+and reloading the selected saved adapter. The conservative memory check remains
+unchanged; no offload or warning suppression was added.
