@@ -29,7 +29,8 @@ def comparison_rows(records, predictions):
             "predicted_class": prediction["label"],
             "predicted_correction": prediction.get("target"),
         }
-        for field in ("raw_generation", "parse_error", "probabilities", "fold"):
+        for field in ("raw_generation", "parse_error", "probabilities", "fold",
+                      "candidates", "selected_candidate", "reranking"):
             if field in prediction:
                 row[field] = prediction[field]
         rows.append(row)

@@ -25,8 +25,6 @@ class CorrectionGenerationTests(unittest.TestCase):
         self.assertIn(record["source"], prompt)
         self.assertNotIn("description 1", prompt)
         self.assertNotIn(record["target"], prompt)
-        tokenizer.encode.assert_called_once_with(
-            json.dumps({"corrected_sentence": record["target"]}, ensure_ascii=False), add_special_tokens=False)
         self.assertEqual(encoded["input_ids"], [10, 11, 12, 20, 21, 99])
         self.assertEqual(encoded["labels"], [-100, -100, -100, 20, 21, 99])
         self.assertEqual(encoded["attention_mask"], [1] * 6)

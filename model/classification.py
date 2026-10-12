@@ -710,7 +710,7 @@ def main():
     mixed_path = resolve_data(mixed_config, None)
     train, classifier_info = load_classifier_split(path, mixed_path, fraction, seed)
     preprocessing = _preprocessing(config)
-    enabled = config.get("oof", {}).get("enabled", True) and not args.skip_hints
+    enabled = config.get("oof", {}).get("enabled", False) and not args.skip_hints
     plans = []
     if enabled:
         correction_path, correction_train, correction_validation, provenance = _correction_split(

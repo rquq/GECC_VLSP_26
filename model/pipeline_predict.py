@@ -18,6 +18,8 @@ def main():
     parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--evaluate", action="store_true")
+    parser.add_argument("--hint-mode", choices=["predicted", "none"], help="Override saved hint conditioning")
+    parser.add_argument("--rerank", action="store_true", help="Score beam candidates and unchanged source")
     args = parser.parse_args()
     if args.batch_size <= 0:
         raise ValueError("batch-size must be positive")
@@ -33,6 +35,10 @@ def main():
         torch.cuda.empty_cache()
     from .correction import load_corrector, correct
     model, tokenizer, inference = load_corrector(args.adapter, device=args.device)
+    if args.hint_mode:
+        inference["hint_mode"] = args.hint_mode
+    if args.rerank:
+        inference["reranking"] = {**inference.get("reranking", {}), "enabled": True}
     predictions = correct(model, tokenizer, records, hints, inference)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

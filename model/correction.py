@@ -14,6 +14,77 @@ from datetime import timedelta
 from .data import _id_key, _source_key, _valid_label, load_training_split
 from .runtime import CompleteEpochMixin, balanced_limit, load_config, resolve_data, selection_key, stage_output, write_json
 from .prediction_export import comparison_rows
+from .correction_edits import EDIT_PROMPT, SENTENCE_NO_HINT_PROMPT, encode_edits, parse_edits
+
+
+def prepare_training_inference(config):
+    """Choose an explicit representation only for fresh training, never rewrite saved prompts."""
+    inference = {**config["inference"], "generation": dict(config["generation"]),
+                 "max_length": config["training"]["max_length"]}
+    inference.setdefault("output_format", "sentence")
+    inference.setdefault("hint_mode", "predicted")
+    if inference["output_format"] == "edits":
+        inference["prompt"] = EDIT_PROMPT
+    elif inference["hint_mode"] == "none":
+        inference["prompt"] = SENTENCE_NO_HINT_PROMPT
+    validate_inference(inference)
+    return inference
+
+
+def validate_inference(inference):
+    if inference.get("output_format", "sentence") not in ("sentence", "edits"):
+        raise ValueError("output_format must be sentence or edits")
+    if inference.get("hint_mode", "predicted") not in ("predicted", "none"):
+        raise ValueError("hint_mode must be predicted or none")
+    if not isinstance(inference.get("prompt"), str) or not inference["prompt"]:
+        raise ValueError("Correction inference requires a saved prompt")
+    if inference.get("hint_mode", "predicted") == "predicted":
+        descriptions = inference.get("hint_descriptions")
+        if not isinstance(descriptions, list) or len(descriptions) != 5 or any(not isinstance(x, str) for x in descriptions):
+            raise ValueError("Predicted hints require five description strings")
+    if inference.get("reranking") is not None:
+        from .correction_reranking import reranking_config
+        reranking_config(inference["reranking"])
+
+
+def validate_initial_adapter(adapter, config, inference=None):
+    """Validate a continuation before weights load; optimizer state is intentionally new."""
+    adapter = Path(adapter).expanduser().resolve()
+    for filename in ("loading.json", "inference.json", "adapter_config.json"):
+        if not (adapter / filename).is_file():
+            raise ValueError(f"Initial correction adapter is missing {filename}")
+    if not any((adapter / filename).is_file() for filename in ("adapter_model.safetensors", "adapter_model.bin")):
+        raise ValueError("Initial correction adapter has no saved weights")
+    loading = json.loads((adapter / "loading.json").read_text(encoding="utf-8"))
+    saved = json.loads((adapter / "inference.json").read_text(encoding="utf-8"))
+    peft = json.loads((adapter / "adapter_config.json").read_text(encoding="utf-8"))
+    requested = inference or prepare_training_inference(config)
+    validate_inference(saved)
+    if peft.get("task_type") != "CAUSAL_LM" or peft.get("peft_type") != "LORA":
+        raise ValueError("Initial adapter must be a PEFT LoRA CAUSAL_LM correction adapter")
+    for field in ("name", "revision"):
+        if loading.get(field) != config["model"].get(field):
+            raise ValueError(f"Initial adapter base {field} differs")
+    if peft.get("base_model_name_or_path") != loading["name"] or peft.get("revision") != loading["revision"]:
+        raise ValueError("Initial PEFT base model/revision disagrees with loading.json")
+    structural_defaults = {"use_dora": False, "use_rslora": False, "fan_in_fan_out": False,
+                           "rank_pattern": {}, "alpha_pattern": {}, "layers_to_transform": None,
+                           "layers_pattern": None, "modules_to_save": None, "lora_bias": False}
+    expected_lora = {**structural_defaults, **config["lora"]}
+    for field, expected in expected_lora.items():
+        actual = peft.get(field, structural_defaults.get(field))
+        if field == "target_modules" and isinstance(expected, list) and isinstance(actual, list):
+            actual, expected = sorted(actual), sorted(expected)
+        if actual != expected:
+            raise ValueError(f"Initial adapter LoRA {field} differs")
+    for field, default in (("output_format", "sentence"), ("hint_mode", "predicted")):
+        if saved.get(field, default) != requested.get(field, default):
+            raise ValueError(f"Initial adapter {field} contract differs; no silent migration")
+    for field in ("prompt", "hint_descriptions"):
+        if saved.get(field) != requested.get(field):
+            raise ValueError(f"Initial adapter {field} interface differs")
+    return {"path": str(adapter), "loading": loading, "inference": saved,
+            "continuation": "trainable adapter weights with a fresh optimizer, not exact resume"}
 
 SELECTION_METRICS = (
     "corrections.error_only.gleu_plus", "corrections.error_only.exact_match",
@@ -159,16 +230,27 @@ def validate_hints(artifact, train, validation, provenance, classifier_train, da
 
 
 def _prompt_ids(tokenizer, source, label, inference):
-    descriptions = inference["hint_descriptions"]
-    content = f"Gợi ý nhãn dự đoán: {label} — {descriptions[label]}.\nCâu gốc:\n{source}"
+    mode = inference.get("hint_mode", "predicted")
+    if mode == "none":
+        content = f"Câu gốc:\n{source}"
+        prompt = EDIT_PROMPT if inference.get("output_format", "sentence") == "edits" else SENTENCE_NO_HINT_PROMPT
+    elif mode == "predicted":
+        descriptions = inference["hint_descriptions"]
+        content = f"Gợi ý nhãn dự đoán: {label} — {descriptions[label]}.\nCâu gốc:\n{source}"
+        prompt = inference["prompt"]
+    else:
+        raise ValueError("hint_mode must be predicted or none")
     return tokenizer.apply_chat_template(
-        [{"role": "system", "content": inference["prompt"]}, {"role": "user", "content": content}],
+        [{"role": "system", "content": prompt}, {"role": "user", "content": content}],
         tokenize=True, add_generation_prompt=True, return_dict=False)
 
 
 def encode_record(tokenizer, record, hint, max_length, inference):
     prompt = _prompt_ids(tokenizer, record["source"], hint["label"], inference)
-    answer = json.dumps({"corrected_sentence": record["target"]}, ensure_ascii=False)
+    answer_value = (encode_edits(record["source"], record["target"])
+                    if inference.get("output_format", "sentence") == "edits"
+                    else {"corrected_sentence": record["target"]})
+    answer = json.dumps(answer_value, ensure_ascii=False)
     if tokenizer.eos_token_id is None:
         raise ValueError("Correction tokenizer must have an EOS token")
     completion = tokenizer.encode(answer, add_special_tokens=False) + [tokenizer.eos_token_id]
@@ -178,7 +260,13 @@ def encode_record(tokenizer, record, hint, max_length, inference):
     return {"input_ids": ids, "attention_mask": [1] * len(ids), "labels": [-100] * len(prompt) + completion}
 
 
-def _parse_correction(text):
+def _parse_correction(text, source=None, output_format="sentence"):
+    if output_format == "edits":
+        if not isinstance(source, str):
+            raise ValueError("Edit parsing requires the original source")
+        return parse_edits(source, text)
+    if output_format != "sentence":
+        raise ValueError("output_format must be sentence or edits")
     try:
         value = json.loads(text)
         if (not isinstance(value, dict) or set(value) != {"corrected_sentence"}
@@ -190,12 +278,20 @@ def _parse_correction(text):
 
 
 def correct(model, tokenizer, records, hints, inference):
-    """Generate for every row, including class 0; never override classifier labels."""
+    """Generate every row, including class 0; optional ranking never gates on labels."""
     import torch
+    validate_inference(inference)
     indexed = _hint_index(records, hints)
     generation = {"max_new_tokens": 192, "do_sample": False, "use_cache": True,
                   "pad_token_id": tokenizer.pad_token_id, "eos_token_id": tokenizer.eos_token_id}
     generation.update(inference["generation"])
+    reranker, ranking = None, None
+    if (inference.get("reranking") or {}).get("enabled", False):
+        from .correction_reranking import FrozenReranker, reranking_config
+        ranking = reranking_config(inference["reranking"])
+        generation.update(do_sample=False, num_beams=ranking["num_candidates"],
+                          num_return_sequences=ranking["num_candidates"])
+        reranker = FrozenReranker(model, tokenizer, ranking, inference["max_length"])
     device = model.get_input_embeddings().weight.device
     model.eval()
     predictions = []
@@ -208,10 +304,23 @@ def correct(model, tokenizer, records, hints, inference):
             ids = torch.tensor([prompt], device=device)
             output = model.generate(input_ids=ids, attention_mask=torch.ones_like(ids), **generation)
             sequences = output.sequences if hasattr(output, "sequences") else output
-            text = tokenizer.decode(sequences[0, len(prompt):], skip_special_tokens=True).strip()
-            target, error = _parse_correction(text)
-            predictions.append({"id": record["id"], "label": hint["label"], "target": target,
-                                "raw_generation": text, "parse_error": error})
+            candidates = []
+            for sequence in sequences:
+                text = tokenizer.decode(sequence[len(prompt):], skip_special_tokens=True).strip()
+                target, error = _parse_correction(text, record["source"], inference.get("output_format", "sentence"))
+                candidates.append({"target": target, "raw_generation": text, "parse_error": error,
+                                   "origin": "beam" if ranking else "generation"})
+            selected = 0
+            if reranker is not None:
+                candidates.append({"target": record["source"], "raw_generation": None,
+                                   "parse_error": None, "origin": "unchanged_source"})
+                selected = reranker.score(record["source"], candidates)
+            chosen = candidates[selected]
+            prediction = {"id": record["id"], "label": hint["label"], "target": chosen["target"],
+                          "raw_generation": chosen["raw_generation"], "parse_error": chosen["parse_error"]}
+            if ranking:
+                prediction.update(candidates=candidates, selected_candidate=selected, reranking=ranking)
+            predictions.append(prediction)
     return predictions
 
 
@@ -360,6 +469,7 @@ def load_corrector(adapter, device="cuda"):
     adapter = Path(adapter)
     settings = json.loads((adapter / "loading.json").read_text(encoding="utf-8"))
     inference = json.loads((adapter / "inference.json").read_text(encoding="utf-8"))
+    validate_inference(inference)
     base = _load_base(settings, device)
     if settings.get("load_in_4bit"):
         base = prepare_model_for_kbit_training(base, use_gradient_checkpointing=False)
@@ -376,12 +486,15 @@ def main():
     parser.add_argument("--config", required=True)
     parser.add_argument("--data")
     parser.add_argument("--classifier-run", required=True)
+    parser.add_argument("--initial-adapter", help="Compatible correction LoRA weights; starts a fresh optimizer")
     parser.add_argument("--output-dir")
     parser.add_argument("--device", choices=("cuda", "cpu"))
     args = parser.parse_args()
     config = load_config(args.config, "correction")
     device = args.device or config["run"]["device"]
     config["run"]["device"] = device
+    inference = prepare_training_inference(config)
+    initial = validate_initial_adapter(args.initial_adapter, config, inference) if args.initial_adapter else None
     import torch
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
     rank = int(os.environ.get("RANK", "0"))
@@ -406,7 +519,8 @@ def main():
     if world_size > 1:
         torch.distributed.broadcast_object_list(shared_output, src=0)
     output = Path(shared_output[0])
-    classifier_run = Path(args.classifier_run).expanduser().resolve()
+    from .run_reuse import resolve_run
+    classifier_run = resolve_run(args.classifier_run, stage="classification")
     artifact = json.loads((classifier_run / "hints.json").read_text(encoding="utf-8"))
     classifier_train = json.loads((classifier_run / "train.json").read_text(encoding="utf-8"))
     train, validation, provenance = load_training_split(data_path, fraction, seed)
@@ -424,16 +538,15 @@ def main():
         raise ValueError("Correction gradient checkpointing must explicitly use_reentrant=false")
     placement = placement_preflight(settings, device)
     settings["revision"] = placement["resolved_revision"]
-    from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
+    from peft import LoraConfig, PeftModel, TaskType, get_peft_model, prepare_model_for_kbit_training
     from transformers import AutoTokenizer, Trainer, TrainerCallback, TrainingArguments, set_seed
     from .metrics import experiment_report
     from .modeling import ResponseCollator
     dtype = _dtype(settings, device)
     settings["compute_dtype"] = str(dtype).removeprefix("torch.")
     set_seed(seed)
-    inference = {**config["inference"], "generation": config["generation"],
-                 "max_length": training["max_length"]}
-    tokenizer = AutoTokenizer.from_pretrained(settings["name"], revision=settings["revision"])
+    tokenizer = AutoTokenizer.from_pretrained(initial["path"] if initial else settings["name"],
+                                             **({} if initial else {"revision": settings["revision"]}))
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
@@ -462,6 +575,7 @@ def main():
         write_json(output / "validation.json", validation)
         write_json(output / "inference.json", inference)
         write_json(output / "placement.json", placement)
+        write_json(output / "validation_hints.json", [validation_hints[_id_key(row["id"])] for row in validation])
     barrier()
     model = _load_base(settings, device, placement)
     selected_hints = [validation_hints[_id_key(row["id"])] for row in validation]
@@ -486,7 +600,8 @@ def main():
         model = prepare_model_for_kbit_training(
             model, use_gradient_checkpointing=training_args.gradient_checkpointing,
             gradient_checkpointing_kwargs=training_args.gradient_checkpointing_kwargs)
-    model = get_peft_model(model, lora, autocast_adapter_dtype=True)
+    model = (PeftModel.from_pretrained(model, initial["path"], is_trainable=True, autocast_adapter_dtype=True)
+             if initial else get_peft_model(model, lora, autocast_adapter_dtype=True))
     model.is_parallelizable = settings["device_map"] == "balanced"
     model.model_parallel = settings["device_map"] == "balanced"
     if training_args.gradient_checkpointing:
@@ -586,6 +701,8 @@ def main():
     manifest = {
         "config": config, "resolved_model_revision": settings["revision"], "model": settings,
         "adapter_path": str(adapter_path), "output_dir": str(output), "seed": seed,
+        "initial_adapter": initial["path"] if initial else None,
+        "continuation": initial["continuation"] if initial else None,
         "data_path": str(data_path), "data_sha256": hashlib.sha256(data_path.read_bytes()).hexdigest(),
         "classifier_run": str(classifier_run),
         "hints_sha256": hashlib.sha256((classifier_run / "hints.json").read_bytes()).hexdigest(),

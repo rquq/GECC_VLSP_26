@@ -55,6 +55,8 @@
     }
   },
   "inference": {
+    "output_format": "sentence",
+    "hint_mode": "predicted",
     "prompt": "Hãy sửa lỗi ngữ pháp Tiếng Việt. Nhãn dự đoán chỉ là gợi ý, không bắt buộc sửa theo nhãn. Sửa ít nhất có thể, giữ nguyên ý nghĩa và hãy giữ nguyên câu đúng. Chỉ trả lời JSON với duy nhất khóa corrected_sentence chứa câu hoàn chỉnh; không giải thích.",
     "hint_descriptions": [
       "câu không có lỗi",

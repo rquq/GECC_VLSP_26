@@ -43,10 +43,11 @@ needed. The ZIP and corpus files are local-only and intentionally Git-ignored;
 a fresh Git clone does not contain restricted corpus data.
 
 
-The notebook clones `kaggle-linux`, checks the compatible splits and hardware,
-trains Task 1 and its OOF classifiers, then trains Task 2. Set explicit attachment
-paths in the parameter cell if filenames are ambiguous. Both configs discover
-inputs under `/kaggle/input`; outputs use `/kaggle/output`, linked to
+The notebook clones `kaggle-linux` and supports `RUN_MODE="task1"`, `"task2"`,
+or `"both"`. Fresh Task 1 keeps the baseline recipe; default `GENERATE_OOF=True`
+also produces the connected train-only hints needed by later Task 2 runs.
+Task 2 can reuse a prior classifier without another Task 1 fit. Explicit attachment
+paths resolve duplicate filenames. Outputs use `/kaggle/output`, linked to
 `/kaggle/working/output` so Save Version retains artifacts. Keep notebook versions,
 datasets, checkpoints and text-containing outputs private.
 
@@ -115,7 +116,7 @@ and seed 42.
   selection. Duplicate sources, synthetic parent relationships and contrast/template
   families stay connected. Hints cover the correction training population,
   including correction rows not retained in the main classifier's training set.
-- **Task 2:** alpha's response-only JSON supervision, four epochs, LR `2e-5`.
+- **Task 2:** response-only JSON supervision, eight epochs, LR `2e-5`.
   Prompt tokens are masked from loss; target completions are never truncated.
   Selection: error-only GLEU+, then error-only exact match, then clean preservation;
   ties retain the earlier epoch. Invalid generated JSON is reported with raw
@@ -143,6 +144,90 @@ python -m model.pipeline_predict \
 Use `--evaluate` for labeled records. To reuse a completed compatible Task 1 run,
 pass `--classifier-run /kaggle/input/DATA/completed-classification` to
 `model.two_phase`; its saved classifier, OOF hints and provenance are validated.
+
+## Run modes and next-version inputs
+
+| Notebook setting | Behavior | Required inputs |
+|---|---|---|
+| `RUN_MODE="task1"`, `GENERATE_OOF=True` | Train baseline classifier and OOF fits; export reusable classifier | Three audited data files |
+| `RUN_MODE="task1"`, `GENERATE_OOF=False` | Classifier only; no future correction hints | Original + classifier datasets |
+| `RUN_MODE="task2"`, `PRIOR_RUN=...` | Reuse classifier/OOF hints; train a fresh corrector | Prior run + identical correction dataset |
+| `RUN_MODE="both"`, no prior | Train both stages | Three audited data files |
+| `RUN_MODE="both"`, `PRIOR_RUN=...` | Reuse classifier; train corrector | Prior run + identical correction dataset |
+| `RUN_TRAINING=False` | Saved-corrector diagnostics only | `EXPERIMENT_RUN` or `PRIOR_RUN`; enable an experiment flag |
+
+Save the notebook version privately. In the next notebook, use **Add Input** to
+attach that saved notebook output, or upload the extracted run as a private
+Kaggle Dataset. Set `PRIOR_RUN` to its actual mounted run folder, e.g.
+`/kaggle/input/my-previous-version/output/sailor2-task1-RUN_ID`. Kaggle chooses
+the mount name; this is not the previous `/kaggle/output` path. Run All cannot
+automatically attach outputs to a future notebook version.
+
+`run_handoff.json` contains relative stage paths. A new run includes the reused
+classifier weights/tokenizer, OOF hints, configs and provenance, so another
+handoff does not depend on an older mount. Direct classifier-stage paths,
+legacy enclosing pipeline roots, and unique run folders inside mounts are
+supported; multiple candidates require an explicit run folder. Inputs are
+read-only. Reuse requires a compatible five-class QLoRA classifier and valid
+OOF hints for the exact correction data/split. Changing the dataset requires
+new compatible OOF fits, not applying stale hints to new examples.
+
+`CLASSIFIER_RUN` explicitly selects a classifier. `RESUME_CORRECTION=True`
+selects the prior corrector for continued fine-tuning; alternatively set
+`INITIAL_ADAPTER` to a saved corrector. This starts a **new optimizer/scheduler**,
+not an exact trainer-state resume. Base model/revision, LoRA layout, hint mode
+and sentence/edit output representation must match. Arbitrary incompatible
+adapters cannot be converted automatically; a classifier is not a causal-LM
+corrector, and a sentence adapter is not an edit adapter.
+
+```bash
+python -m model.two_phase --mode task1 --classification-config configs/baseline.json \
+  --correction-config configs/correction.json --output-dir /kaggle/output/task1-run
+python -m model.two_phase --mode task2 --prior-run /kaggle/input/prev/output/task1-run \
+  --correction-config configs/correction.json --output-dir /kaggle/output/task2-run
+```
+
+## Correction experiments
+
+All are opt-in. Defaults retain the original sentence-generation recipe and
+classifier hints; no performance improvement is claimed.
+
+- **`HINT_ABLATION=True`:** paired evaluation of the same saved corrector and
+  validation records with predicted hints versus no label/type hint. Gold labels
+  never enter prompts. This removes a conditioning input without retraining, so
+  the no-hint result is a diagnostic distribution shift.
+- **`EDIT_CORRECTION=True`:** fresh training predicts
+  `{"edits":[{"start":0,"end":3,"replacement":"..."}]}` rather than a
+  whole sentence. Offsets are Python Unicode character indices into the original
+  source; spans must be ordered, nonoverlapping and in bounds. Insertions and
+  deletions are supported. Deterministic application preserves untouched spans;
+  invalid edit JSON remains a parse error, never a fake unchanged success.
+- **`CANDIDATE_RERANKING=True`:** deterministic beam candidates plus unchanged
+  source. A frozen base model (correction adapter disabled) scores a Vietnamese
+  grammaticality judgment; a CPU multilingual sentence encoder scores meaning
+  similarity. Weighted quality is ranked before edit-size tie-breaking. Invalid
+  generated candidates remain in diagnostics but cannot win. The source is an
+  ordinary candidate, not an automatic fallback. This adds inference cost and
+  a semantic-model download; both learned scoring signals can be wrong.
+
+Set `RUN_TRAINING=False`, `PRIOR_RUN` and either diagnostic flag to evaluate
+an existing corrector without retraining. After training, the same flags evaluate
+the newly saved corrector. Predictions retain candidate text, parse errors,
+component scores and selection metadata. Reports use the unchanged holdout,
+including correction quality and clean preservation separately.
+
+```bash
+python -m model.correction_experiments --run /kaggle/input/prev/output/RUN \
+  --output-dir /kaggle/output/diagnostics --device cuda --hint-ablation --rerank
+```
+
+For training/production inference configure `inference.hint_mode="none"` or
+`inference.output_format="edits"` in `CORRECTION_OVERRIDES`. Enable persistent
+reranking with `inference.reranking={"enabled":true,"num_candidates":4}`.
+Saved inference settings travel with the adapter; the diagnostic rerank flag
+does not mutate the saved adapter. Sentence-mode legacy adapters keep their
+original saved prompt.
+
 
 ### Recover a run that failed after training
 
@@ -231,7 +316,17 @@ fixed and passed afterward with zero live training-model/parameter references
 before reload. The ordinary old-code tiny runs did not reproduce the hosted
 T4 memory failure; this proves the ownership cleanup, not its complete cause
 in that image or full Sailor2 T4 memory headroom.
-The current full local regression suite passed 82 tests.
+The current full local regression suite passed 99 tests, including strict edit
+validation, hint isolation, reranking precedence, compatible adapter continuation,
+and portable run reuse. A real tiny unquantized Qwen2 CPU smoke trained Task 1
+with two OOF folds on the audited 504/81 population, reused it for edit-mode
+Task 2, removed the original Task 1 folder, and continued the saved corrector
+from the second portable output with a new optimizer. It exported all five
+saved/hint/rerank diagnostic variants using the real pretrained multilingual
+semantic encoder. The saved-run notebook cells also executed end to end with
+a temporary input/output mount and CPU device override, retaining diagnostics
+and logs. Tiny generated edit beams were invalid and remained visible errors;
+these runs prove execution and handoff, not useful correction quality.
 
 
 Full Sailor2 training on Kaggle T4 ×2 has not been exercised locally; the local
@@ -257,3 +352,10 @@ Correction cleanup now detaches callback-handler model/optimizer/scheduler
 references and clears the training scaler before collecting GPU allocations
 and reloading the selected saved adapter. The conservative memory check remains
 unchanged; no offload or warning suppression was added.
+Run modes now support independent Task 1/Task 2 execution and self-contained
+saved-output reuse. Optional correction experiments add paired hint ablation,
+localized edit supervision and frozen-base/multilingual candidate reranking.
+Compatible prior correctors can continue fine-tuning with a new optimizer;
+incompatible prompt/output/LoRA contracts fail before model loading. Saved
+classifier validation accepts PEFT's automatically added classification-head
+metadata while still requiring configured modules and saved score weights.
