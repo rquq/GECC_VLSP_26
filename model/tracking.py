@@ -1,7 +1,4 @@
-"""Explicit, rank-zero W&B runs with corpus-private reports and adapter lineage.
-
-No SDK-global run, model watching, code uploads, or corpus artifacts are used.
-"""
+"""Rank-zero W&B outcomes and explicit corpus-safe progress logs."""
 from __future__ import annotations
 
 from collections import Counter
@@ -12,11 +9,10 @@ import math
 import os
 from pathlib import Path
 import re
-import subprocess
 import warnings
 import uuid
 
-from .runtime import PROJECT_ROOT, write_json
+from .runtime import write_json
 
 DEFAULTS = {"enabled": True, "project": "vlsp26-gec", "mode": "online",
             "log_models": True, "log_text": False}
@@ -57,24 +53,42 @@ def records_identity(records):
     return {"count": len(records), "sha256": digest.hexdigest(), "label_counts": dict(counts)}
 
 
-def git_identity():
-    def git(*args):
-        result = subprocess.run(["git", "-C", str(PROJECT_ROOT), *args],
-                                capture_output=True, text=True, check=False)
-        return result.stdout.strip() if result.returncode == 0 else None
-    return {"commit": git("rev-parse", "HEAD"), "branch": git("branch", "--show-current"),
-            "dirty": bool(git("status", "--porcelain", "--untracked-files=no"))}
+STAGE_EVENT = "VGEC_STAGE_RESULT "
 
 
-def _scalars(value, prefix):
-    result = {}
-    if isinstance(value, dict):
-        for key, item in value.items():
-            result.update(_scalars(item, f"{prefix}/{key}"))
-    elif isinstance(value, (int, float)) and not isinstance(value, bool):
-        if math.isfinite(value):
-            result[prefix] = value
-    return result
+def _number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def result_metrics(report):
+    """Only outcomes belong in W&B; full reports and configurations stay local."""
+    classification = report.get("classification", report)
+    metrics = {key: classification[key] for key in ("macro_f1", "micro_f1")
+               if _number(classification.get(key))}
+    for subset, prefix in (("all", ""), ("error_only", "error_")):
+        correction = report.get("corrections", {}).get(subset, {})
+        for key in ("gleu_plus", "exact_match", "rouge_l"):
+            if _number(correction.get(key)):
+                metrics[prefix + key] = correction[key]
+    preservation = report.get("clean_preservation", {}).get("exact_source_preservation")
+    if _number(preservation):
+        metrics["clean_preservation"] = preservation
+    for key in ("combined_score", "invalid_json_rate", "invalid_prediction_rate"):
+        if _number(report.get(key)):
+            metrics[key] = report[key]
+    return metrics
+
+
+def publish_stage_result(stage, report, *, best_epoch=None, run_id=None):
+    """Send an outcome-only event to the supervising pipeline process."""
+    if int(os.environ.get("RANK", "0")) != 0 or not os.environ.get("VGEC_PIPELINE_TRACKING"):
+        return
+    event = {"stage": stage, "metrics": result_metrics(report)}
+    if _number(best_epoch):
+        event["metrics"]["best_epoch"] = best_epoch
+    if run_id:
+        event["run_id"] = run_id
+    print(STAGE_EVENT + json.dumps(event, allow_nan=False), flush=True)
 
 
 class TrackingRun:
@@ -86,6 +100,7 @@ class TrackingRun:
         self.settings = dict(DEFAULTS)
         self.output = None
         self.identity = None
+        self.completed_stages = {}
 
     def __enter__(self):
         return self
@@ -103,80 +118,116 @@ class TrackingRun:
         self.output.mkdir(parents=True, exist_ok=True)
         self.identity = {"id": uuid.uuid4().hex, "url": None, "task": task,
                          "group": os.environ.get("WANDB_RUN_GROUP") or group or self.output.name,
-                         "mode": mode, "status": "running", "artifacts": {}}
+                         "mode": mode, "status": "running", "artifacts": {},
+                         "metadata": safe_value(metadata or {})}
         if not self.settings["enabled"] or mode == "disabled":
             self.identity.update(mode="disabled", status="disabled")
             self._write_identity()
             return self
         import wandb
         self.sdk = wandb
+        stage = {"classification": "classifier", "correction": "corrector"}.get(task, task)
+        if task == "classification-oof":
+            stage = f"fold-{int(self.output.name.rsplit('-', 1)[1]) + 1}"
+        name = self.output.name if task == "pipeline" else f"{self.identity['group']}-{stage}"
         self.run = wandb.init(
             project=self.settings["project"], entity=self.settings.get("entity"),
             mode=mode, id=self.identity["id"], resume="never", reinit="create_new",
-            group=self.identity["group"], job_type=task, name=f"{self.output.name}-{task}",
-            dir=str(self.output), config=safe_value({**config, "git": git_identity(),
-                                                    "tracking_metadata": metadata or {}}),
-            settings=wandb.Settings(disable_git=True, save_code=False, console="off"))
+            group=self.identity["group"], job_type=task, name=name,
+            dir=str(self.output), config={},
+            settings=wandb.Settings(disable_git=True, save_code=False, console="off",
+                                    quiet=True, x_disable_stats=True))
         self.identity.update(id=self.run.id, url=self.run.url)
         self._write_identity()
-        self.run.define_metric("optimizer_step")
-        self.run.define_metric("train/*", step_metric="optimizer_step")
-        self.run.define_metric("validation/*", step_metric="optimizer_step")
+        self.run.define_metric("optimizer_step", hidden=True, summary="none")
+        self.run.define_metric("train/*", step_metric="optimizer_step", summary="none")
+        self.run.define_metric("validation/*", step_metric="optimizer_step", summary="none")
+        self.run.define_metric("train/epoch", hidden=True, summary="none")
+        self.run.define_metric("validation/epoch", hidden=True, summary="none")
+        self.run.define_metric("validation/classification/epoch", hidden=True, summary="none")
+        self.message("Started " + stage)
         return self
 
     def _write_identity(self):
         if self.identity is not None:
             write_json(self.output / "wandb_run.json", self.identity)
 
-    def log(self, values, prefix="", *, optimizer_step=None):
+    def message(self, text):
+        """Write only internally constructed, text-free progress to the Logs tab."""
+        if self.run is not None:
+            self.run.write_logs(text)
+
+    def log(self, values, prefix="train", *, optimizer_step=None):
         if self.run is None:
             return
-        scalars = _scalars(safe_value(values), prefix.rstrip("/"))
-        scalars = {key.lstrip("/"): value for key, value in scalars.items()}
+        allowed = ("loss", "grad_norm", "epoch", "training_loss")
+        scalars = {f"{prefix}/{key}": value for key, value in values.items()
+                   if key in allowed and _number(value)}
+        if not scalars:
+            return
         if optimizer_step is not None:
             scalars["optimizer_step"] = optimizer_step
-        if scalars:
-            self.run.log(scalars)
+        self.run.log(scalars)
+        progress = " ".join(f"{key.rsplit('/', 1)[-1]}={value:.6g}" for key, value in scalars.items())
+        self.message(f"{prefix}: {progress}")
 
     def evaluation(self, report, prefix, *, optimizer_step=None, epoch=None):
-        self.log(report, prefix, optimizer_step=optimizer_step)
         if self.run is None:
             return
+        metrics = result_metrics(report)
+        if prefix.split("/", 1)[0] == "baseline":
+            if metrics:
+                self.run.log({"baseline": self.sdk.Table(columns=["metric", "value"],
+                    data=[[key, value] for key, value in metrics.items()])})
+            self.message("baseline: " + " ".join(f"{key}={value:.6g}" for key, value in metrics.items()))
+            return
+        values = {f"{prefix}/{key}": value for key, value in metrics.items()}
+        if epoch is not None:
+            values[f"{prefix}/epoch"] = epoch
+        if optimizer_step is not None:
+            values["optimizer_step"] = optimizer_step
+        if values:
+            self.run.log(values)
+        self.message(prefix + ": " + " ".join(f"{key}={value:.6g}" for key, value in metrics.items()))
         classification = report.get("classification", report)
-        tables = {}
-        if "per_class" in classification:
-            tables[f"{prefix}/per_class"] = self.sdk.Table(
+        if prefix == "final" and "per_class" in classification:
+            self.run.log({"final/per_class": self.sdk.Table(
                 columns=["label", "precision", "recall", "f1", "support"],
                 data=[[label, *(row[field] for field in ("precision", "recall", "f1", "support"))]
-                      for label, row in classification["per_class"].items()])
-        if "confusion_matrix" in classification:
-            columns = classification.get("prediction_columns", [0, 1, 2, 3, 4, "invalid"])
-            tables[f"{prefix}/confusion_matrix"] = self.sdk.Table(
-                columns=["gold", "predicted", "count"],
-                data=[[gold, str(predicted), count]
-                      for gold, row in zip(classification.get("labels", range(5)), classification["confusion_matrix"])
-                      for predicted, count in zip(columns, row)])
-        if epoch is not None:
-            tables[f"{prefix}/epoch"] = epoch
-        if optimizer_step is not None:
-            tables["optimizer_step"] = optimizer_step
-        if tables:
-            self.run.log(tables)
+                      for label, row in classification["per_class"].items()])})
 
     def summary(self, values):
         if self.run is not None:
             self.run.summary.update(safe_value(values))
 
-    def report(self, name, value):
-        if self.run is None:
-            return
-        safe = safe_value(value)
-        path = self.output / f"wandb-{name}.json"
-        write_json(path, safe)
-        artifact = self.sdk.Artifact(self._name(name), type="evaluation", metadata={"corpus_text": False})
-        artifact.add_file(str(path), name=f"{name}.json")
-        self.run.log_artifact(artifact)
+    def complete(self, stage, report, *, best_epoch=None):
+        self.evaluation(report, "final")
+        if _number(best_epoch):
+            self.summary({"best_epoch": best_epoch})
+        self.__exit__(None, None, None)
+        publish_stage_result(stage, report, best_epoch=best_epoch,
+                             run_id=self.identity["id"] if self.identity and self.identity["mode"] != "disabled" else None)
 
+    def stage_result(self, event):
+        """Refresh root results immediately; repeat events never duplicate stages."""
+        stage = event["stage"]
+        if stage in self.completed_stages:
+            return
+        metrics = {key: value for key, value in event["metrics"].items()
+                   if key in {"macro_f1", "micro_f1", "gleu_plus", "exact_match", "rouge_l",
+                              "error_gleu_plus", "error_exact_match", "error_rouge_l", "clean_preservation",
+                              "combined_score", "invalid_json_rate", "invalid_prediction_rate", "best_epoch"}
+                   and _number(value)}
+        result = {"stage": stage, "run_id": event.get("run_id"), **metrics}
+        self.completed_stages[stage] = result
+        write_json(self.output / "stage_results.json", list(self.completed_stages.values()))
+        if self.run is not None:
+            self.run.log({f"{stage}/{key}": value for key, value in metrics.items()})
+            columns = ["stage", "run_id", "macro_f1", "micro_f1", "error_gleu_plus", "error_exact_match",
+                       "clean_preservation", "combined_score", "best_epoch"]
+            self.run.log({"results": self.sdk.Table(columns=columns,
+                data=[[row.get(column) for column in columns] for row in self.completed_stages.values()])})
+        self.message(stage + " completed: " + " ".join(f"{key}={value:.6g}" for key, value in metrics.items()))
 
     def _name(self, suffix):
         return re.sub(r"[^a-zA-Z0-9_.-]", "-", f"{self.identity['id']}-{suffix}")
@@ -229,8 +280,7 @@ class TrackingRun:
                 # Offline SDK cannot resolve remote input artifacts. Persist the
                 # input snapshot and provenance locally for subsequent wandb sync.
                 self.run.log_artifact(artifact)
-                self.run.summary[f"inputs/{name}"] = {"sha256": files, "origin_run_id": identity.get("id"),
-                                                    "artifact": artifact.name}
+                # The input artifact already records hashes; do not duplicate them in the run summary.
             else:
                 self.run.use_artifact(artifact)
 
@@ -241,16 +291,22 @@ class TrackingRun:
         class LiveMetrics(TrainerCallback):
             def on_log(self, args, state, control, logs=None, **kwargs):
                 if state.is_world_process_zero and logs:
-                    tracking.log({**logs, "epoch": state.epoch}, "train", optimizer_step=state.global_step)
+                    values = {key: value for key, value in logs.items() if key in {"loss", "grad_norm"}}
+                    if "train_loss" in logs:
+                        values["training_loss"] = logs["train_loss"]
+                    tracking.log({**values, "epoch": state.epoch}, "train", optimizer_step=state.global_step)
                 return control
 
         return LiveMetrics()
 
     def __exit__(self, error_type, error, traceback):
+        if self.run is None and (self.identity is None or self.identity["status"] != "running"):
+            return False
         finishing_error = None
         try:
             if self.run is not None:
                 try:
+                    self.message("Failed " + error_type.__name__ if error_type else "Finished")
                     self.run.summary["status"] = "failed" if error_type else "finished"
                     if error_type:
                         # Exception messages may embed source text or secrets.

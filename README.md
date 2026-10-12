@@ -32,14 +32,30 @@ Rotate the key previously pasted into chat before using it in future runs.
 `WANDB_MODE=offline` retains runs for later `wandb sync`; set
 `tracking.enabled=false` (or notebook `TRACKING_ENABLED=False`) to disable it.
 
-Main classification, each OOF fit, correction and paired diagnostics have
-distinct W&B runs in one `WANDB_RUN_GROUP`. Tracking records optimizer-step
-loss/LR/gradient metrics, epoch validation, final selected/reloaded metrics,
-per-class tables, confusion matrices, data hashes/counts, Git provenance,
-selected adapter artifacts and reused-adapter lineage. `wandb_run.json` records
-the run ID, URL, group, status and artifact references next to local outputs.
-Only rank zero logs in distributed jobs; a failed fit finishes with failed status.
-No model watching or source-code upload is enabled.
+The pipeline root, main classifier, each OOF fit, corrector and paired diagnostics
+have distinct W&B runs in one `WANDB_RUN_GROUP`. Child names end in `classifier`,
+`fold-1` through `fold-5`, or `corrector`. The **Logs** tab receives explicit safe
+progress: loss, gradient norm, epoch, optimizer step and evaluation outcomes.
+Raw console capture is off so warnings, generated sentences and secrets cannot
+leak into uploaded logs. No model watching, code upload or system-metric capture
+is enabled.
+
+The root run's `results` table updates as each stage finishes: selected classifier,
+each held-out fold, aggregate OOF, then selected/reloaded corrector. Each has its
+own metric namespace. Aggregate OOF scores use all held-out predictions, not an
+average of fold scores. The classifier run finishes before OOF starts; corrector
+results appear before submission inference. `stage_results.json` preserves these
+outcomes locally even if a later stage fails. Reused classifier/OOF outcomes are
+reported when present in the saved run.
+
+W&B config is intentionally empty: full configurations, parameters, data hashes,
+provenance, confusion matrices and diagnostic reports stay in local artifacts,
+not duplicated across every child. Baseline is one compact metric/value table,
+not a chart per report field. W&B retains loss/gradient curves, compact epoch/final
+outcomes, one final per-class table, selected adapters and reused-adapter lineage.
+Optimizer-step and epoch counters are hidden as standalone plots. `wandb_run.json`
+records ID, URL, group, status, local metadata and artifact references. Only rank
+zero logs in distributed jobs; failed fits finish with failed status.
 
 `tracking.log_text=false` is required: corpus text and hint uploads are rejected
 under the supplied agreement. `tracking.log_models=true` uploads adapters/tokenizers,
@@ -607,4 +623,14 @@ lineage, sanitized artifact JSON and rank-one suppression in a private project.
 The Kaggle saved-run cells also completed offline paired hint diagnostics using
 a real temporary input-mount copy, with no W&B secret access; the finished run,
 metrics, log and persisted-output symlink were retained.
-This does not claim full Sailor2 training or a correction-quality gain.
+The cleaned tracking flow also completed a real tiny CPU Qwen2 pipeline with
+main classifier, two OOF fits, corrector and saved hint diagnostics. Authenticated
+server verification confirmed empty run configs, safe loss/evaluation console
+lines, a single baseline metric/value table, and separate classifier, fold, OOF
+and corrector rows in the root results table. Uploaded payloads omitted corpus
+text, learning-rate plots and parameter/config duplication. Both notebooks'
+12 code cells compiled. Browser visual inspection was unavailable because the
+local Chromium runtime lacks NSS/NSPR and ALSA libraries; these checks verified
+the server payload, not the rendered W&B workspace.
+The 111-test regression suite passed.
+This does not claim full Sailor-7B-Chat training or a correction-quality gain.

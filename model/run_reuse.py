@@ -201,7 +201,8 @@ def copy_classifier_run(source, destination):
         raise ValueError(f"Classifier export destination already exists: {destination}")
     destination.mkdir(parents=True)
     shutil.copytree(source / "classifier", destination / "classifier")
-    for name in (*CLASSIFICATION_FILES, "hints.json", "preprocessing.json", "predictions.json", "source_manifest.json"):
+    for name in (*CLASSIFICATION_FILES, "hints.json", "oof_metrics.json", "wandb_run.json",
+                 "preprocessing.json", "predictions.json", "source_manifest.json"):
         if (source / name).is_file():
             shutil.copy2(source / name, destination / name)
     manifest = _json(destination / "run_manifest.json")

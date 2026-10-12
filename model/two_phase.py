@@ -11,7 +11,7 @@ import sys
 from .runtime import PROJECT_ROOT, load_config, resolve_data, resolve_submission_data, stage_output, write_json
 from .run_reuse import (copy_classifier_run, resolve_adapter, resolve_run,
                         validate_classifier_run, validate_reuse_data, write_handoff)
-from .tracking import tracked_entrypoint
+from .tracking import STAGE_EVENT, result_metrics, tracked_entrypoint
 
 
 def _stage_placement(config, task):
@@ -108,6 +108,27 @@ def stage_command(module, config):
     return [sys.executable, "-m", module]
 
 
+def _run_stage(command, env, tracking):
+    """Forward local console output; publish explicit safe outcomes as they arrive."""
+    with subprocess.Popen(command, cwd=PROJECT_ROOT, env=env, stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT, text=True, bufsize=1) as process:
+        try:
+            for line in process.stdout:
+                if line.startswith(STAGE_EVENT):
+                    event = json.loads(line[len(STAGE_EVENT):])
+                    tracking.stage_result(event)
+                    print(f"Completed {event['stage']}: {json.dumps(event['metrics'])}", flush=True)
+                else:
+                    print(line, end="", flush=True)
+            returncode = process.wait()
+        except BaseException:
+            process.kill()
+            process.wait()
+            raise
+        if returncode:
+            raise subprocess.CalledProcessError(returncode, command)
+
+
 @tracked_entrypoint
 def main(*, tracking):
     parser = argparse.ArgumentParser(description=__doc__)
@@ -177,6 +198,7 @@ def main(*, tracking):
                              "initial_adapter_reused": initial_adapter is not None})
     child_env = os.environ.copy()
     child_env["WANDB_RUN_GROUP"] = os.environ.get("WANDB_RUN_GROUP") or output.name
+    child_env["VGEC_PIPELINE_TRACKING"] = "1"
     if classifier_run is not None:
         tracking.use_model(classifier_run / "classifier", "classifier")
     if initial_adapter is not None:
@@ -193,9 +215,16 @@ def main(*, tracking):
             "--output-dir", str(packaged_classifier)]
         if bundle is not None:
             command += ["--correction-data", str(bundle)]
-        subprocess.run(command, cwd=PROJECT_ROOT, env=child_env, check=True)
+        _run_stage(command, child_env, tracking)
     else:
         copy_classifier_run(classifier_run, packaged_classifier)
+        identity_path = packaged_classifier / "wandb_run.json"
+        identity = json.loads(identity_path.read_text()) if identity_path.is_file() else {}
+        tracking.stage_result({"stage": "classifier", "metrics": result_metrics(
+            json.loads((packaged_classifier / "metrics.json").read_text())), "run_id": identity.get("id")})
+        oof_path = packaged_classifier / "oof_metrics.json"
+        if oof_path.is_file():
+            tracking.stage_result({"stage": "oof", "metrics": result_metrics(json.loads(oof_path.read_text()))})
     # The first completed stage is already reusable if a later stage fails.
     write_handoff(output)
     if corrector is not None:
@@ -206,7 +235,7 @@ def main(*, tracking):
             "--classifier-run", str(packaged_classifier), "--output-dir", str(output / "correction")]
         if initial_adapter is not None:
             command += ["--initial-adapter", str(initial_adapter)]
-        subprocess.run(command, cwd=PROJECT_ROOT, env=child_env, check=True)
+        _run_stage(command, child_env, tracking)
         write_handoff(output, correction=True)
     manifest = {"mode": args.mode, "classifier": "classification/classifier",
                 "seed": classifier["run"]["seed"], "classifier_reused": classifier_run is not None,
@@ -245,13 +274,10 @@ def main(*, tracking):
         manifest["submission"] = {"status": "unavailable", "reason": "Task1-only has no corrector; no full GEC submission was fabricated"}
         print(manifest["submission"]["reason"], flush=True)
     write_json(output / "pipeline_manifest.json", manifest)
-    tracking.evaluation(manifest["classification_metrics"], "classification")
     if classifier_run is None:
         tracking.use_model(packaged_classifier / "classifier", "classifier")
     if corrector is not None:
-        tracking.evaluation(manifest["correction_metrics"], "correction")
         tracking.use_model(output / "correction" / "adapter", "corrector")
-    tracking.report("pipeline", manifest)
     if corrector is not None:
         print(json.dumps({"combined_score": manifest["combined_score"],
                           "combined_score_metadata": manifest["combined_score_metadata"]}), flush=True)

@@ -611,7 +611,6 @@ def main(*, tracking):
         write_json(output / "baseline_predictions.json", comparison_rows(validation, baseline_predictions))
         write_json(output / "baseline_metrics.json", baseline_metrics)
         tracking.evaluation(baseline_metrics, "baseline")
-        tracking.report("baseline", baseline_metrics)
     barrier()
     model.config.use_cache = False
     if placement["quantized"]:
@@ -662,7 +661,6 @@ def main(*, tracking):
                 write_json(epoch_dir / "predictions.json", comparison_rows(validation, predictions))
                 write_json(epoch_dir / "metrics.json", metrics)
                 tracking.evaluation(metrics, "validation", optimizer_step=state.global_step, epoch=state.epoch)
-                tracking.report(f"epoch-{len(history) + 1}", metrics)
                 if config["evaluation"].get("save_epoch_adapters", False):
                     save_adapter(current, epoch_dir / "adapter")
                     tracking.model(epoch_dir / "adapter", f"corrector-epoch-{len(history) + 1}",
@@ -677,8 +675,7 @@ def main(*, tracking):
                 print(json.dumps({"epoch": state.epoch, "selection_values": key, "best_epoch": best["epoch"],
                                   "combined_score": metrics["combined_score"],
                                   "combined_score_metadata": metrics["combined_score_metadata"]}), flush=True)
-                tracking.summary({"best_epoch": best["epoch"], "selection_values": best["key"],
-                                  "selection_metrics": list(SELECTION_METRICS)})
+                tracking.summary({"best_epoch": best["epoch"]})
             if world_size > 1:
                 shared_best = [best if rank == 0 else None]
                 torch.distributed.broadcast_object_list(shared_best, src=0)
@@ -725,8 +722,6 @@ def main(*, tracking):
     metrics = experiment_report(validation, predictions)
     write_json(output / "predictions.json", comparison_rows(validation, predictions))
     write_json(output / "metrics.json", metrics)
-    tracking.evaluation(metrics, "final")
-    tracking.report("final", metrics)
     tracking.model(adapter_path, "corrector", metadata={"best_epoch": best["epoch"],
                                                      "selection_values": best["key"]}, aliases=["latest", "selected"])
     del reloaded, reloaded_tokenizer
@@ -761,8 +756,8 @@ def main(*, tracking):
         "devices": [torch.cuda.get_device_name(i) for i in range(world_size if settings["device_map"] == "single" else 2)] if device == "cuda" else ["cpu"] * world_size,
     }
     write_json(output / "run_manifest.json", manifest)
-    tracking.log(manifest, "training")
-    tracking.report("provenance", manifest)
+    tracking.log({"training_loss": result.training_loss}, "training")
+    tracking.complete("corrector", metrics, best_epoch=best["epoch"])
     print(json.dumps({"output_dir": str(output), "adapter_path": str(adapter_path),
                       "best_epoch": best["epoch"], "error_gleu_plus": metrics["corrections"]["error_only"]["gleu_plus"],
                       "combined_score": metrics["combined_score"],

@@ -18,7 +18,7 @@ from .metrics import score
 from .runtime import CompleteEpochMixin, load_config, resolve_data, stage_output, write_json
 from .prediction_export import comparison_rows
 from .data import load_classifier_split
-from .tracking import TrackingRun, records_identity, tracked_entrypoint
+from .tracking import TrackingRun, publish_stage_result, records_identity, tracked_entrypoint
 
 
 def _architecture():
@@ -436,7 +436,6 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     if rank == 0 and validation is not None:
         baseline = _classification_metrics(validation, _predict(model, tokenizer, validation, preprocessing, device, batch_size))
         tracking.evaluation(baseline, "baseline/classification")
-        tracking.report("baseline", {"classification": baseline})
         model.train()
 
     def save_model():
@@ -518,10 +517,9 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         "validation_ids": [row["id"] for row in validation] if validation is not None else [],
     }
     if rank == 0:
-        tracking.log(stats, "training")
-        tracking.summary({"best_epoch": best["epoch"], "selection_macro_f1": best["macro_f1"],
-                          "selection_rule": stats["selection_rule"]})
-        tracking.report("training", stats)
+        tracking.log({"training_loss": result.training_loss}, "training")
+        if best["epoch"] is not None:
+            tracking.summary({"best_epoch": best["epoch"]})
         tracking.model(checkpoint, "classifier", metadata={"seed": seed, "best_epoch": best["epoch"],
                                                         "selection_macro_f1": best["macro_f1"]}, aliases=["latest", "selected"])
     trainer.model = None
@@ -771,8 +769,7 @@ def main(*, tracking):
                    "training": stats}
         write_json(output / "predictions.json", comparison_rows(validation, predictions))
         write_json(output / "metrics.json", metrics)
-        tracking.evaluation(metrics, "final")
-        tracking.report("final-metrics", metrics)
+        tracking.complete("classifier", metrics, best_epoch=stats["best_epoch"])
         manifest = {
             "task": "classification", "config": config, "seed": seed, "validation_fraction": fraction,
             "device": device, "world_size": world_size, "output_dir": str(output), "classifier_path": str(checkpoint),
@@ -819,14 +816,15 @@ def main(*, tracking):
                 if rank == 0:
                     fold_predictions = classify(fold_checkpoint, fold_predict, device, batch_size)
                     fold_metrics = _classification_metrics(fold_predict, fold_predictions)
-                    fold_tracking.evaluation(fold_metrics, "final/classification")
-                    fold_tracking.report("final", {**artifact, "classification": fold_metrics, "training": fold_stats})
                     hints["train"].extend({**row, "fold": fold} for row in fold_predictions)
                     hints["folds"].append(artifact)
                     write_json(fold_dir / "predictions.json", comparison_rows(fold_predict, fold_predictions))
                     write_json(fold_dir / "run_manifest.json", {**artifact, **fold_stats,
                                "model": config["model"], "preprocessing": preprocessing,
                                "saved_classifier_reloaded_for_prediction": True})
+                    fold_report = {"count": len(fold_predict), "classification": fold_metrics}
+                    write_json(fold_dir / "metrics.json", fold_report)
+                    fold_tracking.complete(f"fold-{fold + 1}", fold_report)
                 barrier()
         if rank == 0:
             by_id = {_id_key(row["id"]): row for row in hints["train"]}
@@ -834,12 +832,15 @@ def main(*, tracking):
                 raise RuntimeError("OOF predictions must cover every correction training row exactly once")
             hints["train"] = [by_id[_id_key(row["id"])] for row in correction_train]
             write_json(output / "hints.json", hints)
+            oof_metrics = {"count": len(correction_train),
+                           "classification": _classification_metrics(correction_train, hints["train"])}
+            write_json(output / "oof_metrics.json", oof_metrics)
+            publish_stage_result("oof", oof_metrics)
             manifest.update(correction_data_path=str(correction_path),
                             correction_data_sha256=hints["correction_data_sha256"],
                             hints_path=str(output / "hints.json"), oof_folds=hints["folds"])
     if rank == 0:
         write_json(output / "run_manifest.json", manifest)
-        tracking.report("provenance", manifest)
         print(json.dumps({"output_dir": str(output), "classifier_path": str(checkpoint),
                           "macro_f1": metrics["classification"]["macro_f1"], "hints_enabled": bool(enabled)}), flush=True)
     barrier()

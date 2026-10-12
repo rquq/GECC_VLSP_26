@@ -126,7 +126,6 @@ def main(*, tracking):
         write_json(destination / "predictions.json", comparison_rows(records, predictions[name]))
         write_json(destination / "metrics.json", reports[name])
         tracking.evaluation(reports[name], f"variants/{name}")
-        tracking.report(name, {"inference": variant, "metrics": reports[name]})
     write_json(output / "paired_predictions.json", paired_rows(records, predictions))
     write_json(output / "metrics.json", reports)
     write_json(output / "experiment_manifest.json", {
@@ -136,8 +135,6 @@ def main(*, tracking):
         "training_performed": False, "hints": "saved outer-holdout predictions from validated OOF artifact",
         "ranking": "deterministic beams plus unchanged source; adapter-disabled base Có/Không teacher-forced judgment; CPU multilingual cosine; weighted scores then edited-character tie-break",
     })
-    tracking.report("diagnostics", {"variants": variants, "reports": reports,
-                                   "validation": records_identity(records), "training_performed": False})
     del model, tokenizer
     print(json.dumps({"output_dir": str(output), "variants": list(variants)}, ensure_ascii=False))
 
