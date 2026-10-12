@@ -437,4 +437,7 @@ finished offline W&B runs shared one group. Safe report payloads excluded corpus
 fields. Authenticated online verification checked server-side metrics,
 successful/failed lifecycle status, model/text-upload opt-outs, adapter artifact
 lineage, sanitized artifact JSON and rank-one suppression in a private project.
+The Kaggle saved-run cells also completed offline paired hint diagnostics using
+a real temporary input-mount copy, with no W&B secret access; the finished run,
+metrics, log and persisted-output symlink were retained.
 This does not claim full Sailor2 training or a correction-quality gain.
