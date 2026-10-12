@@ -121,6 +121,7 @@ def main(*, tracking):
     reuse.add_argument("--prior-run", help="Extracted previous-version Kaggle output or unique enclosing input mount")
     parser.add_argument("--initial-adapter", help="Compatible saved correction adapter (or enclosing saved output) for continued fine-tuning")
     parser.add_argument("--output-dir")
+    parser.add_argument("--submission-data", help="Raw organizer ID/Input JSON for post-training full GEC inference; otherwise export untouched validation")
     parser.add_argument("--preflight-only", action="store_true")
     args = parser.parse_args()
     prior = args.classifier_run or args.prior_run
@@ -128,6 +129,14 @@ def main(*, tracking):
         parser.error("--mode task2 requires --classifier-run or --prior-run; Task1 is never trained in task2 mode")
     if args.mode == "task1" and args.initial_adapter:
         parser.error("--initial-adapter continues Task2; use task2 or both")
+    if args.mode == "task1" and args.submission_data:
+        parser.error("--submission-data requires Task2; Task1 has no corrector and cannot produce a full GEC submission")
+    submission_records = None
+    if args.submission_data:
+        from .data import load_records
+        submission_records = load_records(args.submission_data, require_labels=False)
+        if not submission_records:
+            raise ValueError("Submission input must contain at least one record")
     classifier_run = resolve_run(prior) if prior else None
     classifier = (validate_classifier_run(classifier_run, require_hints=args.mode != "task1") if classifier_run else
                   load_config(args.classification_config, "classification"))
@@ -150,7 +159,7 @@ def main(*, tracking):
     if args.preflight_only:
         return
     output_config = corrector or classifier
-    output = stage_output({"run": {"name": f"sailor2-{args.mode}",
+    output = stage_output({"run": {"name": f"sailor-7b-{args.mode}",
                                     "output_root": output_config["run"]["output_root"]}}, args.output_dir)
     input_roots = [source for source in (classifier_run, initial_adapter) if source is not None]
     for argument in (prior, args.initial_adapter):
@@ -203,6 +212,36 @@ def main(*, tracking):
     if corrector is not None:
         manifest.update(corrector="correction/adapter",
                         correction_metrics=json.loads((output / "correction" / "metrics.json").read_text()))
+        from .pipeline_predict import run_inference
+        from .prediction_export import SubmissionExportError
+        validation_path = packaged_classifier / "validation.json"
+        records = (submission_records if submission_records is not None else
+                   json.loads(validation_path.read_text(encoding="utf-8")))
+        evaluated = all(row["label"] is not None and row["target"] is not None for row in records)
+        try:
+            submission = run_inference(
+                packaged_classifier / "classifier", output / "correction" / "adapter", records,
+                output / "submission.json", device=corrector["run"]["device"],
+                batch_size=classifier.get("evaluation", {}).get("batch_size", 1),
+                evaluate=evaluated,
+                input_scope="explicit_submission" if submission_records is not None else "validation",
+                input_path=args.submission_data or validation_path)
+        except SubmissionExportError as error:
+            # Training succeeded: archive its reusable stages and failed export diagnostics.
+            # The standalone inference CLI still propagates this error and exits nonzero.
+            submission = json.loads((output / "submission.evaluation.json").read_text())
+            print(f"Submission unavailable: {error}; no submission.json was fabricated", flush=True)
+        # Keep archived artifact references portable; provenance remains in evaluation metadata.
+        submission["artifacts"] = {name: Path(path).relative_to(output).as_posix()
+                                   for name, path in submission["artifacts"].items()}
+        manifest["submission"] = submission
+        manifest["combined_score"] = manifest["correction_metrics"]["combined_score"]
+        manifest["combined_score_metadata"] = manifest["correction_metrics"]["combined_score_metadata"]
+        if submission["evaluated"]:
+            tracking.evaluation(json.loads((output / "submission.metrics.json").read_text()), "submission")
+    else:
+        manifest["submission"] = {"status": "unavailable", "reason": "Task1-only has no corrector; no full GEC submission was fabricated"}
+        print(manifest["submission"]["reason"], flush=True)
     write_json(output / "pipeline_manifest.json", manifest)
     tracking.evaluation(manifest["classification_metrics"], "classification")
     if classifier_run is None:
@@ -211,6 +250,9 @@ def main(*, tracking):
         tracking.evaluation(manifest["correction_metrics"], "correction")
         tracking.use_model(output / "correction" / "adapter", "corrector")
     tracking.report("pipeline", manifest)
+    if corrector is not None:
+        print(json.dumps({"combined_score": manifest["combined_score"],
+                          "combined_score_metadata": manifest["combined_score_metadata"]}), flush=True)
     if output_config["run"].get("archive", True):
         archive = shutil.make_archive(str(output) + "-artifacts", "zip", output.parent, output.name)
         print(f"Artifacts: {archive}", flush=True)

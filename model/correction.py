@@ -1,4 +1,4 @@
-"""Train Sailor2 QLoRA from leakage-safe OOF classifier hints, then reload it."""
+"""Train Sailor QLoRA from leakage-safe OOF classifier hints, then reload it."""
 from __future__ import annotations
 
 import argparse
@@ -37,6 +37,8 @@ def validate_inference(inference):
         raise ValueError("output_format must be sentence or edits")
     if inference.get("hint_mode", "predicted") not in ("predicted", "none"):
         raise ValueError("hint_mode must be predicted or none")
+    if inference.get("user_role", "user") not in ("user", "question"):
+        raise ValueError("user_role must match the base tokenizer's user or question role")
     if not isinstance(inference.get("prompt"), str) or not inference["prompt"]:
         raise ValueError("Correction inference requires a saved prompt")
     if inference.get("hint_mode", "predicted") == "predicted":
@@ -81,6 +83,8 @@ def validate_initial_adapter(adapter, config, inference=None):
     for field, default in (("output_format", "sentence"), ("hint_mode", "predicted")):
         if saved.get(field, default) != requested.get(field, default):
             raise ValueError(f"Initial adapter {field} contract differs; no silent migration")
+    if saved.get("user_role", "user") != requested.get("user_role", "user"):
+        raise ValueError("Initial adapter user_role interface differs")
     for field in ("prompt", "hint_descriptions"):
         if saved.get(field) != requested.get(field):
             raise ValueError(f"Initial adapter {field} interface differs")
@@ -242,7 +246,8 @@ def _prompt_ids(tokenizer, source, label, inference):
     else:
         raise ValueError("hint_mode must be predicted or none")
     return tokenizer.apply_chat_template(
-        [{"role": "system", "content": prompt}, {"role": "user", "content": content}],
+        [{"role": "system", "content": prompt},
+         {"role": inference.get("user_role", "user"), "content": content}],
         tokenize=True, add_generation_prompt=True, return_dict=False)
 
 
@@ -284,7 +289,8 @@ def correct(model, tokenizer, records, hints, inference):
     validate_inference(inference)
     indexed = _hint_index(records, hints)
     generation = {"max_new_tokens": 192, "do_sample": False, "use_cache": True,
-                  "pad_token_id": tokenizer.pad_token_id, "eos_token_id": tokenizer.eos_token_id}
+                  "pad_token_id": tokenizer.pad_token_id,
+                  "eos_token_id": model.generation_config.eos_token_id or tokenizer.eos_token_id}
     generation.update(inference["generation"])
     reranker, ranking = None, None
     if (inference.get("reranking") or {}).get("enabled", False):
@@ -292,7 +298,8 @@ def correct(model, tokenizer, records, hints, inference):
         ranking = reranking_config(inference["reranking"])
         generation.update(do_sample=False, num_beams=ranking["num_candidates"],
                           num_return_sequences=ranking["num_candidates"])
-        reranker = FrozenReranker(model, tokenizer, ranking, inference["max_length"])
+        reranker = FrozenReranker(model, tokenizer, ranking, inference["max_length"],
+                                 user_role=inference.get("user_role", "user"))
     device = model.get_input_embeddings().weight.device
     model.eval()
     predictions = []
@@ -605,7 +612,6 @@ def main(*, tracking):
         write_json(output / "baseline_metrics.json", baseline_metrics)
         tracking.evaluation(baseline_metrics, "baseline")
         tracking.report("baseline", baseline_metrics)
-        tracking.predictions("baseline/predictions", comparison_rows(validation, baseline_predictions))
     barrier()
     model.config.use_cache = False
     if placement["quantized"]:
@@ -656,7 +662,6 @@ def main(*, tracking):
                 write_json(epoch_dir / "predictions.json", comparison_rows(validation, predictions))
                 write_json(epoch_dir / "metrics.json", metrics)
                 tracking.evaluation(metrics, "validation", optimizer_step=state.global_step, epoch=state.epoch)
-                tracking.predictions("validation/predictions", comparison_rows(validation, predictions))
                 tracking.report(f"epoch-{len(history) + 1}", metrics)
                 if config["evaluation"].get("save_epoch_adapters", False):
                     save_adapter(current, epoch_dir / "adapter")
@@ -669,7 +674,9 @@ def main(*, tracking):
                 if best["key"] is None or key > best["key"]:
                     best.update(key=key, epoch=state.epoch)
                     save_adapter(current, adapter_path)
-                print(json.dumps({"epoch": state.epoch, "selection_values": key, "best_epoch": best["epoch"]}), flush=True)
+                print(json.dumps({"epoch": state.epoch, "selection_values": key, "best_epoch": best["epoch"],
+                                  "combined_score": metrics["combined_score"],
+                                  "combined_score_metadata": metrics["combined_score_metadata"]}), flush=True)
                 tracking.summary({"best_epoch": best["epoch"], "selection_values": best["key"],
                                   "selection_metrics": list(SELECTION_METRICS)})
             if world_size > 1:
@@ -720,7 +727,6 @@ def main(*, tracking):
     write_json(output / "metrics.json", metrics)
     tracking.evaluation(metrics, "final")
     tracking.report("final", metrics)
-    tracking.predictions("final/predictions", comparison_rows(validation, predictions))
     tracking.model(adapter_path, "corrector", metadata={"best_epoch": best["epoch"],
                                                      "selection_values": best["key"]}, aliases=["latest", "selected"])
     del reloaded, reloaded_tokenizer
@@ -758,7 +764,9 @@ def main(*, tracking):
     tracking.log(manifest, "training")
     tracking.report("provenance", manifest)
     print(json.dumps({"output_dir": str(output), "adapter_path": str(adapter_path),
-                      "best_epoch": best["epoch"], "error_gleu_plus": metrics["corrections"]["error_only"]["gleu_plus"]}), flush=True)
+                      "best_epoch": best["epoch"], "error_gleu_plus": metrics["corrections"]["error_only"]["gleu_plus"],
+                      "combined_score": metrics["combined_score"],
+                      "combined_score_metadata": metrics["combined_score_metadata"]}), flush=True)
     barrier()
     if world_size > 1:
         torch.distributed.destroy_process_group()

@@ -61,10 +61,11 @@ def select_candidate(source, candidates, config):
 class FrozenReranker:
     """Reuse base weights with adapter disabled; never use trained corrector scores as judge."""
 
-    def __init__(self, model, tokenizer, config, max_length):
+    def __init__(self, model, tokenizer, config, max_length, *, user_role="user"):
         from sentence_transformers import SentenceTransformer
         self.model, self.tokenizer = model, tokenizer
         self.config, self.max_length = config, max_length
+        self.user_role = user_role
         self.encoder = SentenceTransformer(config["semantic_model"], device="cpu")
         self.encoder.eval()
         for parameter in self.encoder.parameters():
@@ -94,7 +95,7 @@ class FrozenReranker:
         with torch.inference_mode(), context:
             for candidate, similarity in zip(valid, similarities):
                 prefix = self.tokenizer.apply_chat_template(
-                    [{"role": "user", "content": GRAMMAR_PROMPT + candidate["target"]}],
+                    [{"role": self.user_role, "content": GRAMMAR_PROMPT + candidate["target"]}],
                     tokenize=True, add_generation_prompt=True, return_dict=False)
                 yes = self._answer_log_probability(prefix, "Có")
                 no = self._answer_log_probability(prefix, "Không")

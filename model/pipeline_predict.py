@@ -1,54 +1,126 @@
-"""Predict with a saved QLoRA classifier and an independently fitted correction adapter."""
+"""Export organizer submissions using a saved classifier and correction adapter.
+
+Comparison diagnostics and local (not official) evaluation remain separate files.
+"""
 import argparse
 import gc
 import json
 from pathlib import Path
 
-from .data import load_records
-from .runtime import write_json
-from .prediction_export import comparison_rows
+from .data import _validate_records, load_records
+from .runtime import resolve_output, write_json
+from .prediction_export import comparison_rows, submission_rows
+
+
+def run_inference(classifier, adapter, records, output, *, device="cuda", batch_size=1,
+                  evaluate=False, input_scope="explicit_submission", input_path=None,
+                  hint_mode=None, rerank=False):
+    """Reload both saved stages and write submission, diagnostics, and metadata.
+
+    Gold labels/targets are retained only for comparison/evaluation, never passed
+    to either inference stage. Invalid generations fail export without fallback.
+    """
+    if type(batch_size) is not int or batch_size <= 0:
+        raise ValueError("batch-size must be positive")
+    _validate_records(records, require_labels=evaluate)
+    if not records:
+        raise ValueError("Input must contain at least one record")
+    output = Path(output).expanduser().resolve()
+    paths = {"submission": str(output),
+             "comparisons": str(output.with_suffix(".comparisons.json")),
+             "evaluation": str(output.with_suffix(".evaluation.json"))}
+    if evaluate:
+        paths["metrics"] = str(output.with_suffix(".metrics.json"))
+    if len(set(paths.values())) != len(paths):
+        raise ValueError("Submission output must not collide with companion artifact paths")
+    if any(Path(path).exists() for path in paths.values()):
+        raise ValueError("Inference output artifacts must not already exist; choose a new output path")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    inference_records = [{"id": row["id"], "source": row["source"], "label": None,
+                          "target": None} for row in records]
+    from .classification import classify
+    hints = classify(classifier, inference_records, device=device, batch_size=batch_size)
+    # Stage 1 releases its weights before loading the independently fitted corrector.
+    gc.collect()
+    import torch
+    if device == "cuda":
+        torch.cuda.empty_cache()
+    from .correction import load_corrector, correct
+    model, tokenizer, inference = load_corrector(adapter, device=device)
+    if hint_mode:
+        inference["hint_mode"] = hint_mode
+    if rerank:
+        inference["reranking"] = {**inference.get("reranking", {}), "enabled": True}
+    try:
+        predictions = correct(model, tokenizer, inference_records, hints, inference)
+    finally:
+        del model, tokenizer
+        gc.collect()
+        if device == "cuda":
+            torch.cuda.empty_cache()
+    write_json(paths["comparisons"], comparison_rows(records, predictions))
+    metadata = {"input_scope": input_scope, "input_path": str(input_path) if input_path else None,
+                "count": len(records), "evaluated": evaluate,
+                "classifier": str(classifier), "adapter": str(adapter), "artifacts": paths,
+                "submission_schema": "ID/Output: Error_Type_Id (integer 0..4), Fixed Sentence (nonblank string)"}
+    export_error = None
+    try:
+        submission = submission_rows(records, predictions)
+    except ValueError as error:
+        export_error = error
+    if evaluate and all(isinstance(row.get("target"), str) for row in predictions):
+        from .metrics import experiment_report
+        metrics = experiment_report(records, predictions)
+        write_json(paths["metrics"], metrics)
+        metadata.update(combined_score=metrics["combined_score"],
+                        combined_score_metadata=metrics["combined_score_metadata"])
+        print(json.dumps(metrics, ensure_ascii=False, indent=2), flush=True)
+    elif evaluate:
+        paths.pop("metrics")
+        metadata.update(evaluated=False, evaluation_failure="Invalid non-string predicted correction; cannot score")
+    if export_error is not None:
+        paths.pop("submission")
+        metadata.update(status="failed", failure=str(export_error))
+        write_json(paths["evaluation"], metadata)
+        raise export_error
+    write_json(output, submission)
+    metadata["status"] = "completed"
+    write_json(paths["evaluation"], metadata)
+    print(json.dumps(metadata, ensure_ascii=False, indent=2), flush=True)
+    print(f"Submission ({input_scope}): {output}", flush=True)
+    return metadata
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--classifier", required=True)
-    parser.add_argument("--adapter", required=True)
-    parser.add_argument("--data", required=True)
-    parser.add_argument("--output", required=True)
+    stages = parser.add_mutually_exclusive_group(required=True)
+    stages.add_argument("--run", help="Completed two-stage saved run or unique enclosing extracted output")
+    stages.add_argument("--classifier", help="Saved classifier checkpoint; requires --adapter")
+    parser.add_argument("--adapter", help="Saved correction adapter, when using --classifier")
+    parser.add_argument("--data", required=True, help="Raw organizer ID/Input JSON array")
+    parser.add_argument("--output", help="Submission JSON; defaults to a fresh runs/submission-*/submission.json")
     parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
     parser.add_argument("--batch-size", type=int, default=1)
-    parser.add_argument("--evaluate", action="store_true")
+    parser.add_argument("--evaluate", action="store_true", help="Require gold labels and write local evaluation metrics")
     parser.add_argument("--hint-mode", choices=["predicted", "none"], help="Override saved hint conditioning")
     parser.add_argument("--rerank", action="store_true", help="Score beam candidates and unchanged source")
     args = parser.parse_args()
-    if args.batch_size <= 0:
-        raise ValueError("batch-size must be positive")
+    if args.run and args.adapter:
+        parser.error("--adapter cannot be used with --run")
+    if args.classifier and not args.adapter:
+        parser.error("--classifier requires --adapter; Task1 alone cannot produce a full GEC submission")
+    if args.run:
+        from .run_reuse import resolve_run
+        classifier = resolve_run(args.run, "classification") / "classifier"
+        adapter = resolve_run(args.run, "correction") / "adapter"
+    else:
+        classifier, adapter = Path(args.classifier), Path(args.adapter)
     records = load_records(args.data, require_labels=args.evaluate)
-    if not records:
-        raise ValueError("Input must contain at least one record")
-    from .classification import classify
-    hints = classify(args.classifier, records, device=args.device, batch_size=args.batch_size)
-    # Stage 1 releases its weights before loading the independently fitted corrector.
-    gc.collect()
-    import torch
-    if args.device == "cuda":
-        torch.cuda.empty_cache()
-    from .correction import load_corrector, correct
-    model, tokenizer, inference = load_corrector(args.adapter, device=args.device)
-    if args.hint_mode:
-        inference["hint_mode"] = args.hint_mode
-    if args.rerank:
-        inference["reranking"] = {**inference.get("reranking", {}), "enabled": True}
-    predictions = correct(model, tokenizer, records, hints, inference)
-    output = Path(args.output)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    write_json(output, comparison_rows(records, predictions))
-    if args.evaluate:
-        from .metrics import experiment_report
-        metrics = experiment_report(records, predictions)
-        write_json(output.with_suffix(".metrics.json"), metrics)
-        print(json.dumps(metrics, ensure_ascii=False, indent=2))
-    print(f"Predictions: {output}")
+    output = (Path(args.output) if args.output else
+              resolve_output({"run": {"name": "submission", "output_root": "runs"}}) / "submission.json")
+    run_inference(classifier, adapter, records, output, device=args.device,
+                  batch_size=args.batch_size, evaluate=args.evaluate, input_path=args.data,
+                  hint_mode=args.hint_mode, rerank=args.rerank)
 
 
 if __name__ == "__main__":

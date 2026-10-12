@@ -1,4 +1,4 @@
-"""Sailor2 QLoRA soft hierarchical classification baseline."""
+"""Sailor QLoRA soft hierarchical classification baseline."""
 from __future__ import annotations
 
 import argparse
@@ -462,7 +462,6 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
                     metrics = _classification_metrics(validation, predictions)
                     entry["classification"] = metrics
                     tracking.evaluation(metrics, "validation/classification", optimizer_step=state.global_step, epoch=state.epoch)
-                    tracking.predictions("validation/predictions", comparison_rows(validation, predictions))
                     if best["macro_f1"] is None or metrics["macro_f1"] > best["macro_f1"]:
                         best.update(epoch=state.epoch, macro_f1=metrics["macro_f1"])
                         save_model()
@@ -774,7 +773,6 @@ def main(*, tracking):
         write_json(output / "metrics.json", metrics)
         tracking.evaluation(metrics, "final")
         tracking.report("final-metrics", metrics)
-        tracking.predictions("final/predictions", comparison_rows(validation, predictions))
         manifest = {
             "task": "classification", "config": config, "seed": seed, "validation_fraction": fraction,
             "device": device, "world_size": world_size, "output_dir": str(output), "classifier_path": str(checkpoint),
@@ -823,7 +821,6 @@ def main(*, tracking):
                     fold_metrics = _classification_metrics(fold_predict, fold_predictions)
                     fold_tracking.evaluation(fold_metrics, "final/classification")
                     fold_tracking.report("final", {**artifact, "classification": fold_metrics, "training": fold_stats})
-                    fold_tracking.predictions("final/predictions", comparison_rows(fold_predict, fold_predictions))
                     hints["train"].extend({**row, "fold": fold} for row in fold_predictions)
                     hints["folds"].append(artifact)
                     write_json(fold_dir / "predictions.json", comparison_rows(fold_predict, fold_predictions))

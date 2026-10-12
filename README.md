@@ -1,7 +1,7 @@
-# Sailor2 Task 1 → Task 2: Kaggle and local
+# Sailor-7B-Chat Task 1 → Task 2: Kaggle and local
 
-This branch keeps the existing Sailor2 Task 1 baseline and restores alpha's
-Task 2 correction stage. Task 2 prompts contain the source sentence and Task 1's
+Both stages use `sail/Sailor-7B-Chat`, retaining the existing Task 1 loss and
+Task 2 correction recipe. Task 2 prompts contain the source sentence and Task 1's
 predicted label plus error-type description. Training hints come from train-only
 out-of-fold (OOF) classifiers; validation hints come from the selected main
 classifier. Gold labels are not substituted into prompts. These are independently
@@ -10,7 +10,7 @@ input reaches correction, including predicted class 0.
 
 ## Run locally
 
-All branches share the same training code, configs and both notebooks. Use
+Local and Kaggle runs share the same training code, configs and both notebooks. Use
 `notebooks/local_two_phase.ipynb` on `main`, `beta`, `rquq/test` and `rquq/alpha`;
 use `notebooks/kaggle_two_phase.ipynb` on Kaggle. The local notebook operates on
 the current checkout, never clones it, discovers private data locally, defaults
@@ -23,8 +23,11 @@ retaining the installed CUDA PyTorch.
 ## Weights & Biases
 
 W&B is enabled in both configs and notebooks. Local authentication uses
-`WANDB_API_KEY` in the environment or an existing `wandb login`; Kaggle reads
-the `WANDB_API_KEY` Secret. Never put credentials into source, configs or outputs.
+`WANDB_API_KEY` in the environment or an existing `wandb login`. For Kaggle,
+add `WANDB_API_KEY` under **Add-ons → Secrets** and enable notebook access.
+The notebook loads the key into the environment inherited by training subprocesses;
+no interactive `wandb login` is needed. The isolated training import check includes
+W&B. Never put credentials into source, configs or outputs.
 Rotate the key previously pasted into chat before using it in future runs.
 `WANDB_MODE=offline` retains runs for later `wandb sync`; set
 `tracking.enabled=false` (or notebook `TRACKING_ENABLED=False`) to disable it.
@@ -38,18 +41,21 @@ the run ID, URL, group, status and artifact references next to local outputs.
 Only rank zero logs in distributed jobs; a failed fit finishes with failed status.
 No model watching or source-code upload is enabled.
 
-The default `tracking.log_text=false` excludes corpus text and hint tables;
-`tracking.log_models=true` uploads adapters/tokenizers, not datasets. Disable
-model uploads with `WANDB_LOG_MODELS=False` in the notebook. Enable
-`WANDB_LOG_TEXT=True` only with permission to upload licensed examples. Keep
-the W&B project private; derived weights and diagnostics may be sensitive too.
+`tracking.log_text=false` is required: corpus text and hint uploads are rejected
+under the supplied agreement. `tracking.log_models=true` uploads adapters/tokenizers,
+not datasets; disable it with `WANDB_LOG_MODELS=False`. Keep projects private and
+confirm authorization for external model hosting; private hosting alone does not
+grant redistribution rights. Local reports retain corpus-bearing diagnostics.
 
 ## Run on Kaggle
 
-Import `notebooks/kaggle_two_phase.ipynb` into a **private** Kaggle notebook.
-Enable Internet, select **GPU T4 ×2**, attach the following private files from
-the same audited dataset build. Use **Save Version → Save & Run All** for an
-unattended saved run; interactive Run All uses the same execution path:
+Use Kaggle only with authorization for third-party hosting/access to the restricted
+resources: the supplied agreement prohibits redistribution, including edited data.
+A private notebook or Dataset does not itself establish that authorization.
+Once authorized, import `notebooks/kaggle_two_phase.ipynb` into a **private** notebook,
+enable Internet, select **GPU T4 ×2**, and attach the following private files from
+the same rebuilt dataset. Use **Save Version → Save & Run All** for an unattended
+saved run; interactive Run All uses the same execution path:
 
 The GitHub repository is **private**. Before Run All, create a fine-grained
 GitHub token restricted to `rquq/GECC_VLSP_26` with **Contents: Read-only**.
@@ -69,23 +75,21 @@ notebook source, output or chat. Revoke any exposed token and replace the Secret
 - `VGEC_classifier.json`: capped mixed classifier dataset.
 - `VGEC_balanced.json`: correction dataset with split/provenance metadata.
 
-The local Kaggle checkout contains the ready-to-upload package:
-`kaggle-input.zip`. Its three JSON files are also in `dataset/kaggle-input/`.
-In Kaggle, create a **private Dataset**, upload that ZIP (or the three loose JSON
-files), then add the Dataset to the notebook using **Add Input**. Confirm the
-three JSON files appear under `/kaggle/input`, then Run All. Do not attach the
-ZIP as an unextracted file. No XLSX, audit, manifest or synthetic-pool upload is
-needed. The ZIP and corpus files are local-only and intentionally Git-ignored;
-a fresh Git clone does not contain restricted corpus data.
+The rebuilt local files are `dataset/original/VGEC 2026_v1.json` and
+`dataset/newdataset/{VGEC_classifier.json,VGEC_balanced.json}`. No upload package
+is produced. Only after obtaining the required authorization, attach those three
+JSON files and confirm they appear under `/kaggle/input`. No XLSX, audit, manifest
+or synthetic-pool upload is needed. Restricted corpus and generated datasets are
+intentionally Git-ignored; a fresh Git clone does not contain them.
 
 
 The notebook clones `kaggle-linux` and supports `RUN_MODE="task1"`, `"task2"`,
 or `"both"`. Fresh Task 1 keeps the baseline recipe; default `GENERATE_OOF=True`
 also produces the connected train-only hints needed by later Task 2 runs.
 Task 2 can reuse a prior classifier without another Task 1 fit. Explicit attachment
-paths resolve duplicate filenames. Outputs use `/kaggle/output`, linked to
-`/kaggle/working/output` so Save Version retains artifacts. Keep notebook versions,
-datasets, checkpoints and text-containing outputs private.
+paths resolve duplicate filenames. Outputs use `/kaggle/working/runs/RUN`,
+retained by Save Version without a symlink. Keep notebook versions, datasets,
+checkpoints and text-containing outputs private and within authorized access.
 
 For a Kaggle terminal, first configure Git authentication for the private
 repository; Kaggle Secrets are read automatically only by the notebook bootstrap:
@@ -95,13 +99,12 @@ git clone --single-branch --branch kaggle-linux https://github.com/rquq/GECC_VLS
 cd /kaggle/working/gecc-two-phase-source
 python -m venv --without-pip --system-site-packages /tmp/gecc-training
 python -m pip --python /tmp/gecc-training/bin/python install -r requirements-kaggle.txt
-mkdir -p /kaggle/working/output
-ln -s /kaggle/working/output /kaggle/output  # Only if this path does not already exist.
+mkdir -p /kaggle/working/runs
 /tmp/gecc-training/bin/python -m model.two_phase --classification-config configs/baseline.json \
-  --correction-config configs/correction.json
+  --correction-config configs/correction.json --output-dir /kaggle/working/runs/RUN \
+  --submission-data /kaggle/input/DATA/input.json
 ```
 
-If `/kaggle/output` exists, ensure it resolves to `/kaggle/working/output`.
 `requirements-kaggle.txt` pins non-torch dependencies and preserves Kaggle's
 CUDA-enabled PyTorch. The notebook records the cloned commit and resolved configs.
 
@@ -139,10 +142,11 @@ python -m torch.distributed.run --standalone --nproc_per_node=2 \
 
 ## Retained recipes
 
-Both stages use pinned `sail/Sailor2-8B-Chat` revision
-`577d5b2745863cec11e1b2f1c92586a91cea446e`, NF4 double quantization,
+Both stages use pinned `sail/Sailor-7B-Chat` revision
+`19066fae0a8a3ba029c190d8e3dacccf4d1234b8`, NF4 double quantization,
 LoRA rank 16 / alpha 32 / dropout 0.05, sequence length 512, effective batch 8,
-and seed 42.
+and seed 42. Correction uses the model's `question`/`answer` chat roles and
+pretrained generation stop tokens, saved with the adapter contract.
 
 - **Task 1:** single-forward soft hierarchical BCE + twice conditional CE,
   square-root class weights, five epochs, LR `5e-5`. The raw corpus is split
@@ -162,24 +166,59 @@ Validation selection reuses the same holdout; reported scores are exploratory,
 not independent test performance. Fresh training need not reproduce historical
 scores or identical numerics across hardware/library versions.
 
-## Saved pipeline inference
+## Saved pipeline inference and submissions
 
-The run contains `classification/classifier`, `classification/hints.json`,
-`correction/adapter`, selected-adapter evaluations, epoch histories, predictions,
-metrics, resolved configs and `pipeline_manifest.json`. The notebook retains a
-ZIP and training log alongside the run.
+Local output is `runs/RUN/`; Kaggle output is `/kaggle/working/runs/RUN/`.
+After Task 2, the pipeline reloads both saved stages and infers `SUBMISSION_DATA`
+(CLI `--submission-data`) into `RUN/submission.json` before archiving the run.
+With no explicit input, it exports the untouched holdout and marks the scope
+`validation`; this is not an unseen-test submission. Task 1 alone cannot produce
+a full GEC submission. Every input reaches Task 2, including predicted class 0.
 
-```bash
-python -m model.pipeline_predict \
-  --classifier /kaggle/output/RUN/classification/classifier \
-  --adapter /kaggle/output/RUN/correction/adapter \
-  --data /kaggle/input/DATA/input.json \
-  --output /kaggle/output/predictions.json
+The organizer JSON array contains only this shape, preserving typed IDs and order:
+
+```json
+[{"ID": 1, "Output": {"Error_Type_Id": 0, "Fixed Sentence": "A corrected sentence."}}]
 ```
 
-Use `--evaluate` for labeled records. To reuse a completed compatible Task 1 run,
-pass `--classifier-run /kaggle/input/DATA/completed-classification` to
-`model.two_phase`; its saved classifier, OOF hints and provenance are validated.
+Gold/source fields, raw generation and parse errors stay in
+`submission.comparisons.json`. `submission.evaluation.json` records scope/status;
+`submission.metrics.json` is written only for labeled evaluation. Invalid labels,
+blank corrections or parse errors fail export without a source/gold fallback.
+The standalone CLI exits nonzero. A completed training run retains its adapters,
+failed-export diagnostics and archive without fabricating `submission.json`.
+
+The run also contains `classification/classifier`, `classification/hints.json`,
+`correction/adapter`, selected-adapter evaluations, epoch histories, predictions,
+metrics, resolved configs, `run_handoff.json` and `pipeline_manifest.json`.
+Notebook logs and the artifact ZIP sit alongside the run.
+
+For saved-run inference, set `RUN_TRAINING=False`, `PRIOR_RUN` and `SUBMISSION_DATA`,
+or run:
+
+```bash
+python -m model.pipeline_predict --run runs/RUN \
+  --data /absolute/private/input.json --output runs/new-submission/submission.json
+```
+
+Use `/kaggle/working/runs/RUN` and a mounted input on Kaggle. Omitting `--output`
+creates a fresh repository `runs/submission-*/submission.json`. Output artifacts
+must not already exist; inference never overwrites a completed submission.
+Use `--evaluate` for labeled records. Direct `--classifier` plus `--adapter`
+paths are also supported.
+
+### Combined score
+
+Correction epoch/final evaluation, labeled submission inference, pipeline logs,
+JSON reports and W&B scalar metrics include `combined_score`:
+
+`0.5 * classification.macro_f1 + 0.5 * corrections.error_only.gleu_plus`
+
+This is a **local, non-official equal-weight composite**: the supplied metrics
+PDF specifies separate metrics, not a combined formula. Metadata records that
+distinction. No gold error rows means `combined_score=null`; unlabeled input is
+not scored. Checkpoint selection remains error-only GLEU+, exact match, then
+clean preservation, rather than this composite.
 
 ## Run modes and next-version inputs
 
@@ -190,14 +229,14 @@ pass `--classifier-run /kaggle/input/DATA/completed-classification` to
 | `RUN_MODE="task2"`, `PRIOR_RUN=...` | Reuse classifier/OOF hints; train a fresh corrector | Prior run + identical correction dataset |
 | `RUN_MODE="both"`, no prior | Train both stages | Three audited data files |
 | `RUN_MODE="both"`, `PRIOR_RUN=...` | Reuse classifier; train corrector | Prior run + identical correction dataset |
-| `RUN_TRAINING=False` | Saved-corrector diagnostics only | `EXPERIMENT_RUN` or `PRIOR_RUN`; enable an experiment flag |
+| `RUN_TRAINING=False` | Saved-run submission inference and/or correction diagnostics | `EXPERIMENT_RUN` or `PRIOR_RUN`; `SUBMISSION_DATA` or an experiment flag |
 
-Save the notebook version privately. In the next notebook, use **Add Input** to
-attach that saved notebook output, or upload the extracted run as a private
-Kaggle Dataset. Set `PRIOR_RUN` to its actual mounted run folder, e.g.
-`/kaggle/input/my-previous-version/output/sailor2-task1-RUN_ID`. Kaggle chooses
-the mount name; this is not the previous `/kaggle/output` path. Run All cannot
-automatically attach outputs to a future notebook version.
+Within the agreement's authorized access, save the notebook version privately
+and use **Add Input** in the next notebook to attach its output. Set `PRIOR_RUN`
+to its actual mounted run folder, e.g.
+`/kaggle/input/my-previous-version/runs/sailor-7b-task1-RUN_ID`. Kaggle chooses
+the mount name; this is not the previous `/kaggle/working/runs` path. Run All
+cannot automatically attach outputs to a future notebook version.
 
 `run_handoff.json` contains relative stage paths. A new run includes the reused
 classifier weights/tokenizer, OOF hints, configs and provenance, so another
@@ -207,6 +246,8 @@ supported; multiple candidates require an explicit run folder. Inputs are
 read-only. Reuse requires a compatible five-class QLoRA classifier and valid
 OOF hints for the exact correction data/split. Changing the dataset requires
 new compatible OOF fits, not applying stale hints to new examples.
+The rebuilt corpus invalidates historical OOF coverage. Retrain Task 1 and OOF
+for this build; old Sailor2 adapters are not compatible with a Sailor-7B warmstart.
 
 `CLASSIFIER_RUN` explicitly selects a classifier. `RESUME_CORRECTION=True`
 selects the prior corrector for continued fine-tuning; alternatively set
@@ -218,9 +259,9 @@ corrector, and a sentence adapter is not an edit adapter.
 
 ```bash
 python -m model.two_phase --mode task1 --classification-config configs/baseline.json \
-  --correction-config configs/correction.json --output-dir /kaggle/output/task1-run
-python -m model.two_phase --mode task2 --prior-run /kaggle/input/prev/output/task1-run \
-  --correction-config configs/correction.json --output-dir /kaggle/output/task2-run
+  --correction-config configs/correction.json --output-dir /kaggle/working/runs/task1-run
+python -m model.two_phase --mode task2 --prior-run /kaggle/input/prev/runs/task1-run \
+  --correction-config configs/correction.json --output-dir /kaggle/working/runs/task2-run
 ```
 
 ## Correction experiments
@@ -340,6 +381,63 @@ separate untouched evaluation set before claiming a quality improvement.
 
 These are experiment priorities, not measured correction improvements.
 
+## Private dataset rebuild and terms
+
+The previous pool's provenance was `locally_authored_synthetic` and
+`assistant_reviewed_not_human_adjudicated`: it was assistant-authored, not original
+organizer data. It has been replaced completely, not merely relabeled.
+`tools/author_synthetic.py` now derives deterministic minimal contrasts exclusively
+from complete original training corrections/clean sentences after the grouped
+seed-42, fraction-0.2 split and existing quality audit. Holdout source/target text
+is only an exclusion boundary, never generation evidence.
+
+The rules delete a sole nominal copular predicate, replay original class-1 edits
+inside identical balanced quotations, move `các`/`những` after bounded existing
+nominal heads, repeat adjacent copula/aspect markers, or append a dangling comma
+after a terminal full stop. Clean additions are exact complete training-gold
+identities, optionally quoted. No external generator, invented sentence product,
+semantic substitution, original relabeling or gold repair is used.
+
+Rows record `parent_ids`, parent-level `template_id`, target `family_id`, rule
+evidence and original SHA-256; OOF keeps those connected. Current provenance is
+`corpus_derived_deterministic_augmentation` /
+`deterministic_rule_checked_not_human_adjudicated`. Quoted replays preserve the
+organizer's label ambiguities; no human adjudication or quality improvement is
+claimed. The rules assume ordinary edited sentence prose, not headings or
+creative typography.
+
+| Private artifact | Rows | Use |
+|---|---:|---|
+| `synthetic_pool.json` | 730 | Deterministic training-only candidates |
+| Classifier training | 504 | 312 retained originals + 192 selected additions |
+| Correction training | 409 | 217 retained originals + 192 selected additions |
+| Validation in either bundle | 81 | Identical raw original holdout |
+
+Existing caps remain: 40 clean additions; error additions do not exceed the
+retained classifier-original count per label. Original JSON SHA-256 remains
+`7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728`;
+the XLSX is also unchanged. Regenerated pool, both bundles, audit and manifest
+are mode `0600` under a mode-`0700` directory. They stay local and Git-ignored.
+
+Reproduce from the repository root:
+
+```bash
+python tools/author_synthetic.py --original 'dataset/original/VGEC 2026_v1.json' \
+  --output dataset/newdataset/synthetic_pool.json
+python tools/build_dataset.py --original 'dataset/original/VGEC 2026_v1.json' \
+  --synthetic dataset/newdataset/synthetic_pool.json \
+  --output-dir dataset/newdataset --validation-fraction 0.2
+```
+
+The supplied **VLSP2026-ViGEC-UserAgreement** §§3.1–3.6 permits research
+modification, forbids commercial use and redistribution (including edited
+resources), and requires published research to acknowledge VLSP via its website
+or publications. Keep inputs, derivatives, hints, logs, submissions and archives
+within authorized access. No Kaggle upload package was created. Obtain organizer
+authorization before third-party hosting; a private Dataset is not permission.
+Corpus/hint W&B uploads are rejected even if `tracking.log_text=true` is requested.
+
+
 ## Local checks and provenance
 
 The local shared virtual environment is in sibling `test`:
@@ -351,6 +449,44 @@ HF_HUB_OFFLINE=1 TOKENIZERS_PARALLELISM=false ../test/.venv/bin/python -m unitte
 Local runs need copied configs with explicit paths for all three datasets and
 an appropriate `run.world_size`. Dataset authoring/building utilities remain in
 `tools/` for provenance; training never authors or rebuilds attached inputs.
+
+The Sailor-7B-Chat/submission/dataset cutover passed **108 regression tests**.
+Actual local notebook execution trained a tiny CPU Qwen2 classifier, two OOF
+folds and a corrector on the rebuilt corpus, then reloaded both adapters and
+exported a labeled two-row submission, metrics, log and ZIP. Five offline W&B
+runs finished. The Kaggle notebook's config/training/streaming/display cells
+also executed with temporary local input/working mounts and an existing
+interpreter: they exported all 81 validation rows, archived the submission,
+then reloaded an attached saved-run copy to infer two unlabeled rows without
+inventing evaluation metrics. Both exports preserved integer/string ID types.
+Kaggle clone/dependency bootstrap was not rerun in this cutover smoke.
+Standalone saved inference with no `--output` also created a fresh repository
+`runs/submission-*/submission.json` and exported both unlabeled typed IDs.
+An independent rebuild reproduced the pool, both bundles and audit byte-for-byte;
+all parents were training-only, no generated source/target matched heldout text,
+and the 81 validation objects were identical to their raw organizer counterparts.
+Both organizer files were unchanged; generated files/directories retained
+`0600`/`0700` permissions.
+
+Before committing, the same 108-test suite passed again. Actual Kaggle config,
+streaming and display cells ran with temporary local mounts: a compatible tiny
+CPU Task 2 continuation exported all 81 validation rows, logged the non-official
+combined score, finished grouped offline pipeline/correction W&B runs and
+archived the submission. Saved-run inference exported two unlabeled typed IDs.
+A simulated Kaggle Secrets client exercised online key loading, environment-key
+precedence, missing/empty-secret errors and offline/disabled opt-outs. A real
+child process inherited the key and finished an offline W&B run; emitted key
+text was redacted from displayed output and the persisted log. No online W&B
+authentication or hosted Kaggle execution was performed in this commit check.
+The local smoke interpreter imports W&B 0.27.0 but lacks `sentence_transformers`;
+the full Kaggle dependency-import command was not verified in that interpreter.
+
+The real pinned Sailor tokenizer passed response-only JSON supervision,
+`question`/`answer` prefix and generation-stop checks, plus a finite forward
+with explicitly reduced random Qwen2 weights. These checks prove the executable
+contracts, not full 7B training, hosted Kaggle/T4 memory headroom, or useful
+correction quality. Original and derived corpus files were not uploaded.
+
 
 Local verification passed 83 regression tests and real connected notebook-runtime
 smokes with tiny unquantized Qwen2 models at world sizes 1 and 2. The smokes used
@@ -425,6 +561,14 @@ Compatible prior correctors can continue fine-tuning with a new optimizer;
 incompatible prompt/output/LoRA contracts fail before model loading. Saved
 classifier validation accepts PEFT's automatically added classification-head
 metadata while still requiring configured modules and saved score weights.
+Both stages now use the pinned Sailor-7B-Chat base and its native chat roles.
+Training automatically exports organizer-format submissions after Task 2;
+standalone inference exports into a fresh runs folder by default. Validation
+exports are explicitly marked, invalid generations retain failure diagnostics,
+and local combined-score metadata is logged without changing model selection.
+The assistant-authored pool was replaced with private deterministic training-only
+corpus derivatives, with parent-linked OOF grouping and unchanged organizer files.
+
 
 W&B integration adds explicit grouped runs for pipeline orchestration, main/OOF
 fits, correction and saved diagnostics; metrics, safe reports, selected adapters

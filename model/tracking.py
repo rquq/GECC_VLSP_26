@@ -23,7 +23,8 @@ DEFAULTS = {"enabled": True, "project": "vlsp26-gec", "mode": "online",
 _PRIVATE_KEYS = {"source", "target", "reference", "prediction", "predictions", "text",
                  "prompt", "content", "train_rows", "authored_overrides", "data_provenance",
                  "provenance", "classifier_provenance", "reference_audit", "annotation_like_audit",
-                 "annotation_audit", "hint_descriptions"}
+                 "annotation_audit", "hint_descriptions", "input", "output", "fixed sentence",
+                 "raw_generation", "target_correction", "predicted_correction", "candidates"}
 
 
 def safe_value(value, *, allow_prompt=False):
@@ -95,6 +96,8 @@ class TrackingRun:
         mode = os.environ.get("WANDB_MODE", self.settings["mode"])
         if mode not in ("online", "offline", "disabled"):
             raise ValueError("tracking.mode / WANDB_MODE must be online, offline, or disabled")
+        if self.settings["log_text"]:
+            raise ValueError("Corpus text uploads are prohibited by the VLSP corpus agreement; tracking.log_text must be false")
         if int(os.environ.get("RANK", "0")) != 0:
             return self
         self.output.mkdir(parents=True, exist_ok=True)
@@ -174,13 +177,6 @@ class TrackingRun:
         artifact.add_file(str(path), name=f"{name}.json")
         self.run.log_artifact(artifact)
 
-    def predictions(self, name, rows):
-        if self.run is None or not self.settings["log_text"] or not rows:
-            return
-        columns = list(rows[0])
-        self.run.log({name: self.sdk.Table(columns=columns,
-                      data=[[json.dumps(row.get(key), ensure_ascii=False) if isinstance(row.get(key), (dict, list))
-                             else row.get(key) for key in columns] for row in rows])})
 
     def _name(self, suffix):
         return re.sub(r"[^a-zA-Z0-9_.-]", "-", f"{self.identity['id']}-{suffix}")

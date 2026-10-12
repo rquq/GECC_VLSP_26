@@ -1,8 +1,8 @@
 {
   "task": "classification",
   "run": {
-    "name": "sailor2-baseline-seed42",
-    "output_root": "/kaggle/output",
+    "name": "sailor-7b-baseline-seed42",
+    "output_root": "runs",
     "device": "cuda",
     "world_size": 2,
     "seed": 42
@@ -26,8 +26,8 @@
     "augmentation_filename": "VGEC_classifier.json"
   },
   "model": {
-    "name": "sail/Sailor2-8B-Chat",
-    "revision": "577d5b2745863cec11e1b2f1c92586a91cea446e",
+    "name": "sail/Sailor-7B-Chat",
+    "revision": "19066fae0a8a3ba029c190d8e3dacccf4d1234b8",
     "load_in_4bit": true,
     "compute_dtype": "bfloat16",
     "quant_type": "nf4",

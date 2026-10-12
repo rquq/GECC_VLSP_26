@@ -14,6 +14,14 @@ from pathlib import Path
 
 from .data import LABELS, _id_key, _valid_label, _validate_records, load_records
 
+COMBINED_SCORE_METADATA = {
+    "official": False,
+    "formula": "0.5 * classification.macro_f1 + 0.5 * corrections.error_only.gleu_plus",
+    "scope": "Macro-F1 over all five classes; GLEU+ over gold error rows (labels 1..4) only",
+    "no_error_rows": "combined_score is null when the gold data has no error rows",
+    "checkpoint_selection": "Unchanged; combined_score is a local reporting metric only",
+}
+
 
 def identity_predictions(records: list[dict], label: int | str = 0) -> list[dict]:
     """Return unchanged-source predictions with label 0, a fixed ID, or majority.
@@ -141,17 +149,22 @@ def score(records: list[dict], predictions: list[dict]) -> dict:
     # Each row has one decision, including invalid rejections: wrong decisions
     # contribute one global FP and FN. Thus micro-F1 remains accuracy.
     correct = sum(confusion[label][label] for label in LABELS)
+    classification_macro_f1 = sum(value["f1"] for value in per_class.values()) / len(LABELS)
+    corrections = {"all": _corrections(all_rows), "error_only": _corrections(error_rows)}
+    error_gleu = corrections["error_only"]["gleu_plus"]
     return {
         "count": len(records),
         "classification": {
-            "macro_f1": sum(value["f1"] for value in per_class.values()) / len(LABELS),
+            "macro_f1": classification_macro_f1,
             "micro_f1": correct / len(records),
             "confusion_matrix": confusion,
             "labels": list(LABELS),
             "prediction_columns": [*LABELS, "invalid"],
             "per_class": per_class,
         },
-        "corrections": {"all": _corrections(all_rows), "error_only": _corrections(error_rows)},
+        "corrections": corrections,
+        "combined_score": None if error_gleu is None else 0.5 * classification_macro_f1 + 0.5 * error_gleu,
+        "combined_score_metadata": dict(COMBINED_SCORE_METADATA),
         "invalid_prediction_rate": invalid / len(records),
     }
 

@@ -127,7 +127,6 @@ def main(*, tracking):
         write_json(destination / "metrics.json", reports[name])
         tracking.evaluation(reports[name], f"variants/{name}")
         tracking.report(name, {"inference": variant, "metrics": reports[name]})
-        tracking.predictions(f"variants/{name}/predictions", comparison_rows(records, predictions[name]))
     write_json(output / "paired_predictions.json", paired_rows(records, predictions))
     write_json(output / "metrics.json", reports)
     write_json(output / "experiment_manifest.json", {

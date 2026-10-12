@@ -1,11 +1,16 @@
 """Audit and synthetic selection operate on training only."""
 import json
+from collections import Counter
+import hashlib
+import re
+import stat
 from pathlib import Path
 import tempfile
 import unittest
 
 from model.data import load_classifier_split, load_records, load_training_split, split_records
 from tools.build_dataset import audit_record, build, build_split, id_key
+from tools.author_synthetic import author_pool, structural_candidates, write_private_pool
 
 
 class DatasetBuilderTests(unittest.TestCase):
@@ -257,6 +262,88 @@ class DatasetBuilderTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "insufficient eligible"):
             build(self.original, self.pool, output, 0.2)
         self.assertFalse(output.exists())
+
+class CorpusAugmentationTests(unittest.TestCase):
+    def test_rules_keep_optional_fronts_semantics_and_phrase_boundaries(self):
+        sentence = "Với sự hỗ trợ của nhà trường, học sinh đã đọc các tác phẩm."
+        candidates = list(structural_candidates(sentence))
+        self.assertFalse(any(label == 1 for label, _, _, _ in candidates))
+        phrase_errors = [source for label, _, source, _ in candidates if label == 2]
+        self.assertEqual(phrase_errors, ["Với sự hỗ trợ của nhà trường, học sinh đã đọc tác phẩm các."])
+        self.assertTrue(all(source.startswith("Với sự hỗ trợ của nhà trường,")
+                            for _, _, source, _ in candidates))
+        self.assertFalse(any(label == 2 for label, _, _, _ in
+                             structural_candidates("Năm 1980, văn học phát triển.")))
+        self.assertFalse(any(label == 3 for label, _, _, _ in
+                             structural_candidates("Tiếng chim ríu ríu trên cành.")))
+        self.assertFalse(any(label == 2 for label, _, _, _ in
+                             structural_candidates("Học sinh đọc ba tác phẩm.")))
+        copular = list(structural_candidates("Ngôn từ là yếu tố của văn bản."))
+        self.assertEqual([source for label, _, source, _ in copular if label == 1], ["Ngôn từ."])
+        for label, _, source, _ in candidates:
+            if label == 4:
+                self.assertEqual(re.findall(r"\w+", source), re.findall(r"\w+", sentence))
+
+    def test_real_corpus_pool_is_deterministic_train_only_and_originals_immutable(self):
+        original = Path(__file__).resolve().parents[2] / "dataset/original/VGEC 2026_v1.json"
+        before = {path: hashlib.sha256(path.read_bytes()).hexdigest()
+                  for path in original.parent.iterdir() if path.is_file()}
+        rows = author_pool(original)
+        self.assertEqual(rows, author_pool(original))
+        train, validation = split_records(load_records(original), 0.2, 42)
+        train_ids = {id_key(row["id"]) for row in train}
+        normalize = lambda text: " ".join(text.split()).casefold()
+        heldout = {normalize(row[field]) for row in validation for field in ("source", "target")}
+        original_sources = {normalize(row["source"]) for row in train}
+        seen = set()
+        for row in rows:
+            metadata = row["Provenance"]
+            self.assertTrue(metadata["parent_ids"])
+            self.assertTrue(all(id_key(parent) in train_ids for parent in metadata["parent_ids"]))
+            self.assertEqual(metadata["origin"], "corpus_derived_deterministic_augmentation")
+            self.assertEqual(metadata["review_status"], "deterministic_rule_checked_not_human_adjudicated")
+            self.assertTrue(metadata["uses_source_corpus"])
+            self.assertFalse(metadata["uses_external_teacher"])
+            self.assertTrue(metadata["family_id"] and metadata["template_id"])
+            self.assertNotIn(normalize(row["Input"]), heldout | original_sources | seen)
+            self.assertNotIn(normalize(row["Output"]["Fixed Sentence"]), heldout)
+            seen.add(normalize(row["Input"]))
+            label = row["Output"]["Error_Type_Id"]
+            if label == 0:
+                self.assertEqual(row["Input"], row["Output"]["Fixed Sentence"])
+            if metadata["template_rule"].startswith("quoted_original_clause_edit"):
+                parent = next(parent for parent in train if parent["id"] == metadata["parent_ids"][0])
+                evidence = metadata["evidence"]
+                self.assertEqual(row["Input"], evidence["quote_open"] + parent["source"] + evidence["quote_close"])
+                self.assertEqual(row["Output"]["Fixed Sentence"], evidence["quote_open"] + parent["target"] + evidence["quote_close"])
+        counts = Counter(row["Output"]["Error_Type_Id"] for row in rows)
+        self.assertTrue(all(counts[label] >= cap for label, cap in enumerate((40, 78, 23, 23, 28))))
+        self.assertEqual({path: hashlib.sha256(path.read_bytes()).hexdigest() for path in before}, before)
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder) / "new" / "private" / "synthetic_pool.json"
+            write_private_pool(output, rows, original)
+            self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o600)
+            self.assertEqual(stat.S_IMODE(output.parent.stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE(output.parent.parent.stat().st_mode), 0o700)
+            manifest = build(original, output, output.parent, 0.2)
+            raw = json.loads(original.read_text(encoding="utf-8"))
+            by_id = {id_key(row["ID"]): row for row in raw}
+            expected_validation = [by_id[id_key(row["id"])] for row in validation]
+            for filename, summary_key in (("VGEC_balanced.json", "split"), ("VGEC_classifier.json", "classifier_split")):
+                bundle = json.loads((output.parent / filename).read_text(encoding="utf-8"))
+                self.assertEqual(bundle["validation"], expected_validation)
+                for row in bundle["train"]:
+                    if id_key(row["ID"]) in by_id:
+                        self.assertEqual(row, by_id[id_key(row["ID"])])
+                counts = manifest[summary_key]["class_counts"]
+                reference = bundle["provenance"]["augmentation_reference_counts"]
+                self.assertLessEqual(counts["selected_synthetic"]["0"], 40)
+                for label in map(str, range(1, 5)):
+                    self.assertLessEqual(counts["selected_synthetic"][label], reference[label])
+            for filename in ("VGEC_balanced.json", "VGEC_classifier.json", "audit.json", "manifest.json"):
+                self.assertEqual(stat.S_IMODE((output.parent / filename).stat().st_mode), 0o600)
+            self.assertEqual({path: hashlib.sha256(path.read_bytes()).hexdigest() for path in before}, before)
+
 
 
 if __name__ == "__main__":

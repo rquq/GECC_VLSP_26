@@ -115,7 +115,16 @@ def validate_pool(raw: list[dict], records: list[dict], original_ids: set) -> No
 
 
 def prepare_destination(destination: Path, inputs: tuple[Path, Path]) -> None:
-    destination.mkdir(parents=True, exist_ok=True, mode=0o700)
+    missing = []
+    ancestor = destination
+    while not ancestor.exists():
+        missing.append(ancestor)
+        ancestor = ancestor.parent
+    for directory in reversed(missing):
+        directory.mkdir(mode=0o700)
+    if destination.is_symlink():
+        raise ValueError(f"Refusing output-directory symlink: {destination}")
+    os.chmod(destination, 0o700)
     if not destination.is_dir():
         raise ValueError(f"Output directory is not a directory: {destination}")
     for filename in GENERATED_FILENAMES:
@@ -322,7 +331,10 @@ def build(original: Path, synthetic_path: Path, output_dir: Path, validation_fra
     validate_pool(pool_raw, pool, set(raw_by_id))
     audit_rows = [audit_record(row, raw_by_id[id_key(row["id"])], original=True) for row in records]
     audits = {id_key(row["original_id"]): row for row in audit_rows}
-    privacy = {"private_dataset": True, "external_teacher_used_by_builder": False, "synthetic_policy": "Locally authored pool only; no private corpus sent externally", "publication_allowed": False}
+    privacy = {"private_dataset": True, "external_teacher_used_by_builder": False,
+               "synthetic_policy": "Deterministic local corpus-derived pool; original training partition only; no private corpus sent externally",
+               "publication_allowed": False, "redistribution_allowed": False,
+               "terms": "Noncommercial research-only; acknowledge VLSP 2026 and VGEC organizers. Third-party hosting requires organizer authorization."}
     audit = {
         "format": "vgec-audit-v2", "original_sha256": original_sha,
         "rows": audit_rows, "original_class_counts": counts(records),
@@ -355,6 +367,8 @@ def build(original: Path, synthetic_path: Path, output_dir: Path, validation_fra
         with os.fdopen(descriptor, "wb") as handle:
             os.fchmod(handle.fileno(), 0o600)
             handle.write(serialized[name])
+    if hashlib.sha256(original.read_bytes()).hexdigest() != original_sha:
+        raise ValueError("Original changed while writing generated outputs")
     return manifest
 
 

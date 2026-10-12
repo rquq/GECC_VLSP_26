@@ -1,8 +1,8 @@
 {
   "task": "correction",
   "run": {
-    "name": "sailor2-8b-qlora-correction",
-    "output_root": "/kaggle/output",
+    "name": "sailor-7b-qlora-correction",
+    "output_root": "runs",
     "device": "cuda",
     "world_size": 2,
     "seed": 42,
@@ -23,8 +23,8 @@
     "validation_fraction": 0.2
   },
   "model": {
-    "name": "sail/Sailor2-8B-Chat",
-    "revision": "577d5b2745863cec11e1b2f1c92586a91cea446e",
+    "name": "sail/Sailor-7B-Chat",
+    "revision": "19066fae0a8a3ba029c190d8e3dacccf4d1234b8",
     "compute_dtype": "auto",
     "device_map": "single",
     "attn_implementation": "sdpa",
@@ -65,6 +65,7 @@
   "inference": {
     "output_format": "sentence",
     "hint_mode": "predicted",
+    "user_role": "question",
     "prompt": "Hãy sửa lỗi ngữ pháp Tiếng Việt. Nhãn dự đoán chỉ là gợi ý, không bắt buộc sửa theo nhãn. Sửa ít nhất có thể, giữ nguyên ý nghĩa và hãy giữ nguyên câu đúng. Chỉ trả lời JSON với duy nhất khóa corrected_sentence chứa câu hoàn chỉnh; không giải thích.",
     "hint_descriptions": [
       "câu không có lỗi",

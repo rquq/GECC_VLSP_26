@@ -1,16 +1,24 @@
-"""Export source, gold and predictions together without changing inference inputs."""
+"""Export strict organizer submissions and separate source/gold diagnostics."""
 import argparse
 import json
 from pathlib import Path
 
-from .data import _id_key, _validate_records
+from .data import _id_key, _valid_label, _validate_records
 
 
-def comparison_rows(records, predictions):
-    """Join by exact typed ID in input order; unknown or duplicate IDs fail."""
+class SubmissionExportError(ValueError):
+    """Predictions cannot form an organizer submission without fabrication."""
+
+
+def _indexed_predictions(records, predictions):
+    """Join by exact typed ID; missing, unknown, or duplicate IDs fail."""
     _validate_records(records, require_labels=False)
+    if not isinstance(predictions, list):
+        raise ValueError("Predictions must be a JSON array")
     indexed = {}
     for prediction in predictions:
+        if not isinstance(prediction, dict) or "id" not in prediction:
+            raise ValueError("Every prediction must be an object containing id")
         key = _id_key(prediction["id"])
         if key in indexed:
             raise ValueError(f"Duplicate prediction ID: {prediction['id']!r}")
@@ -18,6 +26,31 @@ def comparison_rows(records, predictions):
     expected = {_id_key(record["id"]) for record in records}
     if indexed.keys() != expected:
         raise ValueError("Prediction IDs must match input IDs exactly")
+    return indexed
+
+
+def submission_rows(records, predictions):
+    """Return only organizer ID/Output fields, without repairing invalid output."""
+    indexed = _indexed_predictions(records, predictions)
+    rows = []
+    for record in records:
+        prediction = indexed[_id_key(record["id"])]
+        if not _valid_label(prediction.get("label")):
+            raise SubmissionExportError(f"Invalid predicted label for ID {record['id']!r}; expected integer 0..4")
+        if prediction.get("parse_error") is not None:
+            raise SubmissionExportError(f"Generation parse_error for ID {record['id']!r}: {prediction['parse_error']}")
+        target = prediction.get("target")
+        if not isinstance(target, str) or not target.strip():
+            raise SubmissionExportError(f"Blank or invalid corrected text for ID {record['id']!r}")
+        rows.append({"ID": record["id"], "Output": {
+            "Error_Type_Id": prediction["label"], "Fixed Sentence": target,
+        }})
+    return rows
+
+
+def comparison_rows(records, predictions):
+    """Join diagnostics and gold by exact typed ID in input order."""
+    indexed = _indexed_predictions(records, predictions)
     rows = []
     for record in records:
         prediction = indexed[_id_key(record["id"])]
@@ -26,7 +59,7 @@ def comparison_rows(records, predictions):
             "source": record["source"],
             "target_class": record["label"],
             "target_correction": record["target"],
-            "predicted_class": prediction["label"],
+            "predicted_class": prediction.get("label"),
             "predicted_correction": prediction.get("target"),
         }
         for field in ("raw_generation", "parse_error", "probabilities", "fold",
