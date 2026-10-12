@@ -57,6 +57,23 @@ def resolve_data(config, explicit=None):
     return discover_data(path, PROJECT_ROOT, Path(config["data"]["input_root"]), config["data"]["filename"])
 
 
+def resolve_submission_data(value="auto", *, input_root=Path("/kaggle/input")):
+    """Resolve explicit inference input or an optional, unambiguous public test.
+
+    None opts out of public-test discovery. Missing automatic input returns None;
+    ambiguous matches and missing explicit paths remain errors.
+    """
+    if value is None:
+        return None
+    from tools.runtime import discover_data
+    if value != "auto":
+        return discover_data(value, PROJECT_ROOT, Path(input_root), "public_test.json")
+    try:
+        return discover_data(None, PROJECT_ROOT, Path(input_root), "public_test.json")
+    except FileNotFoundError:
+        return None
+
+
 def stage_output(config, explicit=None):
     output = resolve_output(config, explicit)
     if output.exists() and any(output.iterdir()):

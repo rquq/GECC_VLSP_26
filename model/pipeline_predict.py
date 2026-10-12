@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 from .data import _validate_records, load_records
-from .runtime import resolve_output, write_json
+from .runtime import resolve_output, resolve_submission_data, write_json
 from .prediction_export import comparison_rows, submission_rows
 
 
@@ -97,7 +97,7 @@ def main():
     stages.add_argument("--run", help="Completed two-stage saved run or unique enclosing extracted output")
     stages.add_argument("--classifier", help="Saved classifier checkpoint; requires --adapter")
     parser.add_argument("--adapter", help="Saved correction adapter, when using --classifier")
-    parser.add_argument("--data", required=True, help="Raw organizer ID/Input JSON array")
+    parser.add_argument("--data", required=True, help="Raw organizer ID/Input JSON array, or auto to discover public_test.json")
     parser.add_argument("--output", help="Submission JSON; defaults to a fresh runs/submission-*/submission.json")
     parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
     parser.add_argument("--batch-size", type=int, default=1)
@@ -115,11 +115,14 @@ def main():
         adapter = resolve_run(args.run, "correction") / "adapter"
     else:
         classifier, adapter = Path(args.classifier), Path(args.adapter)
-    records = load_records(args.data, require_labels=args.evaluate)
+    data = resolve_submission_data(args.data)
+    if data is None:
+        parser.error("No public_test.json found; attach it or pass --data with its path")
+    records = load_records(data, require_labels=args.evaluate)
     output = (Path(args.output) if args.output else
               resolve_output({"run": {"name": "submission", "output_root": "runs"}}) / "submission.json")
     run_inference(classifier, adapter, records, output, device=args.device,
-                  batch_size=args.batch_size, evaluate=args.evaluate, input_path=args.data,
+                  batch_size=args.batch_size, evaluate=args.evaluate, input_path=data,
                   hint_mode=args.hint_mode, rerank=args.rerank)
 
 

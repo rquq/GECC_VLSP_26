@@ -74,13 +74,17 @@ notebook source, output or chat. Revoke any exposed token and replace the Secret
 - `VGEC 2026_v1.json`: original corpus.
 - `VGEC_classifier.json`: capped mixed classifier dataset.
 - `VGEC_balanced.json`: correction dataset with split/provenance metadata.
+- `public_test.json`: 443 unlabeled `ID`/`Input` rows, used only for submission inference.
 
-The rebuilt local files are `dataset/original/VGEC 2026_v1.json` and
-`dataset/newdataset/{VGEC_classifier.json,VGEC_balanced.json}`. No upload package
-is produced. Only after obtaining the required authorization, attach those three
-JSON files and confirm they appear under `/kaggle/input`. No XLSX, audit, manifest
-or synthetic-pool upload is needed. Restricted corpus and generated datasets are
-intentionally Git-ignored; a fresh Git clone does not contain them.
+The rebuilt local training files are `dataset/original/VGEC 2026_v1.json` and
+`dataset/newdataset/{VGEC_classifier.json,VGEC_balanced.json}`; the public test is
+`dataset/newdataset/public_test.json`. Only after obtaining the required hosting
+authorization, attach these four JSON files and confirm they appear under
+`/kaggle/input`. The manually requested private archive in the sibling checkout,
+`../kaggle-linux/dataset/kaggle-input/VGEC26-rebuilt.zip`, contains all four files
+at ZIP root; extract it when attaching it so the notebook can find the JSONs.
+No XLSX, audit, manifest or synthetic-pool upload is needed. Restricted corpus
+and generated datasets are Git-ignored; a fresh clone does not contain them.
 
 
 The notebook clones `kaggle-linux` and supports `RUN_MODE="task1"`, `"task2"`,
@@ -102,7 +106,7 @@ python -m pip --python /tmp/gecc-training/bin/python install -r requirements-kag
 mkdir -p /kaggle/working/runs
 /tmp/gecc-training/bin/python -m model.two_phase --classification-config configs/baseline.json \
   --correction-config configs/correction.json --output-dir /kaggle/working/runs/RUN \
-  --submission-data /kaggle/input/DATA/input.json
+  --submission-data auto
 ```
 
 `requirements-kaggle.txt` pins non-torch dependencies and preserves Kaggle's
@@ -171,9 +175,20 @@ scores or identical numerics across hardware/library versions.
 Local output is `runs/RUN/`; Kaggle output is `/kaggle/working/runs/RUN/`.
 After Task 2, the pipeline reloads both saved stages and infers `SUBMISSION_DATA`
 (CLI `--submission-data`) into `RUN/submission.json` before archiving the run.
-With no explicit input, it exports the untouched holdout and marks the scope
-`validation`; this is not an unseen-test submission. Task 1 alone cannot produce
-a full GEC submission. Every input reaches Task 2, including predicted class 0.
+Both notebooks default to `SUBMISSION_DATA="auto"`: an unambiguous attached
+`public_test.json` wins over the local repository copy. Local discovery also
+uses `DATA_ROOT`; Kaggle inference inputs must be mounted under `/kaggle/input`.
+An explicit input path overrides discovery; multiple matches require a choice.
+Missing automatic input, or `SUBMISSION_DATA=None`, exports the untouched holdout
+after training and marks its scope `validation`, not unseen-test inference.
+Task 1-only mode skips automatic submission discovery; an explicit full submission
+request still requires Task 2. Every inference row reaches Task 2, including
+predicted class 0.
+
+The public test has no `Output` labels or corrections: its original IDs, text and
+order stay unchanged, no gold values or test metrics are invented, and it is
+never selected for training, OOF or checkpoint evaluation. Validation combined
+scores remain in training logs even when the final submission uses public test.
 
 The organizer JSON array contains only this shape, preserving typed IDs and order:
 
@@ -193,19 +208,22 @@ The run also contains `classification/classifier`, `classification/hints.json`,
 metrics, resolved configs, `run_handoff.json` and `pipeline_manifest.json`.
 Notebook logs and the artifact ZIP sit alongside the run.
 
-For saved-run inference, set `RUN_TRAINING=False`, `PRIOR_RUN` and `SUBMISSION_DATA`,
-or run:
+For saved-run public-test inference, set `RUN_TRAINING=False` and `PRIOR_RUN` in
+either notebook, leaving `SUBMISSION_DATA="auto"`, or run from the repo root:
 
 ```bash
 python -m model.pipeline_predict --run runs/RUN \
-  --data /absolute/private/input.json --output runs/new-submission/submission.json
+  --data dataset/newdataset/public_test.json --output runs/new-submission/submission.json
 ```
 
-Use `/kaggle/working/runs/RUN` and a mounted input on Kaggle. Omitting `--output`
-creates a fresh repository `runs/submission-*/submission.json`. Output artifacts
-must not already exist; inference never overwrites a completed submission.
-Use `--evaluate` for labeled records. Direct `--classifier` plus `--adapter`
-paths are also supported.
+Use `/kaggle/working/runs/RUN` and `/kaggle/input/DATA/public_test.json` on Kaggle;
+`--data auto` discovers the same public test without a hardcoded dataset slug.
+For post-training inference use `model.two_phase --submission-data auto` (or an
+explicit path); omitting that flag retains the validation-export CLI behavior.
+Omitting `--output` creates a fresh repository `runs/submission-*/submission.json`.
+Output artifacts must not already exist; inference never overwrites a completed
+submission. Use `--evaluate` only for labeled records, never the unlabeled public
+test. Direct `--classifier` plus `--adapter` paths are also supported.
 
 ### Combined score
 
@@ -568,6 +586,11 @@ exports are explicitly marked, invalid generations retain failure diagnostics,
 and local combined-score metadata is logged without changing model selection.
 The assistant-authored pool was replaced with private deterministic training-only
 corpus derivatives, with parent-linked OOF grouping and unchanged organizer files.
+Both notebooks now discover `public_test.json` through a shared submission-only
+resolver. Explicit inputs win, ambiguous automatic matches fail, and missing
+public data or an explicit opt-out retains validation export. Task 1-only auto
+mode remains trainable. CLI submission paths support the same discovery; public
+test is not added to any labeled dataset or scored without gold annotations.
 
 
 W&B integration adds explicit grouped runs for pipeline orchestration, main/OOF

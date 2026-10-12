@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 
-from .runtime import PROJECT_ROOT, load_config, resolve_data, stage_output, write_json
+from .runtime import PROJECT_ROOT, load_config, resolve_data, resolve_submission_data, stage_output, write_json
 from .run_reuse import (copy_classifier_run, resolve_adapter, resolve_run,
                         validate_classifier_run, validate_reuse_data, write_handoff)
 from .tracking import tracked_entrypoint
@@ -121,7 +121,7 @@ def main(*, tracking):
     reuse.add_argument("--prior-run", help="Extracted previous-version Kaggle output or unique enclosing input mount")
     parser.add_argument("--initial-adapter", help="Compatible saved correction adapter (or enclosing saved output) for continued fine-tuning")
     parser.add_argument("--output-dir")
-    parser.add_argument("--submission-data", help="Raw organizer ID/Input JSON for post-training full GEC inference; otherwise export untouched validation")
+    parser.add_argument("--submission-data", help="Raw organizer ID/Input JSON or auto to discover public_test.json; otherwise export untouched validation")
     parser.add_argument("--preflight-only", action="store_true")
     args = parser.parse_args()
     prior = args.classifier_run or args.prior_run
@@ -131,16 +131,18 @@ def main(*, tracking):
         parser.error("--initial-adapter continues Task2; use task2 or both")
     if args.mode == "task1" and args.submission_data:
         parser.error("--submission-data requires Task2; Task1 has no corrector and cannot produce a full GEC submission")
-    submission_records = None
-    if args.submission_data:
-        from .data import load_records
-        submission_records = load_records(args.submission_data, require_labels=False)
-        if not submission_records:
-            raise ValueError("Submission input must contain at least one record")
     classifier_run = resolve_run(prior) if prior else None
     classifier = (validate_classifier_run(classifier_run, require_hints=args.mode != "task1") if classifier_run else
                   load_config(args.classification_config, "classification"))
     corrector = load_config(args.correction_config, "correction") if args.mode != "task1" else None
+    submission_path = resolve_submission_data(
+        args.submission_data, input_root=Path((corrector or classifier)["data"]["input_root"]))
+    submission_records = None
+    if submission_path is not None:
+        from .data import load_records
+        submission_records = load_records(submission_path, require_labels=False)
+        if not submission_records:
+            raise ValueError("Submission input must contain at least one record")
     original = resolve_data(classifier, args.classification_data) if classifier_run is None else (
         resolve_data(classifier, args.classification_data) if args.classification_data else None)
     needs_bundle = corrector is not None or (classifier_run is None and classifier.get("oof", {}).get("enabled", False))
@@ -225,7 +227,7 @@ def main(*, tracking):
                 batch_size=classifier.get("evaluation", {}).get("batch_size", 1),
                 evaluate=evaluated,
                 input_scope="explicit_submission" if submission_records is not None else "validation",
-                input_path=args.submission_data or validation_path)
+                input_path=submission_path or validation_path)
         except SubmissionExportError as error:
             # Training succeeded: archive its reusable stages and failed export diagnostics.
             # The standalone inference CLI still propagates this error and exits nonzero.

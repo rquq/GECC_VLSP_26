@@ -6,10 +6,12 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from tools import runtime
 from tools.runtime import DATA_FILENAME, discover_data
 
+from model.runtime import resolve_submission_data
 PROJECT = Path(__file__).resolve().parents[2]
 
 
@@ -122,6 +124,45 @@ class KaggleDataTests(unittest.TestCase):
             self.assertEqual(discover_data(files[1], root / "repo", root), files[1].resolve())
 
 
+
+
+class SubmissionDiscoveryTests(unittest.TestCase):
+    def test_attached_public_test_wins_over_local_copy(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            project, inputs = root / "project", root / "input"
+            local = project / "dataset/newdataset/public_test.json"
+            attached = inputs / "public/public_test.json"
+            for path in (local, attached):
+                path.parent.mkdir(parents=True)
+                path.write_text("[]")
+            with patch("model.runtime.PROJECT_ROOT", project):
+                self.assertEqual(resolve_submission_data(input_root=inputs), attached.resolve())
+                attached.unlink()
+                self.assertEqual(resolve_submission_data(input_root=inputs), local.resolve())
+
+    def test_missing_auto_is_optional_but_explicit_input_is_required(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            with patch("model.runtime.PROJECT_ROOT", root):
+                self.assertIsNone(resolve_submission_data(input_root=root / "input"))
+                self.assertIsNone(resolve_submission_data(None, input_root=root))
+                with self.assertRaises(FileNotFoundError):
+                    resolve_submission_data(root / "missing.json", input_root=root)
+
+    def test_ambiguous_public_tests_require_explicit_choice(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for inputs in (root / "input", root / "project/dataset"):
+                files = [inputs / name / "public_test.json" for name in ("one", "two")]
+                for path in files:
+                    path.parent.mkdir(parents=True)
+                    path.write_text("[]")
+                with patch("model.runtime.PROJECT_ROOT", root / "project"):
+                    with self.assertRaises(ValueError):
+                        resolve_submission_data(input_root=inputs)
+                    self.assertEqual(resolve_submission_data(files[1], input_root=inputs), files[1].resolve())
+                    self.assertIsNone(resolve_submission_data(None, input_root=inputs))
 
 
 if __name__ == "__main__":
