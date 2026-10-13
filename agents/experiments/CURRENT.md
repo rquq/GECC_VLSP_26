@@ -4,6 +4,8 @@
 
 The existing private VGEC26-reviewed-v4.zip is still usable; its saved Sailor classifier is ignored. Dataset hashes and all other training settings are unchanged. Native parameter counts, actual data/tokenizer checks, 141 passing tests, real tiny two-stage smoke and T4x2 placement simulation are recorded in QWEN_BOTH.md/.json. Full-size training and new official scores remain pending on Kaggle. This is a requested experiment, not a measured Qwen win.
 
+The user's subsequent QLoRA repair-teacher/epoch question is reviewed in CORRECTOR_EPOCH_REVIEW.md/.json. The latest Sailor corrector peaked at epoch5; six maximum epochs is suggested for a shorter first Qwen budget. The active config remains8; no new training, inference or repairs were run for this review.
+
 ## Previous prepared Sailor handoff (historical)
 
 **sailor7b-reviewed-corrector-only** is prepared and locally checked. The user will retrain the corrector on Kaggle. The recipe reuses the completed Sailor-7B classifier and trains one Sailor-7B-Chat corrector for 8 epochs: no folds, no hints, no notebook toggles. The production ZIP includes the saved classifier and reviewed 414-row correction dataset. Full-size Kaggle training and new official scores remain pending.
