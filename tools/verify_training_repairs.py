@@ -75,7 +75,7 @@ def main():
     work = args.pilot / "native-second-opinion"
     if work.exists():
         raise ValueError("Native review output exists")
-    work.mkdir()
+    work.mkdir(exist_ok=True)
     began = time.monotonic()
     previous_seconds = max(e["elapsed_seconds"] for e in events)
     record(
@@ -95,8 +95,22 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(
         MODEL, revision=REVISION, local_files_only=True
     )
+    from huggingface_hub import hf_hub_download
+
+    source_weights = Path(
+        hf_hub_download(
+            MODEL, "model.safetensors", revision=REVISION, local_files_only=True
+        )
+    )
+    base = MODEL
+    if source_weights.stat().st_size > 3 * 1024**3:
+        from .shard_weights import shard_checkpoint
+
+        base = str(work / "base-sharded")
+        layout = shard_checkpoint(source_weights.parent, base)
+        (work / "shard_layout.json").write_text(json.dumps(layout, indent=2) + "\n")
     model = AutoModelForCausalLM.from_pretrained(
-        MODEL,
+        base,
         revision=REVISION,
         local_files_only=True,
         torch_dtype=torch.float16,
