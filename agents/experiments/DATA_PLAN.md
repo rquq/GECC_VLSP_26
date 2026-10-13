@@ -1,12 +1,14 @@
 # Data and score plan
 
+The user's 2026-10-13 native-model review is prepared in MODEL_SELECTION.md and MODEL_SELECTION.json. It proposes Qwen2.5-7B generation, a fast BamiBERT classifier screen and retained Sailor-7B-Chat correction. The user explicitly requested approval before those new experiments/data promotions; they have not started. That proposal refines the budgets and model order below.
+
 ## First comparison: cheap no-fold system
 
 Run the committed two-fit recipe on Kaggle. Keep existing data/model/loss so the first result measures removal of hints. Classifier F1 is expected to be comparable, subject to runtime variation; correction quality must be measured. Compare local per-class counts and official Macro-F1/GLEU+ with the preserved fold system. A lower correction result does not automatically justify restoring five extra fits; evaluate the quality/time tradeoff explicitly.
 
 ## Repair original training supervision
 
-The 103-row queue has 69 elliptical sources, 91 elliptical targets and 10 parenthesized annotations (overlapping counts). Treat flags as uncertainty. Eleven one-tail-ellipsis targets admit unique four-token anchoring followed by copying an existing source suffix, with at most four edited words already supplied by the original target. These proposals generate no new wording, preserve original labels and remain unpromoted. Eight rows explicitly say the source is correct despite a nonzero label; current classifier curation already excludes them.
+The 103-row queue has 69 elliptical sources, 91 elliptical targets and 10 parenthesized annotations (overlapping counts). Treat flags as uncertainty. Eleven one-tail-ellipsis targets admit unique four-token anchoring followed by copying an existing source suffix, with at most four edited words already supplied by the original target. These proposals generate no new wording, preserve original labels and remain unpromoted. Seven rows explicitly say the source is correct despite a nonzero label. The previous eight-row claim included a procedural punctuation annotation; versioned policy v2 fixes that detection while retaining compatibility with the pinned baseline.
 
 Private evidence: `dataset/review/training-repair-proposals.json`. Reproduce with `python -m tools.propose_training_repairs --original <original-json> --queue <private-queue> --output <private-overlay>`.
 
@@ -24,6 +26,6 @@ Replace weak single-pattern examples within the existing synthetic budget before
 
 ## Screening and promotion
 
-Screen classifier-only candidates so no corrector or folds are trained for each preliminary trial. First compare a diverse reviewed data variant with the same classifier. If needed, compare lower learning rates (1e-5, 2e-5 versus the current 5e-5) using training-only validation and a bounded budget. A Qwen2.5 classifier comparison is a later separate experiment under the same data/loss/size guard.
+Screen classifier-only candidates so no corrector or folds are trained for each preliminary trial. The revised proposal starts with two cheap BamiBERT hierarchy fits, using current versus reviewed candidate data. If that screen fails to support replacement, retain Sailor. Lower Sailor learning rates (1e-5, 2e-5 versus current 5e-5) are a later separately authorized experiment. Do not launch the deferred PhoBERT, BARTpho or Qwen classifier comparisons as an automatic sweep.
 
 Promote only when rare-subtype recall/F1 improves without a large clean/error regression. Then run the selected classifier with the independent no-hint corrector and measure the joint score. Record all trials, including failures and no gains, under `agents/experiments/`. No 70–80% score is promised.
