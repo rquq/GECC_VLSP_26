@@ -298,6 +298,31 @@ class BalancedSplitTests(unittest.TestCase):
 
 
 class ClassifierRetentionTests(unittest.TestCase):
+    def test_explicit_sentence_claim_excludes_procedural_annotation(self):
+        from model.data import declares_correct_sentence
+        for text in ("(Câu đúng ngữ pháp).", "  (Câu này ĐÚNG, không cần sửa.)"):
+            self.assertTrue(declares_correct_sentence(text))
+        for text in ("(Dùng dấu phẩy để liệt kê đúng quy cách).", "(Câu này không đúng.)", "Câu đúng nhưng không phải chú thích."):
+            self.assertFalse(declares_correct_sentence(text))
+
+    def test_annotation_policy_versions_preserve_existing_bundle(self):
+        identifier = self.annotation_ids[1]
+        raw = next(r for r in self.raw if r["ID"] == identifier)
+        raw["Output"]["Fixed Sentence"] = "(Dùng dấu phẩy để liệt kê đúng quy cách)."
+        self.original.write_text(json.dumps(self.raw), encoding="utf-8")
+        self.make_bundle(self.excluded | {identifier})
+        legacy, _ = self.load()
+        self.assertNotIn(identifier, {r["id"] for r in legacy})
+        self.make_bundle()
+        self.bundle["provenance"]["original_retention_policy"] = "exclude_explicit_correct_sentence_annotation_contradictions_v2"
+        strict, _ = self.load()
+        self.assertIn(identifier, {r["id"] for r in strict})
+
+    def test_unknown_annotation_policy_is_rejected(self):
+        self.bundle["provenance"]["original_retention_policy"] = "unchecked"
+        with self.assertRaisesRegex(ValueError, "annotation policy"):
+            self.load()
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)

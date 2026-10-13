@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import re
 
-from model.data import _id_key, load_records, split_records
+from model.data import _id_key, declares_correct_sentence, load_records, split_records
 
 
 def trailing_reference_candidate(source, target):
@@ -55,8 +55,12 @@ def propose(original, queue_path, output):
         original_row = item["original"]
         source, target = original_row["Input"], original_row["Output"]["Fixed Sentence"]
         candidate = trailing_reference_candidate(source, target)
-        annotation_correct = "annotation_declares_source_correct" in item["flags"]
-        rows.append({**item, "proposed_full_correction": candidate["target"] if candidate else None,
+        annotation_correct = original_row["Output"]["Error_Type_Id"] != 0 and declares_correct_sentence(target)
+        flags = [flag for flag in item["flags"] if flag != "annotation_declares_source_correct"]
+        if annotation_correct:
+            flags.append("annotation_declares_source_correct")
+        rows.append({**item, "legacy_flags": item["flags"], "flags": flags,
+                     "proposed_full_correction": candidate["target"] if candidate else None,
                      "proposed_label": None, "review_status": "candidate_requires_review" if candidate else "quarantined_pending_review",
                      "evidence": candidate["evidence"] if candidate else None,
                      "label_review": "explicit_source_correct_annotation_conflicts_with_label" if annotation_correct else "original_label_preserved",

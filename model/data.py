@@ -9,6 +9,7 @@ import json
 import math
 from pathlib import Path
 import random
+import re
 import statistics
 from typing import Any
 
@@ -262,12 +263,17 @@ def load_training_split(path: str | Path, validation_fraction: float, seed: int)
                                "synthetic_sha256": raw.get("synthetic_sha256"), "provenance": provenance}
 
 
+def declares_correct_sentence(target: str) -> bool:
+    """Recognize a sentence-correctness claim, not an instruction containing đúng."""
+    return bool(re.match(r"^\s*\(\s*câu(?:\s+này)?\s+đúng\b", target, re.IGNORECASE))
+
+
 def load_classifier_split(original_path, bundle_path, validation_fraction, seed):
     """Validate classifier augmentation against the untouched organizer split.
 
-    Only nonzero originals whose parenthesized target explicitly says 'đúng'
-    may be quarantined. Other annotations and incomplete corrections remain
-    classifier supervision; no original may be repaired or relabeled.
+    New bundles quarantine explicit sentence-correctness claims. Pinned legacy
+    bundles retain their recorded substring policy for reproducibility. Other
+    annotations remain supervision; no original may be repaired or relabeled.
     """
     original_raw = json.loads(Path(original_path).read_text(encoding="utf-8"))
     originals, validation = split_records(_records_from_raw(original_raw), validation_fraction, seed)
@@ -275,10 +281,15 @@ def load_classifier_split(original_path, bundle_path, validation_fraction, seed)
     if info["format"] != "vgec-balanced-v3":
         raise ValueError("Classifier requires a mixed v3 training bundle")
     provenance = info["provenance"]
+    policy = provenance.get("original_retention_policy", "exclude_explicit_correct_sentence_annotation_contradictions")
+    if policy not in ("exclude_explicit_correct_sentence_annotation_contradictions",
+                      "exclude_explicit_correct_sentence_annotation_contradictions_v2"):
+        raise ValueError("Unknown classifier original annotation policy")
     expected_originals = {_id_key(row["id"]): row for row in originals}
     expected_quarantine = {_id_key(row["id"]) for row in originals
-                           if row["label"] != 0 and row["target"].lstrip().startswith("(")
-                           and "đúng" in row["target"].casefold()}
+                           if row["label"] != 0 and (
+                               declares_correct_sentence(row["target"]) if policy.endswith("_v2") else
+                               row["target"].lstrip().startswith("(") and "đúng" in row["target"].casefold())}
     expected = {key: row for key, row in expected_originals.items() if key not in expected_quarantine}
     retained = {_id_key(value) for value in provenance["retained_original_train_ids"]}
     declared = {_id_key(value) for value in provenance["original_train_ids"]}

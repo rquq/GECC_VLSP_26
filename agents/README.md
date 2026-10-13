@@ -12,6 +12,8 @@ Record every experiment, including those requested by the user and failed/negati
 
 Use `agents/docs/DATA_GUIDELINES.md` and `agents/experiments/DATA_PLAN.md` for curation and local-teacher work. No reviewed flags or synthetic candidates are promoted merely because they pass structural checks.
 
+The latest model/data review and approval-pending budget are in `agents/experiments/MODEL_SELECTION.md` and `MODEL_SELECTION.json`. Prefer measured promotion over model-card rankings; check historical encoder results before repeating them. Every candidate model needs its exact revision, native architecture/adapter count, tokenizer contract and save/reload verification before it replaces a production stage.
+
 Export `results.zip` containing only root `results.json`; each Fixed Sentence is a singleton list. Do not omit corrections for predicted-clean rows. Invalid labels, IDs, or unresolved generation failures must prevent submission export and retain diagnostics. Malformed sentence JSON may use the bounded schema-constrained retry; valid predictions must be preserved.
 
 Run focused tests for changes, then the local suite and a real tiny-model pipeline smoke for orchestration changes. Distinguish local/CUDA smoke evidence from a complete Kaggle T4 run. Use native BF16 capability checks with emulation disabled. Preserve the selected-adapter frozen-base reload and complete accumulation-window handling.

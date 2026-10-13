@@ -23,7 +23,7 @@ from typing import Any
 
 # Support `python tools/build_dataset.py` without installing the project.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from model.data import load_records, split_records
+from model.data import declares_correct_sentence, load_records, split_records
 
 
 LABELS = tuple(range(5))
@@ -58,7 +58,7 @@ def audit_record(row: dict, raw: dict, *, original: bool = False) -> dict:
     flags, quarantine = [], []
     if target.lstrip().startswith("("):
         quarantine.append("parenthesized_target_annotation")
-        if label != 0 and "đúng" in target.casefold():
+        if label != 0 and declares_correct_sentence(target):
             flags.append("annotation_declares_source_correct")
     if "..." in target or "…" in target:
         quarantine.append("elliptical_target_not_full_sentence")
@@ -303,7 +303,7 @@ def build_split(
     }
     if classifier:
         provenance["training_task"] = "classifier"
-        provenance["original_retention_policy"] = "exclude_explicit_correct_sentence_annotation_contradictions"
+        provenance["original_retention_policy"] = "exclude_explicit_correct_sentence_annotation_contradictions_v2"
     summary = {
         "train_rows": len(train), "validation_rows": len(validation),
         "class_counts": provenance["class_counts"], "quarantined_ids": provenance["quarantined_ids"],
