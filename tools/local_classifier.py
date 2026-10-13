@@ -192,7 +192,11 @@ def main():
     else:
         write_json(manifest_path,manifest)
     record(args.output,"started",experiment="approved-two-bami-screens",**manifest)
-    began=time.monotonic(); summaries=[]
+    consumed = 0.0
+    events_path=args.output/"experiment_events.jsonl"
+    if args.resume and events_path.exists():
+        consumed=max((float(e.get("seconds",0)) for e in map(json.loads,events_path.read_text().splitlines())),default=0)
+    began=time.monotonic()-consumed; summaries=[]
     try:
         for name,rows in zip(("control","candidate"),fits):
             completed=args.output/name/"internal_metrics.json"
