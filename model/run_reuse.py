@@ -198,6 +198,8 @@ def validate_reuse_data(classifier_run, correction, data_path, *, original_path=
         raise ValueError("Reused classifier original dataset SHA256 differs; train a fresh Task1/OOF run for the changed population")
     seed, fraction = correction["run"]["seed"], correction["data"]["validation_fraction"]
     train, validation, provenance = load_training_split(data_path, fraction, seed)
+    if provenance.get("original_sha256") is not None and manifest.get("data_sha256") != provenance["original_sha256"]:
+        raise ValueError("Reused classifier original dataset SHA256 differs from correction bundle")
     if _json(root / "validation.json") != validation:
         raise ValueError("Reused classifier validation split differs from correction holdout; train a fresh Task1/OOF run")
     if correction.get("inference", {}).get("hint_mode", "predicted") == "none":

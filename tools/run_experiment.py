@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import shutil
 import zipfile
 
 from model.data import load_records
@@ -85,6 +86,46 @@ def resolve_inputs(recipe, input_root, destination):
     return paths
 
 
+def resolve_saved_classifier(value, input_root, destination, archive_name):
+    """Find one uploaded handoff or stream it safely from the canonical private ZIP."""
+    relative = Path(value).expanduser()
+    if relative.is_absolute():
+        if not relative.is_dir():
+            raise FileNotFoundError(f"Saved classifier directory does not exist: {relative}")
+        return relative
+    if not relative.parts or ".." in relative.parts:
+        raise ValueError("Saved classifier path must stay inside the input mount")
+    direct = Path(input_root)/relative
+    if direct.is_dir():
+        return direct
+    candidates = [p for p in Path(input_root).rglob(relative.name)
+                  if p.is_dir() and p.parts[-len(relative.parts):] == relative.parts]
+    if len(candidates)>1:
+        raise ValueError("Multiple saved classifier handoffs found; attach just one version")
+    if candidates:
+        return candidates[0]
+    archives = list(Path(input_root).rglob(archive_name))
+    if len(archives)!=1:
+        raise FileNotFoundError("Saved classifier is absent; attach the complete private handoff ZIP")
+    prefix=relative.as_posix()+"/"
+    with zipfile.ZipFile(archives[0]) as archive:
+        entries=[e for e in archive.infolist() if not e.is_dir() and e.filename.startswith(prefix)]
+        if not entries:
+            raise FileNotFoundError("Canonical data ZIP does not contain its saved classifier handoff")
+        seen=set()
+        for entry in entries:
+            tail=Path(entry.filename[len(prefix):])
+            if not tail.parts or tail.is_absolute() or ".." in tail.parts or tail in seen:
+                raise ValueError("Invalid or duplicate saved classifier archive member")
+            seen.add(tail)
+            path=destination/tail
+            path.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
+            with archive.open(entry) as source, path.open("wb") as output:
+                shutil.copyfileobj(source,output,1024*1024)
+            path.chmod(0o600)
+    return destination
+
+
 def prepare_run(recipe_path, input_root, output_root, *, world_size, device="cuda"):
     """Resolve immutable inputs/configs before any model loads or training begins."""
     recipe_path = Path(recipe_path)
@@ -126,8 +167,13 @@ def prepare_run(recipe_path, input_root, output_root, *, world_size, device="cud
         command.extend(["--submission-data", str(inputs["submission"])])
     for field, flag in (("classifier_run", "--classifier-run"), ("initial_adapter", "--initial-adapter")):
         if recipe[field]:
-            value = Path(recipe[field]).expanduser()
-            command.extend([flag, str(value if value.is_absolute() else Path(input_root) / value)])
+            if field=="classifier_run":
+                value=resolve_saved_classifier(recipe[field],Path(input_root),work/"saved-classifier",recipe["data_archive"])
+                command.extend(["--classification-data",str(inputs["original"])])
+            else:
+                value = Path(recipe[field]).expanduser()
+                value=value if value.is_absolute() else Path(input_root)/value
+            command.extend([flag,str(value)])
     write_json(work / "experiment_manifest.json", {
         "recipe": recipe, "recipe_sha256": hashlib.sha256(recipe_path.read_bytes()).hexdigest(),
         "source": source_identity(PROJECT_ROOT), "world_size": world_size, "device": device,

@@ -71,6 +71,15 @@ class ReviewedDataTests(unittest.TestCase):
             else:r["after"]["Input"]+=" changed"
             with self.assertRaises(ValueError):self.load(b)
 
+    def test_legacy_import_is_correction_only_and_digest_checked(self):
+        b=copy.deepcopy(self.bundle)
+        b["provenance"].update(preserved_legacy_bundle="e30=",preserved_legacy_sha256="0"*64)
+        with self.assertRaisesRegex(ValueError,"correction-only"):self.load(b)
+        b["provenance"]["stage"]="correction"
+        self.path.write_text(json.dumps(b))
+        with self.assertRaisesRegex(ValueError,"legacy byte digest"):
+            load_training_split(self.path,.2,42)
+
     def test_foreign_parent_and_dominant_mechanism_are_rejected(self):
         b=copy.deepcopy(self.bundle);p=b["provenance"]
         cleans=[r for r in b["train"] if r["Output"]["Error_Type_Id"]==0][:5]

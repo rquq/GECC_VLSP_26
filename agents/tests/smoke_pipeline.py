@@ -92,7 +92,7 @@ def fixture(root, device):
         write_json(root / f"{task}.json", config)
     recipe = json.loads((PROJECT / "configs/experiment.json").read_text())
     recipe.update(name="tiny-pipeline", classification_config=str(root / "classification.json"),
-                  correction_config=str(root / "correction.json"))
+                  correction_config=str(root / "correction.json"),mode="both",classifier_run=None)
     recipe["data_sha256"] = {role: hashlib.sha256((data / filename).read_bytes()).hexdigest()
                              for role, filename in (("original", "VGEC 2026_v1.json"), ("classification", "VGEC_classifier.json"),
                                                     ("correction", "VGEC_balanced.json"))}

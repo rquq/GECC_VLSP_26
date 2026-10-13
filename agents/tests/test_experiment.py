@@ -10,7 +10,7 @@ import zipfile
 
 from model.classification import placement_preflight
 from model.correction import _dtype
-from tools.run_experiment import model_size, prepare_run, resolve_inputs
+from tools.run_experiment import model_size, prepare_run, resolve_inputs, resolve_saved_classifier
 
 PROJECT = Path(__file__).resolve().parents[2]
 
@@ -23,6 +23,7 @@ class RecipeTests(unittest.TestCase):
         self.inputs = self.root / "input"
         self.inputs.mkdir()
         self.recipe = json.loads((PROJECT / "configs/experiment.json").read_text())
+        self.recipe.update(mode="both",classifier_run=None)
         rows = [{"ID": 1, "Input": "private source", "Output": {"Error_Type_Id": 0, "Fixed Sentence": None}}]
         self.files = {"VGEC 2026_v1.json": json.dumps(rows).encode(), "VGEC_classifier.json": b'{"fixture":"classifier"}',
                       "VGEC_balanced.json": b'{"fixture":"corrector"}', "public_test.json": b'[{"ID":1,"Input":"public input"}]'}
@@ -33,6 +34,22 @@ class RecipeTests(unittest.TestCase):
                 archive.writestr(name, content)
         self.recipe_path = self.root / "experiment.json"
         self.recipe_path.write_text(json.dumps(self.recipe))
+
+    def test_saved_classifier_is_found_in_nested_input_mount(self):
+        path=self.inputs/"uploaded-dataset"/"reviewed-classifier"
+        path.mkdir(parents=True)
+        self.assertEqual(resolve_saved_classifier("reviewed-classifier",self.inputs,self.root/"saved",self.recipe["data_archive"]),path)
+
+    def test_saved_classifier_streams_from_zip_and_rejects_path_escape(self):
+        archive=self.inputs/self.recipe["data_archive"]
+        with zipfile.ZipFile(archive,"a") as z:z.writestr("reviewed-classifier/classifier/config.json",b"saved config")
+        destination=self.root/"saved"
+        self.assertEqual(resolve_saved_classifier("reviewed-classifier",self.inputs,destination,self.recipe["data_archive"]),destination)
+        self.assertEqual((destination/"classifier/config.json").read_bytes(),b"saved config")
+        with zipfile.ZipFile(archive,"a") as z:z.writestr("reviewed-classifier/../../escaped",b"bad")
+        with self.assertRaisesRegex(ValueError,"Invalid or duplicate"):
+            resolve_saved_classifier("reviewed-classifier",self.inputs,self.root/"other-saved",self.recipe["data_archive"])
+        self.assertFalse((self.root/"escaped").exists())
 
     def test_canonical_archive_wins_over_stale_loose_json(self):
         (self.inputs / "VGEC_classifier.json").write_text("stale input")
