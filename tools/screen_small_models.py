@@ -48,6 +48,29 @@ def restore_tokenizer_identity(tokenizer, source, prediction):
     return source if prediction.strip() == copied else prediction
 
 
+def edit_token_weights(source_ids, target_ids, edit_weight):
+    """Emphasize target edits and the next target token after a deletion."""
+    from difflib import SequenceMatcher
+    weights = [1.] * len(target_ids)
+    for tag, _, _, start, end in SequenceMatcher(None, source_ids, target_ids, autojunk=False).get_opcodes():
+        if tag == "equal":
+            continue
+        if tag == "delete":
+            start = min(start, len(weights) - 1)
+            end = start + 1
+        for i in range(start, end):
+            weights[i] = float(edit_weight)
+    return weights
+
+
+def weighted_sequence_loss(logits, labels, weights):
+    import torch.nn.functional as F
+    losses = F.cross_entropy(logits.float().reshape(-1, logits.shape[-1]), labels.reshape(-1),
+                             ignore_index=-100, reduction="none").reshape_as(labels)
+    active = weights.to(losses.device) * labels.ne(-100)
+    return (losses * active).sum() / active.sum().clamp_min(1.)
+
+
 def prepare():
     OUTPUT.mkdir(exist_ok=True)
     original = DATA / "VGEC 2026_v1.json"
@@ -141,6 +164,9 @@ def train(candidate, final=False, epochs=None):
     model.to("cuda")
     encoded = [{**{k: values[i] for k, values in tokens.items()}, "labels": label}
                for i, label in enumerate(labels)]
+    if candidate.get("edit_weight"):
+        for features in encoded:
+            features["token_weights"] = edit_token_weights(features["input_ids"], features["labels"], candidate["edit_weight"])
 
     def predictions(model, rows, row_sources):
         model.eval()
@@ -204,13 +230,33 @@ def train(candidate, final=False, epochs=None):
         arguments = Seq2SeqTrainingArguments(**args, predict_with_generate=True, generation_max_length=cfg["max_length"],
                                              generation_num_beams=1)
         class CompleteSeq2SeqTrainer(CompleteEpochMixin, Seq2SeqTrainer):
-            pass
+            def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+                weights = inputs.pop("token_weights", None)
+                if weights is None:
+                    return super().compute_loss(model, inputs, return_outputs, num_items_in_batch)
+                outputs = model(**inputs)
+                loss = weighted_sequence_loss(outputs.logits, inputs["labels"], weights)
+                return (loss, outputs) if return_outputs else loss
+
+            def prediction_step(self, model, inputs, prediction_loss_only, ignore_keys=None, **gen_kwargs):
+                inputs.pop("token_weights", None)
+                return super().prediction_step(model, inputs, prediction_loss_only, ignore_keys, **gen_kwargs)
+
         trainer_cls, collator = CompleteSeq2SeqTrainer, DataCollatorForSeq2Seq(tokenizer, model=model)
+        if candidate.get("edit_weight"):
+            arguments.remove_unused_columns = False
+            base_collator = collator
+
+            def collator(features):
+                weights = [f["token_weights"] for f in features]
+                batch = base_collator([{k: v for k, v in f.items() if k != "token_weights"} for f in features])
+                batch["token_weights"] = torch.tensor([w + [0.] * (batch["labels"].shape[1] - len(w)) for w in weights])
+                return batch
     trainer = trainer_cls(model=model, args=arguments, train_dataset=encoded[:len(train_rows)],
                           eval_dataset=None if final else encoded[len(train_rows):],
                           data_collator=collator, processing_class=tokenizer, compute_metrics=metrics,
                           callbacks=[Deadline()])
-    if task == "classification":
+    if task == "classification" or candidate.get("edit_weight"):
         # Our row-mean loss needs Trainer's accumulation scaling even when a
         # decoder's forward accepts generic kwargs for its native loss.
         trainer.model_accepts_loss_kwargs = False
@@ -235,6 +281,8 @@ def train(candidate, final=False, epochs=None):
                "seconds": time.monotonic() - began, "peak_vram_bytes": torch.cuda.max_memory_allocated(),
                "preprocessing": "VnCoreNLP RDR word segmentation" if candidate.get("segmentation") else "raw syllables",
                "classification": _classification_metrics(validation, before) if task == "classification" else None}
+    if candidate.get("edit_weight"):
+        summary["recipe"]["edit_weight"] = candidate["edit_weight"]
     if task == "correction":
         report = experiment_report(validation, before)
         summary.update(corrections=report["corrections"], clean_preservation=report["clean_preservation"])

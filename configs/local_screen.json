@@ -100,6 +100,15 @@
       "license": "BSD-3-Clause-Clear + Qualcomm Responsible AI license",
       "originals_only": true,
       "epochs": 9
+    },
+    {
+      "name": "vit5-base-edit5",
+      "task": "correction",
+      "model": "VietAI/vit5-base",
+      "revision": "2209a38d735ede63e88f5aa52bcdc11a05a37b85",
+      "learning_rate": 5e-05,
+      "license": "MIT",
+      "edit_weight": 5
     }
   ]
 }

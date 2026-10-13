@@ -28,6 +28,23 @@ class WeightedScreenLossTests(unittest.TestCase):
         self.assertEqual(restore_tokenizer_identity(tokenizer, source, 'this correction'), 'this correction')
         self.assertEqual(restore_tokenizer_identity(tokenizer, source, ''), '')
 
+    def test_edit_supervision_covers_insertions_and_deletions(self):
+        from tools.screen_small_models import edit_token_weights
+        self.assertEqual(edit_token_weights([1, 2, 3], [1, 2, 3], 5), [1., 1., 1.])
+        self.assertEqual(edit_token_weights([1, 3], [1, 2, 3], 5), [1., 5., 1.])
+        self.assertEqual(edit_token_weights([1, 2, 3], [1, 3], 5), [1., 5.])
+
+    def test_sequence_weighting_ignores_padding_and_emphasizes_error(self):
+        import torch
+        from tools.screen_small_models import weighted_sequence_loss
+        logits = torch.tensor([[[4., 0.], [4., 0.], [0., 100.]]])
+        labels = torch.tensor([[0, 1, -100]])
+        weighted = weighted_sequence_loss(logits, labels, torch.tensor([[1., 5., 0.]]))
+        unweighted = weighted_sequence_loss(logits, labels, torch.tensor([[1., 1., 0.]]))
+        self.assertGreater(weighted.item(), unweighted.item())
+        torch.testing.assert_close(weighted, weighted_sequence_loss(logits[:, :2], labels[:, :2],
+                                                                    torch.tensor([[1., 5.]])))
+
 
 if __name__ == '__main__':
     unittest.main()
