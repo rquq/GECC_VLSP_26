@@ -1,0 +1,36 @@
+{
+  "status": "prepared_unsubmitted",
+  "classifier": {
+    "name": "sail/Sailor-7B-Chat",
+    "revision": "19066fae0a8a3ba029c190d8e3dacccf4d1234b8",
+    "load_in_4bit": true,
+    "compute_dtype": "bfloat16",
+    "quant_type": "nf4",
+    "use_double_quant": true,
+    "attn_implementation": "sdpa"
+  },
+  "classifier_parameter_upper_bound": 7139016704,
+  "corrector": "Qwen/Qwen2.5-7B-Instruct selected epoch5",
+  "corrector_parameters_with_adapter": 7655986688,
+  "public_rows": 443,
+  "expected_from_displayed_components": {
+    "macro_f1": 0.3473,
+    "gleu_plus": 0.7373,
+    "combined": 0.5423
+  },
+  "assumption": "Independent official classification and correction evaluation; no official hybrid result yet",
+  "sources": {
+    "runs/audit-kano-20261013/results.json": "21813d07fa03f47d9f4adf9af5a00a6c3feedeb6387da780d88875209650f878",
+    "runs/13_10_2026/results.json": "65b0df39ab97f58518da2dae78cc82026f1d3b87de3df97f9c15968b8fe9ee8d"
+  },
+  "archive": {
+    "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014/best-known-hybrid/results.zip",
+    "sha256": "25018fe6a73654066146a40565ee0d5c6db3d72bea9a28193f42ab2ab0c513cb",
+    "bytes": 25791
+  },
+  "local_holdout": {
+    "macro_f1": 0.4341325941325941,
+    "all_gleu_plus": 0.6291697887410947,
+    "combined_score": 0.5316511914368445
+  }
+}
