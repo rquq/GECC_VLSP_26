@@ -73,8 +73,6 @@ def main():
     del skeleton
     source = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     work = args.pilot / "native-second-opinion"
-    if work.exists():
-        raise ValueError("Native review output exists")
     work.mkdir(exist_ok=True)
     began = time.monotonic()
     previous_seconds = max(e["elapsed_seconds"] for e in events)
