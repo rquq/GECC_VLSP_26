@@ -226,7 +226,11 @@ def train(candidate, final=False, epochs=None):
     if task == "correction":
         report = experiment_report(validation, before)
         summary.update(corrections=report["corrections"], clean_preservation=report["clean_preservation"])
-        summary["reference_slices"] = report["reference_slices"]
+        summary["reference_slices"] = {
+            name: {"count": subset["count"],
+                   "corrections": subset["metrics"]["corrections"] if subset["metrics"] else None}
+            for name, subset in report["reference_slices"].items()
+        }
         summary["classification"] = None  # Gold labels here are alignment only, never a Task1 result.
     write_json(output / "predictions.json", before)
     trainer.model = trainer.model_wrapped = None
