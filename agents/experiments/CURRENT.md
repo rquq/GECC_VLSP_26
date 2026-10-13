@@ -8,7 +8,7 @@ The new run trains one main Sailor-7B classifier (5 epochs, LR 5e-5, rank 16/alp
 
 The same pinned classifier/correction bundles are used (504/409 training rows, 81 unchanged validation rows). This isolates removal of hints/fold overhead. No subtype score gain is claimed for the refactor. Future data/model comparisons follow DATA_PLAN.md rather than mixing unmeasured changes into this run.
 
-Local evidence: 130 tests passed. Real tiny-model CUDA NF4/FP16 and two-process CPU pipelines exported valid typed-ID submissions with OOF absent and hint_mode=none. These are mechanical checks, not a full-size training result.
+Local evidence: 130 tests passed. Real tiny-model CUDA NF4/FP16 and two-process CPU pipelines exported valid typed-ID submissions with OOF absent and hint_mode=none. The production notebook runner also completed both tiny stages and wrote matching start/completion events with commit/data hashes under agents and in the run. Details and artifact locations are in VERIFICATION.md. These are mechanical checks, not a full-size training result.
 
 Known public baseline, supplied by the user on 2026-10-13: first entry combined 0.1737 / GLEU+ 0 / Macro-F1 0.3473 / Micro-F1 0.5485; format-corrected entry combined 0.5349 / GLEU+ 0.7224 / Macro-F1 0.3473 / Micro-F1 0.5485. The second result reflects correction-list formatting, not a classification improvement. The public competition page also displayed KANO at 0.5349 when checked.
 
