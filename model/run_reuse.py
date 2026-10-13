@@ -243,5 +243,5 @@ def write_handoff(output, *, correction=False):
         stages["correction"] = "correction"
     write_json(Path(output) / "run_handoff.json", {
         "format": HANDOFF_FORMAT, "completed_stages": list(stages), "stages": stages,
-        "reuse_contract": "Completed Task1 adapter/head plus exact-population saved OOF hints; Task2 continuation requires a compatible correction adapter.",
+        "reuse_contract": "Completed classifier and saved validation predictions; predicted-hint Task2 additionally requires exact-population OOF hints. Independent no-hint Task2 reuses the classifier without training hints. Continuation requires a compatible correction adapter.",
     })

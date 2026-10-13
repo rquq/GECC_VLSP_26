@@ -1,7 +1,7 @@
 {
   "format": "vgec-model-data-proposal-v1",
   "date": "2026-10-13",
-  "status": "approved_execution_started",
+  "status": "approved_execution_completed_classifier_promotion_rejected_corrector_data_prepared",
   "review_source_commit": "ac3b156fb5c92154dd9f1c5cd72bcf2786847b6d",
   "competition": "https://aihub.ml/competitions/1038",
   "parameter_limit": 8000000000,
@@ -109,7 +109,9 @@
           "limit": 8000000000
         }
       },
-      "weights_downloaded_for_this_review": false
+      "weights_downloaded_for_this_review": false,
+      "native_second_opinion_executed": true,
+      "teacher_causal_parameters": 7721324544
     },
     {
       "name": "Qwen/Qwen2.5-7B-Instruct",
@@ -125,6 +127,23 @@
         "eligible_size": true
       },
       "weights_downloaded_for_this_review": false
+    },
+    {
+      "name": "SeaLLMs/SeaLLMs-v3-7B-Chat",
+      "revision": "a9900348910a6d7f611a6859270d6c28da1e0789",
+      "role": "deferred_corrector_challenger_excluded_cross_model_teacher",
+      "license": "seallms",
+      "model_card_url": "https://huggingface.co/SeaLLMs/SeaLLMs-v3-7B-Chat",
+      "config_sha256": "195e53e1a4e0d062642765b5b8d49a695a5e600007f8272acfbccac3bba98fbd",
+      "parameter_audit": {
+        "parameters": 7615616512,
+        "corrector_adapter": 40370176,
+        "corrector_upper_bound": 7655986688,
+        "eligible_size": true,
+        "method": "native_transformers_meta_init_tie_weights_sum_unique_parameters"
+      },
+      "weights_downloaded_for_this_review": false,
+      "inference_or_training_run": false
     }
   ],
   "baseline_data_sha256": {
@@ -154,10 +173,14 @@
       "status": "completed_negative",
       "attempted_pairs": 64,
       "valid_generation_json": 60,
-      "total_calls": 123,
+      "total_calls": 128,
       "admitted_pairs": 0,
       "elapsed_seconds": 900,
-      "quality_interruptions": 2
+      "quality_interruptions": 2,
+      "primary_Qwen_calls": 123,
+      "native_second_opinion_calls": 5,
+      "native_completions_admitted": 0,
+      "aggregate_elapsed_seconds": 1038.435
     }
   },
   "classifier_screen": {
@@ -179,7 +202,293 @@
     "folds": false,
     "corrector_fits": 0,
     "internal_screening": "one fixed parent-grouped training-only split; frozen 81-row holdout is not used for screen selection",
-    "status": "started"
+    "status": "completed",
+    "results": {
+      "selected": "control",
+      "selection_scope": "fixed grouped training-only internal validation",
+      "holdout": {
+        "macro_f1": 0.32557686961356685,
+        "micro_f1": 0.5679012345679012,
+        "confusion_matrix": [
+          [
+            40,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            16,
+            2,
+            0,
+            2,
+            0,
+            0
+          ],
+          [
+            4,
+            2,
+            0,
+            1,
+            0,
+            0
+          ],
+          [
+            5,
+            0,
+            0,
+            1,
+            1,
+            0
+          ],
+          [
+            4,
+            0,
+            0,
+            0,
+            3,
+            0
+          ]
+        ],
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "prediction_columns": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          "invalid"
+        ],
+        "per_class": {
+          "0": {
+            "precision": 0.5797101449275363,
+            "recall": 1.0,
+            "f1": 0.7339449541284404,
+            "support": 40
+          },
+          "1": {
+            "precision": 0.5,
+            "recall": 0.1,
+            "f1": 0.16666666666666666,
+            "support": 20
+          },
+          "2": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 7
+          },
+          "3": {
+            "precision": 0.25,
+            "recall": 0.14285714285714285,
+            "f1": 0.18181818181818182,
+            "support": 7
+          },
+          "4": {
+            "precision": 0.75,
+            "recall": 0.42857142857142855,
+            "f1": 0.5454545454545454,
+            "support": 7
+          }
+        }
+      },
+      "internal": [
+        {
+          "macro_f1": 0.4082204637467795,
+          "micro_f1": 0.609375,
+          "confusion_matrix": [
+            [
+              31,
+              1,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              11,
+              1,
+              0,
+              2,
+              2,
+              0
+            ],
+            [
+              3,
+              0,
+              0,
+              1,
+              1,
+              0
+            ],
+            [
+              1,
+              1,
+              0,
+              3,
+              0,
+              0
+            ],
+            [
+              2,
+              0,
+              0,
+              0,
+              4,
+              0
+            ]
+          ],
+          "labels": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "prediction_columns": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            "invalid"
+          ],
+          "per_class": {
+            "0": {
+              "precision": 0.6458333333333334,
+              "recall": 0.96875,
+              "f1": 0.775,
+              "support": 32
+            },
+            "1": {
+              "precision": 0.3333333333333333,
+              "recall": 0.0625,
+              "f1": 0.10526315789473684,
+              "support": 16
+            },
+            "2": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 5
+            },
+            "3": {
+              "precision": 0.5,
+              "recall": 0.6,
+              "f1": 0.5454545454545454,
+              "support": 5
+            },
+            "4": {
+              "precision": 0.5714285714285714,
+              "recall": 0.6666666666666666,
+              "f1": 0.6153846153846154,
+              "support": 6
+            }
+          }
+        },
+        {
+          "macro_f1": 0.24761904761904763,
+          "micro_f1": 0.59375,
+          "confusion_matrix": [
+            [
+              31,
+              1,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              9,
+              7,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              5,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              4,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "labels": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "prediction_columns": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            "invalid"
+          ],
+          "per_class": {
+            "0": {
+              "precision": 0.5961538461538461,
+              "recall": 0.96875,
+              "f1": 0.7380952380952381,
+              "support": 32
+            },
+            "1": {
+              "precision": 0.5833333333333334,
+              "recall": 0.4375,
+              "f1": 0.5,
+              "support": 16
+            },
+            "2": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 5
+            },
+            "3": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 5
+            },
+            "4": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 6
+            }
+          }
+        }
+      ],
+      "seconds": 176.69148825100274
+    }
   },
   "promotion": {
     "holdout_count": 81,
@@ -194,28 +503,90 @@
     },
     "acceptance": "Blind subtype/meaning verification, original and holdout hashes preserved, matched clean controls, duplicates/families checked, rare-class gain with no material clean/error regression; one selected frozen-holdout comparison; no ensemble default.",
     "bundle_policy": "Separately versioned reviewed-bundle schema with provenance-validated repairs and under-cap synthetic counts; legacy validators remain strict.",
-    "allow_weak_filler_to_meet_quota": false
+    "allow_weak_filler_to_meet_quota": false,
+    "outcome": "No classifier replacement or generated samples; only 5 evidence-supported clean repairs enter the correction dataset."
   },
   "production": {
-    "classifier": "retain Sailor until BamiBERT is measured to justify replacement",
+    "classifier": "reuse saved Sailor-7B-Chat; Bami promotion rejected",
     "corrector": "sail/Sailor-7B-Chat",
     "oof": false,
     "corrector_hints": "none",
     "notebook_toggles": false,
-    "new_full_size_training_started": false,
-    "new_synthetic_generation_started": true
+    "new_full_size_training_started": true,
+    "new_synthetic_generation_started": true,
+    "mode": "task2",
+    "corrector_training_rows": 414,
+    "full_size_Sailor_corrector_training_started": false
   },
   "verification": {
-    "tests_passed": 133,
-    "test_seconds": 14.773,
+    "tests_passed": 141,
+    "test_seconds": 12.884,
     "actual_pinned_bundle_compatibility": "passed",
     "bamibert_tokenizer": "passed",
-    "new_model_weights_downloaded": false,
-    "full_size_training_started": false,
-    "synthetic_generation_started": false
+    "new_model_weights_downloaded": true,
+    "full_size_training_started": true,
+    "synthetic_generation_started": true,
+    "full_T4_run_verified": false
   },
   "approval": {
     "date": "2026-10-13",
     "scope": "bounded local teacher pilot and two local BamiBERT screens; user will retrain no-fold corrector on Kaggle"
+  },
+  "native_second_opinion": {
+    "status": "completed_negative",
+    "model": "sail/Sailor-7B-Chat",
+    "revision": "19066fae0a8a3ba029c190d8e3dacccf4d1234b8",
+    "calls": 5,
+    "usable_json": 1,
+    "new_sentences": 0,
+    "admitted_repairs": 0
+  },
+  "replacement_review": {
+    "model": "SeaLLMs/SeaLLMs-v3-7B-Chat",
+    "revision": "a9900348910a6d7f611a6859270d6c28da1e0789",
+    "native_parameters": 7615616512,
+    "lora_parameters": 40370176,
+    "corrector_parameters_upper_bound": 7655986688,
+    "architecture": [
+      "Qwen2ForCausalLM"
+    ],
+    "tokenizer_class": "Qwen2TokenizerFast",
+    "eos_token_id": 151645,
+    "config_eos_token_id": 151643,
+    "standard_user_content_preserved": true,
+    "existing_question_role_content_preserved": false,
+    "chat_template_ends_assistant": true,
+    "license_source_repo": "SeaLLMs/SeaLLM-13B-Chat",
+    "license_source_revision": "13c208040e2f100f1b4f9f5c2cdbd4808b6ff690",
+    "license_sha256": "cd1231a40022e9ee1846f5bdc8c3f3722a057bafd640225af80fd70f810b6d33",
+    "weights_downloaded": false,
+    "inference_or_training_run": false,
+    "license_files_in_v3_repo": [],
+    "generation_config": {
+      "bos_token_id": 151643,
+      "pad_token_id": 151643,
+      "do_sample": true,
+      "eos_token_id": [
+        151645,
+        151643
+      ],
+      "repetition_penalty": 1.05,
+      "temperature": 0.7,
+      "transformers_version": "4.41.2"
+    },
+    "Qwen_comparator": {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+      "native_parameters": 7615616512,
+      "lora_parameters": 40370176,
+      "corrector_parameters_upper_bound": 7655986688
+    },
+    "config_sha256": "195e53e1a4e0d062642765b5b8d49a695a5e600007f8272acfbccac3bba98fbd",
+    "card_sha256": "34f6142f07f482f5929d6ac0354197db2d4067c55267545ed412c8990e7b2cdf",
+    "date": "2026-10-13",
+    "status": "metadata_and_tokenizer_audited_not_trained",
+    "recommendation": "retain Sailor in prepared one-fit handoff; Qwen is a later controlled corrector challenger; SeaLLMs is excluded as teacher for other LLMs under its linked license",
+    "license_restriction": "Section 5(b) prohibits using Materials or outputs to improve other large language models except SeaLLMs or derivatives",
+    "artifact": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/audit-seallms-20261013"
   }
 }

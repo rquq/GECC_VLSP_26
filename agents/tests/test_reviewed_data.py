@@ -140,13 +140,23 @@ class ReviewedDataTests(unittest.TestCase):
                 self.load(b)
 
     def test_unsupported_relabel_or_teacher_disagreement_is_rejected(self):
-        for mutation in ("label", "verification", "source"):
+        for mutation in (
+            "label",
+            "verification",
+            "source",
+            "parameters",
+            "boolean_label",
+        ):
             b = copy.deepcopy(self.bundle)
             r = b["provenance"]["repairs"][0]
             if mutation == "label":
                 r["after"]["Output"]["Error_Type_Id"] = 3
             elif mutation == "verification":
                 r["verification"]["source_label"] = 2
+            elif mutation == "parameters":
+                r["teacher_parameters"] = -1
+            elif mutation == "boolean_label":
+                r["verification"]["source_label"] = False
             else:
                 r["after"]["Input"] += " changed"
             with self.assertRaises(ValueError):

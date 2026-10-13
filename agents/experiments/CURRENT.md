@@ -1,5 +1,14 @@
 # Current experiment — 2026-10-13
 
+**sailor7b-reviewed-corrector-only** is prepared and locally checked. The user will retrain the corrector on Kaggle. The recipe reuses the completed Sailor-7B classifier and trains one Sailor-7B-Chat corrector for 8 epochs: no folds, no hints, no notebook toggles. The production ZIP includes the saved classifier and reviewed 414-row correction dataset. Full-size Kaggle training and new official scores remain pending.
+
+The approved local Qwen pilot and two Bami screens are completed. No synthetic candidate or classifier replacement was promoted. Five supported original clean annotations enter the correction dataset; the legacy augmentation remains unchanged. See LOCAL_REVIEW_RESULTS.md / .json for scores, hashes, failed/recovered attempts, evidence and limits.
+
+Qwen/SeaLLMs replacement review is complete in REPLACEMENT_REVIEW.md: both size eligible, no measured replacement win, SeaLLMs cross-model teacher use excluded by its linked license. The production base remains Sailor; the classification data bottleneck is still unresolved.
+
+## Earlier no-fold preparation (historical)
+
+
 **sailor7b-no-folds** is implemented and locally verified; the full-size Kaggle run is pending. The user requested removal of expensive fold training and preservation of the existing system in alpha.
 
 The previous source/configs and canonical private bundle are preserved at `../alpha/preserved/kaggle-fold-hints-47f3a23/`, with source commit/tag `47f3a23` / `alpha-fold-hints-20261013`. Selected classifier and corrector weights are also preserved there using verified hard links; metadata and selected outputs are copied. The original run remains intact, without duplicating the 16 GB of fold weights.
@@ -16,4 +25,4 @@ Review preparation: 103 flagged original-training rows were checked for safe rec
 
 Historic evidence and failures: HISTORY.md and history.json index surviving metrics, recovered private archive notes, maintenance records and Git chronology. An artifact-backed metric is distinguished from an archived reported result or an implementation-only commit.
 
-New user-requested review: MODEL_SELECTION.md / MODEL_SELECTION.json compare PhoGPT, PhoBERT-large, BamiBERT, BARTpho and Sailor, with pinned model/adapter size audits and a bounded Qwen2.5-7B synthesis/BamiBERT screen proposal. Review is complete; training, synthesis and dataset promotion await the approval the user requested. The notebook recipe has not been switched to an unmeasured replacement.
+The historical model review proposed PhoGPT, PhoBERT-large, BamiBERT, BARTpho, Sailor and a bounded Qwen teacher pilot. The user subsequently approved execution; the completed negative comparisons and prepared handoff are recorded above and in LOCAL_REVIEW_RESULTS.md. No unmeasured model replacement is active.

@@ -118,3 +118,9 @@ Recovered draft recipes from stashes (no training outcome inferred):
 - 2026-10-13 `4b3077a`: Reuse correction base for selected-adapter evaluation
 - 2026-10-13 `6d2f6b9`: Run committed Kaggle recipes with validated submissions and T4 recovery
 - 2026-10-13 `47f3a23`: Keep notebook cells minimal and move environment setup into helper
+
+## Approved new local review on 2026-10-13
+
+LOCAL_REVIEW_RESULTS.md / .json record the Qwen 64-attempt pilot, native Sailor second opinion, two Bami hierarchical fits and the reviewed corrector handoff. No historical training was rerun. Both teacher protocols and Bami promotion were negative; only five original clean annotations enter the prepared corrector data. Bami internal Macro-F1 was 0.408220 control versus 0.247619 candidate; selected control holdout was 0.325577 versus saved Sailor 0.434133. Failures include two interrupted quality passes, FP16/FP32 reload mismatch recovered without retraining, native single-file mmap failure recovered by unchanged streaming shards, and corrected hardware/mock preflight probes. Real tiny reviewed-v4/classifier reuse passed. Full-size corrector training remains pending on Kaggle.
+
+The subsequent Qwen/SeaLLMs substitution request received a native size/tokenizer/license audit, with no weight downloads or fits. Both are size eligible; SeaLLMs drops the existing `question` role and its linked license restricts improving other LLMs with its outputs. The current recipe retains Sailor. Evidence and source links: REPLACEMENT_REVIEW.md and private `runs/audit-seallms-20261013/audit.json`.

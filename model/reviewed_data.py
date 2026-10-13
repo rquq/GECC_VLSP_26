@@ -10,6 +10,7 @@ from .data import (
     _id_key,
     _records_from_raw,
     _source_key,
+    _valid_label,
     declares_correct_sentence,
     split_records,
 )
@@ -24,7 +25,11 @@ def canonical_hash(value):
 
 
 def load_reviewed(raw, fraction, seed):
-    if raw.get("seed") != seed or raw.get("validation_fraction") != fraction:
+    if (
+        type(raw.get("seed")) is not int
+        or raw.get("seed") != seed
+        or raw.get("validation_fraction") != fraction
+    ):
         raise ValueError("Reviewed bundle split configuration differs")
     provenance = raw.get("provenance", {})
     snapshot = provenance.get("original_snapshot")
@@ -56,7 +61,9 @@ def load_reviewed(raw, fraction, seed):
             or review.get("source_label") != record["label"]
             or review.get("target_label") != 0
             or review.get("meaning_preserved") is not True
-            or repair.get("teacher_parameters", 8_000_000_001) > 8_000_000_000
+            or not eligible_parameters(repair.get("teacher_parameters"))
+            or not _valid_label(review.get("source_label"))
+            or not _valid_label(review.get("target_label"))
             or not repair.get("teacher_revision")
             or not repair.get("evidence")
         ):
@@ -222,7 +229,7 @@ def load_reviewed(raw, fraction, seed):
         if (
             not m.get("parent_ids")
             or any(_id_key(p) not in original_ids for p in m["parent_ids"])
-            or m.get("teacher_parameters", 8_000_000_001) > 8_000_000_000
+            or not eligible_parameters(m.get("teacher_parameters"))
             or not m.get("teacher_revision")
             or not m.get("output_sha256")
             or m.get("review_status") != "accepted"
@@ -234,7 +241,9 @@ def load_reviewed(raw, fraction, seed):
             )
         check = m.get("blind_review", {})
         if row["label"] != 0 and (
-            check.get("source_label") != row["label"]
+            not _valid_label(check.get("source_label"))
+            or not _valid_label(check.get("target_label"))
+            or check.get("source_label") != row["label"]
             or check.get("target_label") != 0
             or any(
                 check.get(f) is not True
@@ -272,7 +281,12 @@ def load_reviewed(raw, fraction, seed):
         ("training_class_counts", _counts(train)),
         ("synthetic_class_counts", _counts(synthetic)),
     ):
-        if provenance.get(field) != value:
+        declared = provenance.get(field)
+        if (
+            not isinstance(declared, dict)
+            or any(type(v) is not int for v in declared.values())
+            or declared != value
+        ):
             raise ValueError("Reviewed declared class counts differ")
     return (
         train,
@@ -283,3 +297,7 @@ def load_reviewed(raw, fraction, seed):
             "provenance": provenance,
         },
     )
+
+
+def eligible_parameters(value):
+    return type(value) is int and 0 < value <= 8_000_000_000
