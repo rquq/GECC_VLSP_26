@@ -215,6 +215,7 @@ def train(candidate, final=False, epochs=None):
     if task == "correction":
         report = experiment_report(validation, before)
         summary.update(corrections=report["corrections"], clean_preservation=report["clean_preservation"])
+        summary["reference_slices"] = report["reference_slices"]
         summary["classification"] = None  # Gold labels here are alignment only, never a Task1 result.
     write_json(output / "predictions.json", before)
     trainer.model = trainer.model_wrapped = None
