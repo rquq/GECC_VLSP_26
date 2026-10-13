@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-13",
+  "status": "ready_locally_verified_full_Kaggle_training_pending",
+  "authorization": "User requested readiness, experiment recap, private upload ZIP and pushing six corrector epochs",
+  "source_parent_commit": "d666f263e6a9388ce750bc0054a35801c9630a87",
+  "implementation_commit": "Commit containing this record and matching configuration hashes; launcher records exact runtime commit",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+  "mode": "both",
+  "classifier_epochs": 5,
+  "corrector_epochs": 6,
+  "best_corrector_checkpoint_each_epoch": true,
+  "folds": false,
+  "hints": false,
+  "notebook_toggles": false,
+  "classifier_reused": false,
+  "data_sha256": {
+    "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+    "classification": "6ed5b8a75f6692c816dd180923007d4aca7fe46184e78c75359a82eeeab19530",
+    "correction": "5675cc7dbcc81d7b018af471905aa827c032cc1445efb226d810d1604a9ad7b0"
+  },
+  "parameter_upper_bounds": {
+    "classification": 7111028736,
+    "correction": 7655986688
+  },
+  "archive": {
+    "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/kaggle-qwen-ready-20261013/VGEC26-qwen-reviewed-v4.zip",
+    "bytes": 396081,
+    "sha256": "3813d5c80e7031db4540698d863bacd3825a0c802097f12f700bc8c5480e28f8",
+    "members": [
+      "VGEC 2026_v1.json",
+      "VGEC_classifier.json",
+      "VGEC_balanced.json",
+      "public_test.json",
+      "manifest.json"
+    ],
+    "public_test_rows": 443,
+    "weights_included": false,
+    "private_only": true
+  },
+  "configuration_sha256": {
+    "experiment.json": "6cb65bf5c71d7c7569eb22bcf0d547417decfc04e322123ac51c76e2289a6fcc",
+    "baseline.json": "f8e3d53ca71edf6fd0d7429715472f0371e01bc4761a053c22f26ffac9b53431",
+    "correction.json": "959f2c9644e1338e8da215b375eea95191a30797f0eb2f0fa0574cfa4d79a564"
+  },
+  "verification": {
+    "unit_tests": 141,
+    "unit_seconds": 17.58,
+    "actual_new_archive_and_data_contracts": true,
+    "classification_training_rows": 504,
+    "correction_training_rows": 414,
+    "frozen_holdout_rows": 81,
+    "max_correction_tokens": 222,
+    "t4x2_placement": "passed with actual configs/data/native architectures and simulated GPU capacity/FP16 support",
+    "prior_real_tiny_pipeline": {
+      "status": "passed",
+      "device": "cpu",
+      "world_size": 1,
+      "run": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/smoke-cpu-1-20261013T154258472964Z/outputs/tiny-pipeline-20261013T154303014126Z/run",
+      "log": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/smoke-cpu-1-20261013T154258472964Z/pipeline.log",
+      "submission_rows": 2,
+      "oof_enabled": false,
+      "hint_mode": "none"
+    },
+    "full_size_Qwen_training_completed": false,
+    "audit": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/qwen-six-ready-20261013/audit.json"
+  },
+  "experiment_recap": [
+    {
+      "experiment": "Prior Sailor-7B baseline",
+      "status": "artifact_reviewed",
+      "classifier_macro_f1": 0.4341325941325941,
+      "classifier_micro_f1": 0.6790123456790124,
+      "corrector_best_epoch": 5,
+      "corrector_error_gleu_plus": 0.23489647754644552,
+      "scope": "local81-row development; final training reload failed in old run, current code fixed"
+    },
+    {
+      "experiment": "Qwen teacher synthesis pilot",
+      "status": "completed_negative",
+      "attempted_pairs": 64,
+      "admitted_pairs": 0
+    },
+    {
+      "experiment": "Native Sailor independent repair review",
+      "status": "completed_negative",
+      "reviewed_completions": 5,
+      "admitted_completions": 0
+    },
+    {
+      "experiment": "Bami hierarchical control/candidate screen",
+      "status": "completed_negative",
+      "internal_macro_control": 0.4082204637467795,
+      "internal_macro_candidate": 0.24761904761904763,
+      "selected_control_holdout_macro": 0.32557686961356685,
+      "promoted": false
+    },
+    {
+      "experiment": "Supported training repairs",
+      "status": "five_accepted_for_corrector",
+      "new_synthetic_pairs": 0,
+      "corrector_rows": 414,
+      "legacy_augmentation_rows": 192
+    },
+    {
+      "experiment": "Qwen/SeaLLMs model audit",
+      "status": "completed_metadata_tokenizer_license_review",
+      "SeaLLMs_used": false
+    },
+    {
+      "experiment": "Fresh Qwen both-stage no-fold run",
+      "status": "prepared_not_full_size_trained",
+      "epochs": [
+        5,
+        6
+      ]
+    }
+  ],
+  "historical_recovery": "Recovered surviving alpha/test/Kaggle evidence without retraining; preserved five-fold snapshot in alpha",
+  "score_improvement_established": false
+}

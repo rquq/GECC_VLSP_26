@@ -1,5 +1,7 @@
 # Fresh Qwen classifier and corrector — 2026-10-13
 
+Historical initial preparation at eight corrector epochs. The user's later six-epoch instruction and data-only Kaggle upload package supersede that budget/archive choice; see KAGGLE_READY.md/.json and CURRENT.md. The initial verification below retains its original config hashes.
+
 The user explicitly requested switching both training stages to Qwen and committing/pushing the Kaggle change. This supersedes the earlier Sailor corrector-only recommendation. Status: implemented and locally verified; full-size Kaggle training and official scores pending. No performance improvement is claimed.
 
 The committed recipe is `qwen25-7b-reviewed-both`, mode `both`, classifier_run=null, initial_adapter=null. Both stages use Qwen/Qwen2.5-7B-Instruct revision `a09a35458c702b33eeacc393d103063234e8bc28` with fresh rank16/alpha32 LoRA. Classification keeps the lambda-two soft hierarchy, 5 epochs and LR5e-5. Correction keeps response-only JSON, 8 epochs and LR2e-5, with standard `user` chat messages. Seed42, max512, microbatch1 and effective batch8 remain unchanged. T4x2 uses FP16 fallback. There are no folds, corrector hints or notebook toggles.

@@ -5,7 +5,7 @@
   "correction_config": "configs/correction.json",
   "classifier_run": null,
   "initial_adapter": null,
-  "data_archive": "VGEC26-reviewed-v4.zip",
+  "data_archive": "VGEC26-qwen-reviewed-v4.zip",
   "submission_filename": "public_test.json",
   "data_sha256": {
     "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",

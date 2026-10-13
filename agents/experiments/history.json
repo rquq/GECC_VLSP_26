@@ -1812,6 +1812,26 @@
       },
       "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/qwen-both-audit-20261013",
       "scores": null
+    },
+    {
+      "id": "20261013:Qwen-six-Kaggle-ready",
+      "status": "ready_locally_verified_full_Kaggle_training_pending",
+      "source_parent_commit": "d666f263e6a9388ce750bc0054a35801c9630a87",
+      "configuration_sha256": {
+        "experiment.json": "6cb65bf5c71d7c7569eb22bcf0d547417decfc04e322123ac51c76e2289a6fcc",
+        "baseline.json": "f8e3d53ca71edf6fd0d7429715472f0371e01bc4761a053c22f26ffac9b53431",
+        "correction.json": "959f2c9644e1338e8da215b375eea95191a30797f0eb2f0fa0574cfa4d79a564"
+      },
+      "data_sha256": {
+        "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+        "classification": "6ed5b8a75f6692c816dd180923007d4aca7fe46184e78c75359a82eeeab19530",
+        "correction": "5675cc7dbcc81d7b018af471905aa827c032cc1445efb226d810d1604a9ad7b0"
+      },
+      "archive_sha256": "3813d5c80e7031db4540698d863bacd3825a0c802097f12f700bc8c5480e28f8",
+      "archive": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/kaggle-qwen-ready-20261013/VGEC26-qwen-reviewed-v4.zip",
+      "classification_epochs": 5,
+      "correction_epochs": 6,
+      "scores": null
     }
   ]
 }

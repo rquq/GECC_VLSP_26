@@ -1,5 +1,7 @@
 # Historical corrector epoch and repair-teacher review — 2026-10-13
 
+After this review the user explicitly requested pushing six epochs. That change is implemented in configs/correction.json and documented with the upload package in KAGGLE_READY.md/.json. The review below records the earlier eight-epoch state and its actual historical evidence.
+
 The user asked whether an eligible QLoRA fine-tuned model could repair the noisy dataset and whether the current eight corrector epochs are appropriate. This was a read-only artifact review; no training, teacher inference, dataset edits or training config changes occurred. Source inspected: `86d275580ae3a8124a1965e2e586555b84329b1f`. The active Qwen config still specifies eight epochs; a shorter budget is a recommendation, not a measured Qwen optimum.
 
 Latest full-size run: `/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/12_10_2026/runs/sailor-7b-both-20261012-145038-393535/correction/`. It used Sailor-7B-Chat, 409 training rows, predicted hints, LR2e-5, seed42 and 81 validation rows (41 error/40 clean). The current Qwen run differs in base, data (414 rows), chat role and no hints, so its optimal epoch cannot be inferred exactly.
