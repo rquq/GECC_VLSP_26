@@ -198,6 +198,10 @@ def train(candidate, final=False, epochs=None):
                           eval_dataset=None if final else encoded[len(train_rows):],
                           data_collator=collator, processing_class=tokenizer, compute_metrics=metrics,
                           callbacks=[Deadline()])
+    if task == "classification":
+        # Our row-mean loss needs Trainer's accumulation scaling even when a
+        # decoder's forward accepts generic kwargs for its native loss.
+        trainer.model_accepts_loss_kwargs = False
     result = trainer.train()
     checkpoint = output / "checkpoint"
     trainer.save_model(checkpoint)
@@ -211,6 +215,9 @@ def train(candidate, final=False, epochs=None):
                "task": task, "scope": "frozen_holdout" if final else "training_only_internal",
                "train_count": len(train_rows), "validation_count": len(validation),
                "epochs": epochs, "selected_epoch": selected_epoch, "optimizer_steps": result.global_step,
+               "recipe": {"effective_batch_size": 8, "microbatch": 1, "max_length": cfg["max_length"],
+                          "precision": "BF16 autocast", "optimizer": args["optim"],
+                          "learning_rate": candidate["learning_rate"], "weight_decay": .01, "warmup_ratio": .1},
                "training_loss": result.training_loss, "base_parameters": base_parameters,
                "parameters_with_adapters": parameters, "epoch_history": trainer.state.log_history,
                "seconds": time.monotonic() - began, "peak_vram_bytes": torch.cuda.max_memory_allocated(),
