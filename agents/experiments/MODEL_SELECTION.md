@@ -42,3 +42,5 @@ Model sources: [Qwen2.5](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct), [Bami
 ## Verification
 
 Actual native meta-architecture parameter counts and Sailor adapter upper bounds were computed without downloading weights. BamiBERT's published BPE backend and native tokenizer agree on Vietnamese/accent/punctuation fixtures; special token IDs fit its vocabulary and raw text needs no external segmentation. PhoGPT's import incompatibility was checked in the actual 4.51.3 environment. Three annotation regression tests failed before the fix and pass afterward; all 133 tests passed in 14.773 seconds. The exact recipe-pinned ZIP inputs were also resolved and validated: 504 classifier rows, 409 corrector rows and 81 holdout rows, with matching hashes and legacy curation compatibility. Logs/config snapshots: ignored `runs/audit-model-selection-20261013/`.
+
+User approval received 2026-10-13: execute the bounded local teacher pilot and two BamiBERT screens, prepare reviewed private data for the user to retrain the no-fold corrector on Kaggle. No further approval is required within these budgets. Execution outcomes will be appended below.

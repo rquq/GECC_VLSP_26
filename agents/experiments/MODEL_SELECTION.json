@@ -1,7 +1,7 @@
 {
   "format": "vgec-model-data-proposal-v1",
   "date": "2026-10-13",
-  "status": "review_complete_training_and_data_promotion_approval_pending",
+  "status": "approved_execution_started",
   "review_source_commit": "ac3b156fb5c92154dd9f1c5cd72bcf2786847b6d",
   "competition": "https://aihub.ml/competitions/1038",
   "parameter_limit": 8000000000,
@@ -201,5 +201,9 @@
     "new_model_weights_downloaded": false,
     "full_size_training_started": false,
     "synthetic_generation_started": false
+  },
+  "approval": {
+    "date": "2026-10-13",
+    "scope": "bounded local teacher pilot and two local BamiBERT screens; user will retrain no-fold corrector on Kaggle"
   }
 }
