@@ -30,6 +30,31 @@ def kaggle_credentials():
                 os.environ[name] = value
 
 
+def setup_kaggle(project):
+    """Install training pins outside the kernel while preserving CUDA PyTorch."""
+    from importlib.metadata import version
+    import tempfile
+
+    installed_torch = version("torch")
+    environment = Path(tempfile.mkdtemp(prefix="gecc-training-env-"))
+    subprocess.run([sys.executable, "-m", "venv", "--without-pip", "--system-site-packages",
+                    str(environment)], check=True)
+    python = str(environment / "bin/python")
+    constraints = environment / "constraints.txt"
+    constraints.write_text(f"torch=={installed_torch}\n", encoding="utf-8")
+    subprocess.run([sys.executable, "-m", "pip", "--python", python, "install",
+                    "-r", str(Path(project) / "requirements-kaggle.txt"),
+                    "--constraint", str(constraints)], cwd=project, check=True)
+    subprocess.run([python, "-c",
+                    "import numpy, scipy, sklearn, torch, transformers, peft, accelerate, bitsandbytes, lmformatenforcer, wandb; "
+                    "from transformers import AutoModelForCausalLM; from sklearn.metrics import roc_curve; "
+                    f"assert torch.__version__ == {installed_torch!r}; "
+                    "print('Training imports passed; torch', torch.__version__, 'CUDA', torch.version.cuda)"], check=True)
+    kaggle_credentials()
+    print("Training environment ready; no kernel restart needed.")
+    return python
+
+
 def redact(text):
     for name in ("WANDB_API_KEY", "HF_TOKEN", "HUGGING_FACE_HUB_TOKEN", "GITHUB_TOKEN"):
         if os.environ.get(name):

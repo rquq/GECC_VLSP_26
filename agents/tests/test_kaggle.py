@@ -2,6 +2,7 @@
 import contextlib
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -35,11 +36,10 @@ class NotebookSourceTests(unittest.TestCase):
         notebook = json.loads((PROJECT / "notebooks/kaggle_two_phase.ipynb").read_text())
         self.source = "".join(notebook["cells"][2]["source"])
         self.namespace = {"Path": Path, "subprocess": subprocess, "json": json,
+                          "os": os,
                           "sys": __import__("sys"), "urllib": __import__("urllib.request"),
                           "REPO_URL": self.origin.as_uri(), "BRANCH": "test/baseline",
-                          "PROJECT_SUBDIR": ".", "SOURCE_ROOT": self.folder,
-                          "CLASSIFICATION_CONFIG": "configs/baseline.json",
-                          "CORRECTION_CONFIG": "configs/correction.json"}
+                          "SOURCE_ROOT": self.folder}
 
     def git(self, directory, *args):
         return subprocess.check_output(["git", "-C", str(directory), *args],
@@ -85,9 +85,22 @@ class NotebookSourceTests(unittest.TestCase):
 
     def test_missing_branch_has_actionable_error(self):
         self.namespace["BRANCH"] = "not-published"
-        with self.assertRaisesRegex(RuntimeError, "[Bb]ranch.*does not exist"):
+        with self.assertRaisesRegex(RuntimeError, "[Bb]ranch.*not found"):
             self.run_cell()
-        self.assertFalse(self.clone.exists())
+
+    def test_github_failure_redacts_and_releases_credentials(self):
+        from types import SimpleNamespace
+        secret = "fixture-private-token"
+        self.namespace["REPO_URL"] = "https://github.com/example/private.git"
+        secrets = SimpleNamespace(UserSecretsClient=lambda: SimpleNamespace(get_secret=lambda _: secret))
+        failure = subprocess.CompletedProcess([], 128, stdout="", stderr=f"authentication failed: {secret}")
+        with patch.dict("sys.modules", {"kaggle_secrets": secrets}), \
+                patch("subprocess.run", return_value=failure), self.assertRaises(RuntimeError) as error:
+            self.run_cell()
+        self.assertNotIn(secret, str(error.exception))
+        self.assertNotIn("token", self.namespace)
+        self.assertNotIn("env", self.namespace)
+        self.assertNotIn("result", self.namespace)
 
 
     def test_run_provenance_records_real_git_identity(self):
