@@ -145,7 +145,8 @@ def train(candidate, final=False, epochs=None):
         labels = [r["label"] for r in train_rows + validation]
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(candidate["model"], revision=candidate["revision"],
-                                                   torch_dtype=torch.bfloat16 if candidate.get("lora") else torch.float32)
+                                                   torch_dtype=getattr(torch, candidate.get("base_dtype", "float32")),
+                                                   low_cpu_mem_usage=True)
         labels = tokenizer(text_target=[r["target"] for r in train_rows + validation],
                            truncation=True, max_length=cfg["max_length"])["input_ids"]
     base_parameters = sum(p.numel() for p in model.parameters())
@@ -206,6 +207,11 @@ def train(candidate, final=False, epochs=None):
         def on_step_begin(self, args, state, control, **kwargs):
             if time.monotonic() - began > cfg["max_trial_seconds"]:
                 raise TimeoutError("Local trial budget exhausted")
+
+        def on_log(self, args, state, control, logs=None, **kwargs):
+            loss = (logs or {}).get("loss", 0.)
+            if not np.isfinite(loss) or loss > 10.:
+                raise FloatingPointError("Local training loss diverged")
 
     weights = torch.tensor([len(train_rows)/(5*Counter(r["label"] for r in train_rows)[i]) for i in range(5)]).sqrt()
     class WeightedTrainer(CompleteEpochMixin, Trainer):
@@ -302,7 +308,9 @@ def train(candidate, final=False, epochs=None):
     gc.collect(); torch.cuda.empty_cache()
     if candidate.get("lora"):
         from peft import PeftModel
-        model = AutoModelForSeq2SeqLM.from_pretrained(candidate["model"], revision=candidate["revision"], torch_dtype=torch.bfloat16)
+        model = AutoModelForSeq2SeqLM.from_pretrained(candidate["model"], revision=candidate["revision"],
+                                                   torch_dtype=getattr(torch, candidate.get("base_dtype", "float32")),
+                                                   low_cpu_mem_usage=True)
         model = PeftModel.from_pretrained(model, checkpoint)
     else:
         cls = AutoModelForSequenceClassification if task == "classification" else AutoModelForSeq2SeqLM

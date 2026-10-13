@@ -73,7 +73,8 @@
       "revision": "b4c595ddd20d8e35bcde32588838dcb449e2d428",
       "learning_rate": 0.0002,
       "lora": true,
-      "license": "MIT"
+      "license": "MIT",
+      "base_dtype": "bfloat16"
     },
     {
       "name": "bami-flat-lr5e5",
@@ -109,6 +110,16 @@
       "learning_rate": 5e-05,
       "license": "MIT",
       "edit_weight": 5
+    },
+    {
+      "name": "vit5-large-lora-stable",
+      "task": "correction",
+      "model": "VietAI/vit5-large",
+      "revision": "b4c595ddd20d8e35bcde32588838dcb449e2d428",
+      "learning_rate": 5e-05,
+      "lora": true,
+      "license": "MIT",
+      "base_dtype": "float32"
     }
   ]
 }
