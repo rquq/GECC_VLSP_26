@@ -1,4 +1,4 @@
-"""Train Sailor QLoRA from leakage-safe OOF classifier hints, then reload it."""
+"""Train Sailor QLoRA with optional leakage-safe OOF conditioning, then reload it."""
 from __future__ import annotations
 
 import argparse
@@ -574,20 +574,31 @@ def main(*, tracking):
     if world_size > 1:
         torch.distributed.broadcast_object_list(shared_output, src=0)
     output = Path(shared_output[0])
-    from .run_reuse import resolve_run
+    from .run_reuse import resolve_run, validate_reuse_data, validation_predictions
     classifier_run = resolve_run(args.classifier_run, stage="classification")
-    artifact = json.loads((classifier_run / "hints.json").read_text(encoding="utf-8"))
-    classifier_train = json.loads((classifier_run / "train.json").read_text(encoding="utf-8"))
     train, validation, provenance = load_training_split(data_path, fraction, seed)
+    hints_sha256 = None
+    validation_predictions_sha256 = None
+    if inference["hint_mode"] == "predicted":
+        artifact = json.loads((classifier_run / "hints.json").read_text(encoding="utf-8"))
+        classifier_train = json.loads((classifier_run / "train.json").read_text(encoding="utf-8"))
+        train_hints, validation_hints = validate_hints(
+            artifact, train, validation, provenance, classifier_train, data_path, seed, fraction)
+        hints_sha256 = hashlib.sha256((classifier_run / "hints.json").read_bytes()).hexdigest()
+    else:
+        validate_reuse_data(classifier_run, config, data_path)
+        # IDs/placeholder scores only: no label is included in the training prompt.
+        train_hints = {_id_key(row["id"]): {"id": row["id"], "label": 0,
+                       "probabilities": [1, 0, 0, 0, 0]} for row in train}
+        validation_hints = validation_predictions(classifier_run, validation)
+        validation_predictions_sha256 = hashlib.sha256((classifier_run / "predictions.json").read_bytes()).hexdigest()
     tracking.start(config, output, "correction", group=output.parent.name,
                    metadata={"train": records_identity(train), "validation": records_identity(validation),
                              "data_sha256": hashlib.sha256(data_path.read_bytes()).hexdigest(),
-                             "hints_sha256": hashlib.sha256((classifier_run / "hints.json").read_bytes()).hexdigest()})
+                             "hint_mode": inference["hint_mode"], "hints_sha256": hints_sha256})
     tracking.use_model(classifier_run / "classifier", "classifier")
     if initial:
         tracking.use_model(initial["path"], "corrector")
-    train_hints, validation_hints = validate_hints(
-        artifact, train, validation, provenance, classifier_train, data_path, seed, fraction)
     # Limits are diagnostics only, after validating the entire connected pipeline.
     train = balanced_limit(train, config["data"].get("train_limit"), seed)
     validation = balanced_limit(validation, config["data"].get("validation_limit"), seed + 1)
@@ -788,7 +799,8 @@ def main(*, tracking):
         "continuation": initial["continuation"] if initial else None,
         "data_path": str(data_path), "data_sha256": hashlib.sha256(data_path.read_bytes()).hexdigest(),
         "classifier_run": str(classifier_run),
-        "hints_sha256": hashlib.sha256((classifier_run / "hints.json").read_bytes()).hexdigest(),
+        "hint_mode": inference["hint_mode"], "hints_sha256": hints_sha256,
+        "validation_predictions_sha256": validation_predictions_sha256,
         "data_provenance": provenance, "train_ids": [row["id"] for row in train],
         "validation_ids": [row["id"] for row in validation], "inference": inference,
         "device": device, "placement": placement, "device_map": placement["device_map"],

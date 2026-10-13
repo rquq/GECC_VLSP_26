@@ -45,8 +45,9 @@ def preflight(classification, correction=None, original=None, bundle=None, *, mo
         raise ValueError("mode must be task1, task2, or both")
     run_corrector = mode != "task1"
     fresh_classifier = classifier_run is None
+    predicted_hints = run_corrector and correction.get("inference", {}).get("hint_mode", "predicted") == "predicted"
     if mode == "task2" and fresh_classifier:
-        raise ValueError("Task2 requires --classifier-run or --prior-run with a completed Task1 and OOF hints")
+        raise ValueError("Task2 requires --classifier-run or --prior-run with a completed Task1")
     if mode == "task1" and initial_adapter is not None:
         raise ValueError("--initial-adapter continues Task2; use task2 or both")
     report = {"mode": mode, "classifier_reused": not fresh_classifier}
@@ -61,7 +62,7 @@ def preflight(classification, correction=None, original=None, bundle=None, *, mo
         mixed_path = resolve_data(mixed_config)
         classifier_train, classifier_info = load_classifier_split(original, mixed_path, fraction, seed)
         oof = classification.get("oof", {}).get("enabled", False)
-        if run_corrector and not oof:
+        if predicted_hints and not oof:
             raise ValueError("Fresh two-stage runs require oof.enabled=true for leakage-safe correction hints")
         report.update(seed=seed, classification_train=len(classifier_train), validation=len(validation),
                       original_data=str(original), classification_data=str(mixed_path), hints_enabled=bool(oof))
@@ -74,11 +75,17 @@ def preflight(classification, correction=None, original=None, bundle=None, *, mo
             grouping = {"train_rows": provenance["train_rows"] + classifier_info["provenance"]["train_rows"]}
             _connected_folds(original_train, train, grouping, classification["oof"]["folds"], seed, classifier_train)
             report.update(correction_train=len(train), correction_data=str(resolved))
-            if run_corrector and (seed != correction["run"]["seed"]
-                                  or fraction != correction["data"]["validation_fraction"]):
+        if run_corrector:
+            if seed != correction["run"]["seed"] or fraction != correction["data"]["validation_fraction"]:
                 raise ValueError("Both task configs must use the same seed and validation_fraction")
+            if not oof:
+                from .data import load_training_split
+                train, holdout, _ = load_training_split(bundle, fraction, seed)
+                if holdout != validation:
+                    raise ValueError("Classifier and corrector validation splits differ")
+                report.update(correction_train=len(train), correction_data=str(bundle), hint_mode="none")
     else:
-        saved = validate_classifier_run(classifier_run, require_hints=run_corrector)
+        saved = validate_classifier_run(classifier_run, require_hints=predicted_hints)
         if run_corrector:
             report.update(validate_reuse_data(classifier_run, correction, bundle, original_path=original))
         else:
@@ -153,9 +160,10 @@ def main(*, tracking):
     if args.mode == "task1" and args.submission_data:
         parser.error("--submission-data requires Task2; Task1 has no corrector and cannot produce a full GEC submission")
     classifier_run = resolve_run(prior) if prior else None
-    classifier = (validate_classifier_run(classifier_run, require_hints=args.mode != "task1") if classifier_run else
-                  load_config(args.classification_config, "classification"))
     corrector = load_config(args.correction_config, "correction") if args.mode != "task1" else None
+    predicted_hints = corrector is not None and corrector.get("inference", {}).get("hint_mode", "predicted") == "predicted"
+    classifier = (validate_classifier_run(classifier_run, require_hints=predicted_hints) if classifier_run else
+                  load_config(args.classification_config, "classification"))
     submission_path = resolve_submission_data(
         args.submission_data, input_root=Path((corrector or classifier)["data"]["input_root"]))
     submission_records = None
@@ -228,7 +236,7 @@ def main(*, tracking):
     # The first completed stage is already reusable if a later stage fails.
     write_handoff(output)
     if corrector is not None:
-        validate_classifier_run(packaged_classifier)
+        validate_classifier_run(packaged_classifier, require_hints=predicted_hints)
         validate_reuse_data(packaged_classifier, corrector, bundle)
         command = stage_command("model.correction", corrector) + [
             "--config", str(Path(args.correction_config).resolve()), "--data", str(bundle),

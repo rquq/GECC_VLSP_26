@@ -11,7 +11,7 @@ from .data import _id_key, _validate_records
 from .metrics import experiment_report
 from .prediction_export import comparison_rows
 from .runtime import write_json
-from .run_reuse import resolve_run, validate_classifier_run
+from .run_reuse import resolve_run, validate_classifier_run, validation_predictions
 from .tracking import records_identity, tracked_entrypoint
 
 
@@ -20,7 +20,7 @@ def _json(path):
 
 
 def load_experiment_inputs(run):
-    """Bind exported validation hints to the completed OOF classifier, never gold labels."""
+    """Bind evaluation labels to the completed classifier and saved prediction hashes."""
     correction = resolve_run(run, stage="correction")
     manifest = _json(correction / "run_manifest.json")
     if not manifest.get("saved_adapter_reloaded_for_evaluation"):
@@ -35,7 +35,17 @@ def load_experiment_inputs(run):
         classifier = resolve_run(correction.parent, stage="classification")
     else:
         classifier = resolve_run(manifest["classifier_run"], stage="classification")
-    validate_classifier_run(classifier)
+    no_hints = manifest.get("inference", {}).get("hint_mode", "predicted") == "none"
+    validate_classifier_run(classifier, require_hints=not no_hints)
+    if no_hints:
+        path = classifier / "predictions.json"
+        if hashlib.sha256(path.read_bytes()).hexdigest() != manifest.get("validation_predictions_sha256"):
+            raise ValueError("Saved validation classifier predictions differ from correction evaluation")
+        indexed = validation_predictions(classifier, records)
+        hints = [indexed[_id_key(row["id"])] for row in records]
+        if _json(correction / "validation_hints.json") != hints:
+            raise ValueError("Saved correction validation predictions differ")
+        return correction, records, hints
     hint_path = classifier / "hints.json"
     if hashlib.sha256(hint_path.read_bytes()).hexdigest() != manifest.get("hints_sha256"):
         raise ValueError("Saved OOF hints SHA256 differs from correction training")

@@ -1,0 +1,1726 @@
+{
+  "schema": "vgec-experiment-history-v1",
+  "training_rerun": false,
+  "records": [
+    {
+      "id": "artifact:test:runs/sailor2-8b-lambda2-audited-no-rdrop-seed42",
+      "status": "measured_artifact",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/test/runs/sailor2-8b-lambda2-audited-no-rdrop-seed42/metrics.json",
+      "evidence_sha256": "a52b3f4630223c3fadb214557cda8f2499a9b5ea13b89a99b36788f5a7a01b81",
+      "count": 81,
+      "classification": {
+        "macro_f1": 0.6327503693130465,
+        "micro_f1": 0.8024691358024691,
+        "confusion_matrix": [
+          [
+            40,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            2,
+            16,
+            0,
+            2,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            2,
+            2,
+            0
+          ],
+          [
+            0,
+            4,
+            0,
+            3,
+            0,
+            0
+          ],
+          [
+            0,
+            2,
+            1,
+            0,
+            4,
+            0
+          ]
+        ],
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "prediction_columns": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          "invalid"
+        ],
+        "per_class": {
+          "0": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1": 0.975609756097561,
+            "support": 40
+          },
+          "1": {
+            "precision": 0.6956521739130435,
+            "recall": 0.8,
+            "f1": 0.7441860465116279,
+            "support": 20
+          },
+          "2": {
+            "precision": 0.6666666666666666,
+            "recall": 0.2857142857142857,
+            "f1": 0.4,
+            "support": 7
+          },
+          "3": {
+            "precision": 0.42857142857142855,
+            "recall": 0.42857142857142855,
+            "f1": 0.42857142857142855,
+            "support": 7
+          },
+          "4": {
+            "precision": 0.6666666666666666,
+            "recall": 0.5714285714285714,
+            "f1": 0.6153846153846154,
+            "support": 7
+          }
+        }
+      },
+      "model": {
+        "name": "sail/Sailor2-8B-Chat",
+        "revision": "577d5b2745863cec11e1b2f1c92586a91cea446e",
+        "load_in_4bit": true,
+        "compute_dtype": "bfloat16",
+        "quant_type": "nf4",
+        "use_double_quant": true,
+        "attn_implementation": "sdpa"
+      },
+      "epochs": 5,
+      "learning_rate": 5e-05,
+      "best_epoch": 3.0,
+      "seed": 42,
+      "scope": "local holdout; comparability requires checking data/precision/training budgets"
+    },
+    {
+      "id": "artifact:alpha:runs/balanced-decision-seed42",
+      "status": "measured_artifact",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/alpha/runs/balanced-decision-seed42/metrics.json",
+      "evidence_sha256": "bd4ba1c2d583a7a279bff209cc7b79ff49aae13b82ef570153b6dfa562636f12",
+      "count": 81,
+      "classification": {
+        "macro_f1": 0.6439342771050087,
+        "micro_f1": 0.8024691358024691,
+        "confusion_matrix": [
+          [
+            40,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            2,
+            15,
+            1,
+            2,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            2,
+            2,
+            0
+          ],
+          [
+            0,
+            3,
+            0,
+            4,
+            0,
+            0
+          ],
+          [
+            0,
+            2,
+            1,
+            0,
+            4,
+            0
+          ]
+        ],
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "prediction_columns": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          "invalid"
+        ],
+        "per_class": {
+          "0": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1": 0.975609756097561,
+            "support": 40
+          },
+          "1": {
+            "precision": 0.7142857142857143,
+            "recall": 0.75,
+            "f1": 0.7317073170731707,
+            "support": 20
+          },
+          "2": {
+            "precision": 0.5,
+            "recall": 0.2857142857142857,
+            "f1": 0.36363636363636365,
+            "support": 7
+          },
+          "3": {
+            "precision": 0.5,
+            "recall": 0.5714285714285714,
+            "f1": 0.5333333333333333,
+            "support": 7
+          },
+          "4": {
+            "precision": 0.6666666666666666,
+            "recall": 0.5714285714285714,
+            "f1": 0.6153846153846154,
+            "support": 7
+          }
+        }
+      },
+      "model": null,
+      "epochs": null,
+      "learning_rate": null,
+      "best_epoch": null,
+      "seed": null,
+      "scope": "local holdout; comparability requires checking data/precision/training budgets"
+    },
+    {
+      "id": "artifact:alpha:runs/domain-reviewed-seed42",
+      "status": "measured_artifact",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/alpha/runs/domain-reviewed-seed42/metrics.json",
+      "evidence_sha256": "bd1ef13be8c20b77b0a0e327a28266dc61dcb2773b87e7a59f9da5c1221a3c08",
+      "count": 81,
+      "classification": {
+        "macro_f1": 0.5515111862011087,
+        "micro_f1": 0.8024691358024691,
+        "confusion_matrix": [
+          [
+            40,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            18,
+            1,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0,
+            3,
+            3,
+            0
+          ],
+          [
+            0,
+            3,
+            1,
+            2,
+            1,
+            0
+          ],
+          [
+            0,
+            1,
+            0,
+            1,
+            5,
+            0
+          ]
+        ],
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "prediction_columns": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          "invalid"
+        ],
+        "per_class": {
+          "0": {
+            "precision": 0.975609756097561,
+            "recall": 1.0,
+            "f1": 0.9876543209876543,
+            "support": 40
+          },
+          "1": {
+            "precision": 0.782608695652174,
+            "recall": 0.9,
+            "f1": 0.8372093023255814,
+            "support": 20
+          },
+          "2": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 7
+          },
+          "3": {
+            "precision": 0.3333333333333333,
+            "recall": 0.2857142857142857,
+            "f1": 0.3076923076923077,
+            "support": 7
+          },
+          "4": {
+            "precision": 0.5555555555555556,
+            "recall": 0.7142857142857143,
+            "f1": 0.625,
+            "support": 7
+          }
+        }
+      },
+      "model": {
+        "name": "sail/Sailor2-8B-Chat",
+        "revision": "577d5b2745863cec11e1b2f1c92586a91cea446e",
+        "load_in_4bit": true,
+        "compute_dtype": "bfloat16",
+        "quant_type": "nf4",
+        "use_double_quant": true,
+        "attn_implementation": "sdpa"
+      },
+      "epochs": 5,
+      "learning_rate": 5e-05,
+      "best_epoch": 4.0,
+      "seed": 42,
+      "scope": "local holdout; comparability requires checking data/precision/training budgets"
+    },
+    {
+      "id": "artifact:alpha:runs/real-adaptation-seed42",
+      "status": "measured_artifact",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/alpha/runs/real-adaptation-seed42/metrics.json",
+      "evidence_sha256": "da88533a07ac2f79c469614d9d1d29f19150ee7d27e92c3587c6d304b2675405",
+      "count": 81,
+      "classification": {
+        "macro_f1": 0.6327503693130465,
+        "micro_f1": 0.8024691358024691,
+        "confusion_matrix": [
+          [
+            40,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            2,
+            16,
+            0,
+            2,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            2,
+            2,
+            0
+          ],
+          [
+            0,
+            4,
+            0,
+            3,
+            0,
+            0
+          ],
+          [
+            0,
+            2,
+            1,
+            0,
+            4,
+            0
+          ]
+        ],
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "prediction_columns": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          "invalid"
+        ],
+        "per_class": {
+          "0": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1": 0.975609756097561,
+            "support": 40
+          },
+          "1": {
+            "precision": 0.6956521739130435,
+            "recall": 0.8,
+            "f1": 0.7441860465116279,
+            "support": 20
+          },
+          "2": {
+            "precision": 0.6666666666666666,
+            "recall": 0.2857142857142857,
+            "f1": 0.4,
+            "support": 7
+          },
+          "3": {
+            "precision": 0.42857142857142855,
+            "recall": 0.42857142857142855,
+            "f1": 0.42857142857142855,
+            "support": 7
+          },
+          "4": {
+            "precision": 0.6666666666666666,
+            "recall": 0.5714285714285714,
+            "f1": 0.6153846153846154,
+            "support": 7
+          }
+        }
+      },
+      "model": {
+        "name": "sail/Sailor2-8B-Chat",
+        "revision": "577d5b2745863cec11e1b2f1c92586a91cea446e",
+        "load_in_4bit": true,
+        "compute_dtype": "bfloat16",
+        "quant_type": "nf4",
+        "use_double_quant": true,
+        "attn_implementation": "sdpa"
+      },
+      "epochs": 3,
+      "learning_rate": 1e-05,
+      "best_epoch": 0.0,
+      "seed": 42,
+      "scope": "local holdout; comparability requires checking data/precision/training budgets"
+    },
+    {
+      "id": "artifact:kaggle-linux:runs/11_10_2026/output/sailor2-two-phase-20261011-191339-434011/classification",
+      "status": "measured_artifact",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/11_10_2026/output/sailor2-two-phase-20261011-191339-434011/classification/metrics.json",
+      "evidence_sha256": "7b70c2dbfb15bb2e95a0733f9ad4ea4641e14834ace3cc420820e4406bc404ea",
+      "count": 81,
+      "classification": {
+        "macro_f1": 0.6194183864915572,
+        "micro_f1": 0.7777777777777778,
+        "confusion_matrix": [
+          [
+            38,
+            2,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            15,
+            1,
+            3,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            3,
+            2,
+            2,
+            0
+          ],
+          [
+            1,
+            3,
+            2,
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0,
+            0,
+            6,
+            0
+          ]
+        ],
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "prediction_columns": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          "invalid"
+        ],
+        "per_class": {
+          "0": {
+            "precision": 0.95,
+            "recall": 0.95,
+            "f1": 0.95,
+            "support": 40
+          },
+          "1": {
+            "precision": 0.7142857142857143,
+            "recall": 0.75,
+            "f1": 0.7317073170731707,
+            "support": 20
+          },
+          "2": {
+            "precision": 0.5,
+            "recall": 0.42857142857142855,
+            "f1": 0.46153846153846156,
+            "support": 7
+          },
+          "3": {
+            "precision": 0.16666666666666666,
+            "recall": 0.14285714285714285,
+            "f1": 0.15384615384615385,
+            "support": 7
+          },
+          "4": {
+            "precision": 0.75,
+            "recall": 0.8571428571428571,
+            "f1": 0.8,
+            "support": 7
+          }
+        }
+      },
+      "model": {
+        "name": "sail/Sailor2-8B-Chat",
+        "revision": "577d5b2745863cec11e1b2f1c92586a91cea446e",
+        "load_in_4bit": true,
+        "compute_dtype": "bfloat16",
+        "quant_type": "nf4",
+        "use_double_quant": true,
+        "attn_implementation": "sdpa"
+      },
+      "epochs": 5,
+      "learning_rate": 5e-05,
+      "best_epoch": 4.0,
+      "seed": 42,
+      "scope": "local holdout; comparability requires checking data/precision/training budgets"
+    },
+    {
+      "id": "artifact:kaggle-linux:runs/12_10_2026/runs/sailor-7b-both-20261012-145038-393535/classification",
+      "status": "measured_artifact",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/12_10_2026/runs/sailor-7b-both-20261012-145038-393535/classification/metrics.json",
+      "evidence_sha256": "32c7959134a7e4ec48d8951fa7e987b3100ede8862efd849444b31b022e75475",
+      "count": 81,
+      "classification": {
+        "macro_f1": 0.4341325941325941,
+        "micro_f1": 0.6790123456790124,
+        "confusion_matrix": [
+          [
+            40,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            8,
+            11,
+            0,
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            3,
+            1,
+            0,
+            3,
+            0
+          ],
+          [
+            2,
+            2,
+            2,
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            3,
+            1,
+            2,
+            0
+          ]
+        ],
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "prediction_columns": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          "invalid"
+        ],
+        "per_class": {
+          "0": {
+            "precision": 0.8,
+            "recall": 1.0,
+            "f1": 0.8888888888888888,
+            "support": 40
+          },
+          "1": {
+            "precision": 0.6470588235294118,
+            "recall": 0.55,
+            "f1": 0.5945945945945946,
+            "support": 20
+          },
+          "2": {
+            "precision": 0.16666666666666666,
+            "recall": 0.14285714285714285,
+            "f1": 0.15384615384615385,
+            "support": 7
+          },
+          "3": {
+            "precision": 0.3333333333333333,
+            "recall": 0.14285714285714285,
+            "f1": 0.2,
+            "support": 7
+          },
+          "4": {
+            "precision": 0.4,
+            "recall": 0.2857142857142857,
+            "f1": 0.3333333333333333,
+            "support": 7
+          }
+        }
+      },
+      "model": {
+        "name": "sail/Sailor-7B-Chat",
+        "revision": "19066fae0a8a3ba029c190d8e3dacccf4d1234b8",
+        "load_in_4bit": true,
+        "compute_dtype": "bfloat16",
+        "quant_type": "nf4",
+        "use_double_quant": true,
+        "attn_implementation": "sdpa"
+      },
+      "epochs": 5,
+      "learning_rate": 5e-05,
+      "best_epoch": 4.0,
+      "seed": 42,
+      "scope": "local holdout; comparability requires checking data/precision/training budgets"
+    },
+    {
+      "id": "archive:38:389",
+      "status": "recovered_documentation",
+      "title": "Historical rejected alpha ablations",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-038-README.md",
+      "lines": [
+        389,
+        410
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "6dce096f3e0ab82715cd557dd865277407da18e8119620284ca4f1448f7cc9c0",
+      "section_sha256": "15095c48bd8b1dc127e183bd082a18da059f00313a10631e8bfb4ffcce00a816",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:38:411",
+      "status": "recovered_documentation",
+      "title": "Completed soft hierarchy ablation",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-038-README.md",
+      "lines": [
+        411,
+        461
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "6dce096f3e0ab82715cd557dd865277407da18e8119620284ca4f1448f7cc9c0",
+      "section_sha256": "e44bfe87feb4e81370e760b6db5d10b2910937069d5cebd0348c49578e213dc9",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:38:462",
+      "status": "recovered_documentation",
+      "title": "Completed subtype loss coefficient-two ablation",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-038-README.md",
+      "lines": [
+        462,
+        511
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "6dce096f3e0ab82715cd557dd865277407da18e8119620284ca4f1448f7cc9c0",
+      "section_sha256": "6db8ba43e6fcb2352604b8c60ffc113a380e0fdc8829c023be0c906e4604df19",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:38:512",
+      "status": "recovered_documentation",
+      "title": "Single-forward cutover verification",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-038-README.md",
+      "lines": [
+        512,
+        520
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "6dce096f3e0ab82715cd557dd865277407da18e8119620284ca4f1448f7cc9c0",
+      "section_sha256": "afeede7eec58a9bb050ca5200b27c5d5399f8b69e1feee3c1a0dd171ca3c1bc1",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:38:521",
+      "status": "recovered_documentation",
+      "title": "Rejected matched R-Drop ablation",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-038-README.md",
+      "lines": [
+        521,
+        530
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "6dce096f3e0ab82715cd557dd865277407da18e8119620284ca4f1448f7cc9c0",
+      "section_sha256": "d99a1bb798f6354747ac3a5dfeef69150092c5663b4c68ef238ca362857b1cf5",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:38:531",
+      "status": "recovered_documentation",
+      "title": "Rejected alpha/beta comparison",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-038-README.md",
+      "lines": [
+        531,
+        539
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "6dce096f3e0ab82715cd557dd865277407da18e8119620284ca4f1448f7cc9c0",
+      "section_sha256": "abe358101f7e8b822f6346b2421e0b5d584f195108955ab1bba1b18c88dbd752",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:38:540",
+      "status": "recovered_documentation",
+      "title": "Standalone encoder comparison",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-038-README.md",
+      "lines": [
+        540,
+        580
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "6dce096f3e0ab82715cd557dd865277407da18e8119620284ca4f1448f7cc9c0",
+      "section_sha256": "5f35f9fced93b044af04bfa4641ac2245cce4189c00865d69cd3946e4e8b6f1b",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:38:581",
+      "status": "recovered_documentation",
+      "title": "Larger Vietnamese QLoRA classifier: Sailor2-8B",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-038-README.md",
+      "lines": [
+        581,
+        649
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "6dce096f3e0ab82715cd557dd865277407da18e8119620284ca4f1448f7cc9c0",
+      "section_sha256": "0c3c27d2cf1b6c7b81a387d14d1b77e2cac1b8f6a3c9ca6afa27f8ec481ef096",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:38:650",
+      "status": "recovered_documentation",
+      "title": "Audited private-bundle five-epoch rerun",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-038-README.md",
+      "lines": [
+        650,
+        702
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "6dce096f3e0ab82715cd557dd865277407da18e8119620284ca4f1448f7cc9c0",
+      "section_sha256": "40eb8c75953e74df7a74b76f8ab923d7e9ec2052a23624378c47a092ca860fa6",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:38:703",
+      "status": "recovered_documentation",
+      "title": "Separate detection/subtype weighting ablation",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-038-README.md",
+      "lines": [
+        703,
+        753
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "6dce096f3e0ab82715cd557dd865277407da18e8119620284ca4f1448f7cc9c0",
+      "section_sha256": "f41a82b34c338fa8ce0e826ae90997928acf0e2614ae3fd4a0b1af432795935e",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:38:754",
+      "status": "recovered_documentation",
+      "title": "Eight-epoch fit and equal-weight Qwen ensemble",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-038-README.md",
+      "lines": [
+        754,
+        812
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "6dce096f3e0ab82715cd557dd865277407da18e8119620284ca4f1448f7cc9c0",
+      "section_sha256": "7b6940a7f2cff077a0cdff33a72101cb37deb07cc28cb4fd1a00d7c231612076",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:38:813",
+      "status": "recovered_documentation",
+      "title": "Retained experiment integration into `rquq/test`",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-038-README.md",
+      "lines": [
+        813,
+        851
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "6dce096f3e0ab82715cd557dd865277407da18e8119620284ca4f1448f7cc9c0",
+      "section_sha256": "b540b0055fc113ee2e3e3de41cfdc845eeed9622602e1b06cafc9f497cd8f2c0",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:38:852",
+      "status": "recovered_documentation",
+      "title": "Paper evidence and improvement priorities",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-038-README.md",
+      "lines": [
+        852,
+        866
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "6dce096f3e0ab82715cd557dd865277407da18e8119620284ca4f1448f7cc9c0",
+      "section_sha256": "64d509dfeac395d3bf5c198c0b3f06c194075b630f98dbff21fb1ea05322528f",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:38:954",
+      "status": "recovered_documentation",
+      "title": "Deferred classifier algorithms",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-038-README.md",
+      "lines": [
+        954,
+        972
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "6dce096f3e0ab82715cd557dd865277407da18e8119620284ca4f1448f7cc9c0",
+      "section_sha256": "9da9e6be7a99c54be70ae208d6d50fb8dded3cd4fd7957a0e86a06965fa81c84",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:38:973",
+      "status": "recovered_documentation",
+      "title": "Next controlled experiment",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-038-README.md",
+      "lines": [
+        973,
+        1000
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "6dce096f3e0ab82715cd557dd865277407da18e8119620284ca4f1448f7cc9c0",
+      "section_sha256": "d1639aaacddc821c895cd3a756d3b79f4ee198b607addc3879435ae639061bb3",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:73:327",
+      "status": "recovered_documentation",
+      "title": "Historical alpha ablations (retained artifacts, inactive code)",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-073-README.md",
+      "lines": [
+        327,
+        348
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "26b0757ebdf7b4e86c17230874fe0b897374ca355ee07f91b044a9004c3f8c93",
+      "section_sha256": "d829c1421b62b44a9957132942f077daa8c8817507d129d002955a619f6fbb51",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:73:349",
+      "status": "recovered_documentation",
+      "title": "Completed soft hierarchy ablation",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-073-README.md",
+      "lines": [
+        349,
+        399
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "26b0757ebdf7b4e86c17230874fe0b897374ca355ee07f91b044a9004c3f8c93",
+      "section_sha256": "e44bfe87feb4e81370e760b6db5d10b2910937069d5cebd0348c49578e213dc9",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:73:400",
+      "status": "recovered_documentation",
+      "title": "Completed subtype loss coefficient-two ablation",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-073-README.md",
+      "lines": [
+        400,
+        449
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "26b0757ebdf7b4e86c17230874fe0b897374ca355ee07f91b044a9004c3f8c93",
+      "section_sha256": "6db8ba43e6fcb2352604b8c60ffc113a380e0fdc8829c023be0c906e4604df19",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:73:450",
+      "status": "recovered_documentation",
+      "title": "R-Drop implementation verification",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-073-README.md",
+      "lines": [
+        450,
+        460
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "26b0757ebdf7b4e86c17230874fe0b897374ca355ee07f91b044a9004c3f8c93",
+      "section_sha256": "705a2f75011f6476c82d5995ee0e94a8d16613ecb8622a34ba33ebba9930595c",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:73:461",
+      "status": "recovered_documentation",
+      "title": "Completed matched R-Drop ablation",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-073-README.md",
+      "lines": [
+        461,
+        494
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "26b0757ebdf7b4e86c17230874fe0b897374ca355ee07f91b044a9004c3f8c93",
+      "section_sha256": "5f1d2e4b0732ae4e96db939bfa24b61a6607927a551d160ce82c589d180aca37",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:73:495",
+      "status": "recovered_documentation",
+      "title": "Heterogeneous encoder ensemble",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-073-README.md",
+      "lines": [
+        495,
+        556
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "26b0757ebdf7b4e86c17230874fe0b897374ca355ee07f91b044a9004c3f8c93",
+      "section_sha256": "273e401ce26f5f77f42654785b9ffdcf4227310bf93403d9b4784c97ca78f7af",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:73:557",
+      "status": "recovered_documentation",
+      "title": "Completed fixed-split experiment",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-073-README.md",
+      "lines": [
+        557,
+        599
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "26b0757ebdf7b4e86c17230874fe0b897374ca355ee07f91b044a9004c3f8c93",
+      "section_sha256": "3c57df7b434debf272cc9e9b69be57e45bc5a647e43863fbb7ac4746c5880469",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:73:600",
+      "status": "recovered_documentation",
+      "title": "Larger Vietnamese QLoRA classifier: Sailor2-8B",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-073-README.md",
+      "lines": [
+        600,
+        668
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "26b0757ebdf7b4e86c17230874fe0b897374ca355ee07f91b044a9004c3f8c93",
+      "section_sha256": "0c3c27d2cf1b6c7b81a387d14d1b77e2cac1b8f6a3c9ca6afa27f8ec481ef096",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:73:669",
+      "status": "recovered_documentation",
+      "title": "Eight-epoch fit and equal-weight Qwen ensemble",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-073-README.md",
+      "lines": [
+        669,
+        738
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "26b0757ebdf7b4e86c17230874fe0b897374ca355ee07f91b044a9004c3f8c93",
+      "section_sha256": "0d0e66d3f90c53c88bc94be040c0509813f6519a0474b3819aa7c9c3c0540e01",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:73:739",
+      "status": "recovered_documentation",
+      "title": "Retained experiment integration into `rquq/test`",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-073-README.md",
+      "lines": [
+        739,
+        770
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "26b0757ebdf7b4e86c17230874fe0b897374ca355ee07f91b044a9004c3f8c93",
+      "section_sha256": "1a665a49c468730e3e04e35ab1378c60d914da5a086bb8e018dbf7ea54d2ff86",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "archive:73:771",
+      "status": "recovered_documentation",
+      "title": "Paper evidence and improvement priorities",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/archive-073-README.md",
+      "lines": [
+        771,
+        785
+      ],
+      "archive_member": "agents/README.md",
+      "evidence_sha256": "26b0757ebdf7b4e86c17230874fe0b897374ca355ee07f91b044a9004c3f8c93",
+      "section_sha256": "64d509dfeac395d3bf5c198c0b3f06c194075b630f98dbff21fb1ea05322528f",
+      "scope": "historical reported evidence; not newly verified or rerun"
+    },
+    {
+      "id": "commit:47f3a233cb8b26a8ecd595467dce5d55cbd36449",
+      "status": "code_history",
+      "title": "Keep notebook cells minimal and move environment setup into helper",
+      "commit": "47f3a233cb8b26a8ecd595467dce5d55cbd36449",
+      "date": "2026-10-13T18:30:42+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:6d2f6b9b8b1edbe4e4c27c80a37a7dc273938fa0",
+      "status": "code_history",
+      "title": "Run committed Kaggle recipes with validated submissions and T4 recovery",
+      "commit": "6d2f6b9b8b1edbe4e4c27c80a37a7dc273938fa0",
+      "date": "2026-10-13T18:23:52+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:4b3077adddf0fca9b59897350e98d82ded7be943",
+      "status": "code_history",
+      "title": "Reuse correction base for selected-adapter evaluation",
+      "commit": "4b3077adddf0fca9b59897350e98d82ded7be943",
+      "date": "2026-10-13T10:57:46+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:c87ad98d2653edb353fa6c01a66fd27ce23b46fc",
+      "status": "code_history",
+      "title": "Clean W&B logs and stage results for local and Kaggle",
+      "commit": "c87ad98d2653edb353fa6c01a66fd27ce23b46fc",
+      "date": "2026-10-13T01:31:35+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:be149813d7560c22509fa04ab91e299314570046",
+      "status": "code_history",
+      "title": "Integrate public test inference in local and Kaggle pipelines",
+      "commit": "be149813d7560c22509fa04ab91e299314570046",
+      "date": "2026-10-12T20:59:48+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:9ab2d1d67f10ece01fd8dddde79d4fcdeca62718",
+      "status": "code_history",
+      "title": "Use Sailor-7B-Chat with run submissions and Kaggle W&B secrets",
+      "commit": "9ab2d1d67f10ece01fd8dddde79d4fcdeca62718",
+      "date": "2026-10-12T20:38:40+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:981d5a832d02024b098a971c5d977c1cbde93159",
+      "status": "code_history",
+      "title": "Document successful offline Kaggle saved-run tracking smoke",
+      "commit": "981d5a832d02024b098a971c5d977c1cbde93159",
+      "date": "2026-10-12T17:39:00+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:972387e22b3587d3ac6cbcc6c99ff66b474f8fec",
+      "status": "code_history",
+      "title": "Clarify local notebook single-GPU default",
+      "commit": "972387e22b3587d3ac6cbcc6c99ff66b474f8fec",
+      "date": "2026-10-12T17:36:52+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:4824ec1a8a473d410bd659f79f8aff108e7d7eb7",
+      "status": "code_history",
+      "title": "Align all branches to canonical Kaggle/local implementation while preserving history",
+      "commit": "4824ec1a8a473d410bd659f79f8aff108e7d7eb7",
+      "date": "2026-10-12T17:36:08+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:0b9a9b9836f50a476b5c84c914460f2dd6182b8a",
+      "status": "code_history",
+      "title": "Integrate private W&B tracking and local two-phase notebook",
+      "commit": "0b9a9b9836f50a476b5c84c914460f2dd6182b8a",
+      "date": "2026-10-12T17:34:53+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:3918ee3a9abf496f216670991a72c6b66f152181",
+      "status": "code_history",
+      "title": "Add portable Kaggle task modes and saved correction experiments",
+      "commit": "3918ee3a9abf496f216670991a72c6b66f152181",
+      "date": "2026-10-12T14:17:10+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:42c0720d2b4de3a201137776da727fef18262439",
+      "status": "code_history",
+      "title": "Release correction callback GPU owners before saved adapter reload",
+      "commit": "42c0720d2b4de3a201137776da727fef18262439",
+      "date": "2026-10-12T13:24:03+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:c014bfe70656d23fa948db40bacbc4e84566d13c",
+      "status": "code_history",
+      "title": "Skip ensurepip in Kaggle training environment bootstrap",
+      "commit": "c014bfe70656d23fa948db40bacbc4e84566d13c",
+      "date": "2026-10-12T02:05:59+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:e5e34b3ab64d7712fe1914e2cc2b09f3f22bdad6",
+      "status": "code_history",
+      "title": "Isolate Kaggle training dependencies for unattended Save Version",
+      "commit": "e5e34b3ab64d7712fe1914e2cc2b09f3f22bdad6",
+      "date": "2026-10-12T01:51:20+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:0d9ee4a5d9c576e96d686d58c151b946a52548af",
+      "status": "code_history",
+      "title": "Simplify Kaggle reruns with fresh non-destructive source clones",
+      "commit": "0d9ee4a5d9c576e96d686d58c151b946a52548af",
+      "date": "2026-10-11T22:05:31+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:a8f9c47aee0985e8b5b6289ec056c52731548cf6",
+      "status": "code_history",
+      "title": "Require kernel restart for replaced scientific stack before preflight",
+      "commit": "a8f9c47aee0985e8b5b6289ec056c52731548cf6",
+      "date": "2026-10-11T22:00:34+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:78e99a21513e818ecf820833c7b3a10d3d6cdf2c",
+      "status": "code_history",
+      "title": "Expose sanitized Git bootstrap failure diagnostics",
+      "commit": "78e99a21513e818ecf820833c7b3a10d3d6cdf2c",
+      "date": "2026-10-11T21:52:50+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:24dcc310af4074f7a8db0ff04ccf98c79b24a7ee",
+      "status": "code_history",
+      "title": "Authenticate Kaggle notebook private GitHub clone and fetch",
+      "commit": "24dcc310af4074f7a8db0ff04ccf98c79b24a7ee",
+      "date": "2026-10-11T21:44:31+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:bae464dc210a48810fc33e14c4a5e6598200de1b",
+      "status": "code_history",
+      "title": "Clarify local Kaggle dataset upload package and Add Input steps",
+      "commit": "bae464dc210a48810fc33e14c4a5e6598200de1b",
+      "date": "2026-10-11T21:38:08+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:a66666766ee28b281802200bdcdb6435cb77fca6",
+      "status": "code_history",
+      "title": "Update correction recipe to eight epochs and revised prompt",
+      "commit": "a66666766ee28b281802200bdcdb6435cb77fca6",
+      "date": "2026-10-11T21:36:16+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:29b063f85cef5c2aad0afaa69959fa43eda4a4b2",
+      "status": "code_history",
+      "title": "Restore connected Kaggle two-phase Sailor2 training with dual-GPU DDP",
+      "commit": "29b063f85cef5c2aad0afaa69959fa43eda4a4b2",
+      "date": "2026-10-11T21:19:24+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:d5019489aba93aa42bc58b0d907e89fceaf34fca",
+      "status": "code_history",
+      "title": "Trim Kaggle branch to Sailor2 classification baseline",
+      "commit": "d5019489aba93aa42bc58b0d907e89fceaf34fca",
+      "date": "2026-10-11T20:45:53+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:3d8674103a005d75c2a9037427124b6100124fc9",
+      "status": "code_history",
+      "title": "Record clean-clone Kaggle baseline smoke verification",
+      "commit": "3d8674103a005d75c2a9037427124b6100124fc9",
+      "date": "2026-10-11T19:56:07+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:67ac63cc6ee8f487a42b1e443d261615fdd999d4",
+      "status": "code_history",
+      "title": "Fix baseline-only tokenizer and epoch-budget placement",
+      "commit": "67ac63cc6ee8f487a42b1e443d261615fdd999d4",
+      "date": "2026-10-11T19:55:25+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:c10586e634c752e1de562caa3bc6653b9602496a",
+      "status": "code_history",
+      "title": "Prepare Sailor2 baseline for Kaggle Linux experiments",
+      "commit": "c10586e634c752e1de562caa3bc6653b9602496a",
+      "date": "2026-10-11T19:54:06+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:55f2cac29643c420966f1b2f2841f71610faea57",
+      "status": "code_history",
+      "title": "Audit training bundles and remove rejected R-Drop experiments",
+      "commit": "55f2cac29643c420966f1b2f2841f71610faea57",
+      "date": "2026-10-09T22:00:04+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:92b100bb023ddc28f64a21cd641728ffc803bfca",
+      "status": "code_history",
+      "title": "Record integrated five-epoch Sailor GPU verification",
+      "commit": "92b100bb023ddc28f64a21cd641728ffc803bfca",
+      "date": "2026-10-09T17:28:54+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:5abb3dea23b4d50879b03c5df3c499c02632141b",
+      "status": "code_history",
+      "title": "Merge alpha experiments into test; retain five-epoch Sailor baseline",
+      "commit": "5abb3dea23b4d50879b03c5df3c499c02632141b",
+      "date": "2026-10-09T17:26:44+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:f7f5a4e0d4fa6d5c34379ed7bf4d43a6f6554e20",
+      "status": "code_history",
+      "title": "Retain five-epoch Sailor classification experiment and record ensemble results",
+      "commit": "f7f5a4e0d4fa6d5c34379ed7bf4d43a6f6554e20",
+      "date": "2026-10-09T17:26:18+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:3d90b5f49bd4570eb374634db82a4860168a7e20",
+      "status": "code_history",
+      "title": "Record matched localization GPU result and serving verification",
+      "commit": "3d90b5f49bd4570eb374634db82a4860168a7e20",
+      "date": "2026-10-09T12:40:12+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:232aa5a6176a5f52f4938c2bff3c05db8507e899",
+      "status": "code_history",
+      "title": "Record completed alpha and beta matched experiment comparison",
+      "commit": "232aa5a6176a5f52f4938c2bff3c05db8507e899",
+      "date": "2026-10-09T12:39:58+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:e24678193c9b38746979bb2f2431b138f939efbe",
+      "status": "code_history",
+      "title": "Merge branch 'rquq/alpha' into rquq/test",
+      "commit": "e24678193c9b38746979bb2f2431b138f939efbe",
+      "date": "2026-10-09T12:14:13+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:3dfeeb2b1e4958395e8bba320002bc8f2500119a",
+      "status": "code_history",
+      "title": "Point integrated Kaggle notebook at rquq/test",
+      "commit": "3dfeeb2b1e4958395e8bba320002bc8f2500119a",
+      "date": "2026-10-09T12:13:54+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:c5106634bbd9b9413b8797e53b9a76b1a8448783",
+      "status": "code_history",
+      "title": "Record matched R-Drop GPU result with no label-level gain",
+      "commit": "c5106634bbd9b9413b8797e53b9a76b1a8448783",
+      "date": "2026-10-09T12:13:36+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:b48652fa710b13fee8a52f189a13cbb4ee45d84f",
+      "status": "code_history",
+      "title": "Add reference-edit localization auxiliary to hierarchical QLoRA classifier",
+      "commit": "b48652fa710b13fee8a52f189a13cbb4ee45d84f",
+      "date": "2026-10-09T11:30:30+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:0bafd90e2cf81334514f466dfb35a90bb5487771",
+      "status": "code_history",
+      "title": "Add fixed R-Drop to soft hierarchical QLoRA classification",
+      "commit": "0bafd90e2cf81334514f466dfb35a90bb5487771",
+      "date": "2026-10-09T11:24:24+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:44be38ab159a64040b0cdc1a5f2dec0f56703beb",
+      "status": "code_history",
+      "title": "Record lambda-two soft hierarchy and matched ablation evidence",
+      "commit": "44be38ab159a64040b0cdc1a5f2dec0f56703beb",
+      "date": "2026-10-09T11:13:24+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:c62f5f0b5804ab5e8dd497749b8840a21b5693d5",
+      "status": "code_history",
+      "title": "Record matched head LR ablation and precision sensitivity",
+      "commit": "c62f5f0b5804ab5e8dd497749b8840a21b5693d5",
+      "date": "2026-10-09T02:51:19+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:49d4dccaca9bbe885d8f434645e10daac5d4527a",
+      "status": "code_history",
+      "title": "Split classifier head and LoRA learning rates for alpha ablation",
+      "commit": "49d4dccaca9bbe885d8f434645e10daac5d4527a",
+      "date": "2026-10-09T02:03:11+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:a553229f114c85243ede3358f08eb23413773647",
+      "status": "code_history",
+      "title": "Freeze mixed-data Qwen3 classification and Sailor2 correction baseline",
+      "commit": "a553229f114c85243ede3358f08eb23413773647",
+      "date": "2026-10-09T01:57:23+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:519fad1f5f4d77565c8139464445ece8d1e3df57",
+      "status": "code_history",
+      "title": "Add balanced training pipeline and HiGANplus-compatible local notebook",
+      "commit": "519fad1f5f4d77565c8139464445ece8d1e3df57",
+      "date": "2026-10-07T23:43:28+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:a7565b3f3378067b7558624feef7e54515f310f2",
+      "status": "code_history",
+      "title": "Centralize experiment configuration and save adapters under runs",
+      "commit": "a7565b3f3378067b7558624feef7e54515f310f2",
+      "date": "2026-10-07T20:03:41+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:1715e1efe1e7180a07e96abf36b51bc63fc9649a",
+      "status": "code_history",
+      "title": "Publish Kaggle-ready Qwen3-4B QLoRA baseline",
+      "commit": "1715e1efe1e7180a07e96abf36b51bc63fc9649a",
+      "date": "2026-10-07T19:09:09+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:a4818d9d8eaed20aa6666654acc2163dac797d0f",
+      "status": "code_history",
+      "title": "Record GPU and distributed smoke verification",
+      "commit": "a4818d9d8eaed20aa6666654acc2163dac797d0f",
+      "date": "2026-10-07T14:55:18+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:0f7e8f7c30a9476a1aa2c33e2302794d138ea359",
+      "status": "code_history",
+      "title": "Add Vietnamese GEC LoRA baseline and verified Kaggle branch workflow",
+      "commit": "0f7e8f7c30a9476a1aa2c33e2302794d138ea359",
+      "date": "2026-10-07T14:51:21+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "commit:045f4414901f49893229be7d99bd266f9966512b",
+      "status": "code_history",
+      "title": "Initial commit",
+      "commit": "045f4414901f49893229be7d99bd266f9966512b",
+      "date": "2026-10-07T14:38:34+07:00",
+      "scope": "commit existence alone does not establish a training result"
+    },
+    {
+      "id": "maintenance:progress.json",
+      "status": "recovered_maintenance_record",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/maintenance-progress.json",
+      "evidence_sha256": "85d86db12c81fc797999a08e89c6b5eebc604022a8ab2f74144eb65d24e2c9fd",
+      "scope": "cleanup/runtime record, not a new training result"
+    },
+    {
+      "id": "maintenance:cleanup.json",
+      "status": "recovered_maintenance_record",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/maintenance-cleanup.json",
+      "evidence_sha256": "2063e983f6b2732d471eeb2ed90f97588b5b16820b9adc5b4f78b054872f8ffe",
+      "scope": "cleanup/runtime record, not a new training result"
+    },
+    {
+      "id": "maintenance:integrity.json",
+      "status": "recovered_maintenance_record",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/maintenance-integrity.json",
+      "evidence_sha256": "fbb30ae352683dbbee08babad6946bbdad26147eea9cc5cf3a3a10179451f298",
+      "scope": "cleanup/runtime record, not a new training result"
+    },
+    {
+      "id": "maintenance:baseline-runtime-verification.json",
+      "status": "recovered_maintenance_record",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/maintenance-baseline-runtime-verification.json",
+      "evidence_sha256": "a7c2a23e1d357cd99d53c6d662fa89393307350541a66c96ae9ac08c79d5f19f",
+      "scope": "cleanup/runtime record, not a new training result"
+    },
+    {
+      "id": "stash:b43e34c6ae804ddb7ce264b9803a33be46529553:configs/classification.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/classification.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-b43e34c-False-classification.json",
+      "evidence_sha256": "0a3478ed0df868abfb66199bfa7f3963d14b78166c3d2e29c431fea8cf15414f",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:b43e34c6ae804ddb7ce264b9803a33be46529553:configs/classification_sailor2_8b.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/classification_sailor2_8b.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-b43e34c-False-classification_sailor2_8b.json",
+      "evidence_sha256": "ec3a45eb858d2099043ebe49d3d49f670e531c548d5d2224663df39945527a8d",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:b43e34c6ae804ddb7ce264b9803a33be46529553:configs/classification_sailor2_8b_8epochs.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/classification_sailor2_8b_8epochs.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-b43e34c-False-classification_sailor2_8b_8epochs.json",
+      "evidence_sha256": "568a57f9e0647c6507ce5b609762f63867e55ed2aa2cfc21917a5ac2d8ea7efe",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:b43e34c6ae804ddb7ce264b9803a33be46529553:configs/correction.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/correction.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-b43e34c-False-correction.json",
+      "evidence_sha256": "424db3344e01e41557c1017c5d1a012f52f6882897460226cb9473f771768847",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:b43e34c6ae804ddb7ce264b9803a33be46529553:configs/encoder_bamibert.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/encoder_bamibert.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-b43e34c-False-encoder_bamibert.json",
+      "evidence_sha256": "95d6e221db6c11eda515c37a94b845771fa8a952c211c140a25f2b0f6b7089cb",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:b43e34c6ae804ddb7ce264b9803a33be46529553^3:configs/baseline.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/baseline.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-b43e34c-True-baseline.json",
+      "evidence_sha256": "b86a332bd84de2a671d585a486d3500688a6dbfb3f0f36a556d2b6ff2934a180",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:b43e34c6ae804ddb7ce264b9803a33be46529553^3:configs/classification_sailor2_8b_focal.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/classification_sailor2_8b_focal.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-b43e34c-True-classification_sailor2_8b_focal.json",
+      "evidence_sha256": "5405bcf310d19f757f0da90db32ec7f5aadb0e43c119c2f1da463a476bb634db",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:b43e34c6ae804ddb7ce264b9803a33be46529553^3:configs/classification_sailor2_8b_smoothing.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/classification_sailor2_8b_smoothing.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-b43e34c-True-classification_sailor2_8b_smoothing.json",
+      "evidence_sha256": "fb6afd2793113c87c31c5672448afd75ee46d5e075d04f11cabc00b48dc08b6b",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:b43e34c6ae804ddb7ce264b9803a33be46529553^3:configs/classification_sailor2_8b_supcon.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/classification_sailor2_8b_supcon.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-b43e34c-True-classification_sailor2_8b_supcon.json",
+      "evidence_sha256": "8e8ac0ace477bc6db9dda0648ee5af2c92c78214dcfaa6d3bc9067f2dde11a94",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:b43e34c6ae804ddb7ce264b9803a33be46529553^3:configs/domain_reviewed.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/domain_reviewed.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-b43e34c-True-domain_reviewed.json",
+      "evidence_sha256": "e23a4751f17ed5060d4b0f9dedfe920a40218c67f00443f5d9a3ec73791dd33c",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:b43e34c6ae804ddb7ce264b9803a33be46529553^3:configs/domain_v2_reviewed.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/domain_v2_reviewed.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-b43e34c-True-domain_v2_reviewed.json",
+      "evidence_sha256": "a140c53eec10de2eea865dd79591ac858248b2b71e266945987646c6b1d59a7a",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:b43e34c6ae804ddb7ce264b9803a33be46529553^3:configs/real_adaptation.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/real_adaptation.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-b43e34c-True-real_adaptation.json",
+      "evidence_sha256": "2ffdfb24aa419717d85720809bfe4153f44f15b24f46194cfba37086fb6cf1e5",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:fc8ab8fc07e5c27700a5d49ce0eeec40884da00f:configs/baseline.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/baseline.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-fc8ab8f-False-baseline.json",
+      "evidence_sha256": "c0f827335758388f82c25a463b4bccc552401dd8706ef821f9f238a3d8302a07",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:fc8ab8fc07e5c27700a5d49ce0eeec40884da00f:configs/classification.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/classification.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-fc8ab8f-False-classification.json",
+      "evidence_sha256": "0a3478ed0df868abfb66199bfa7f3963d14b78166c3d2e29c431fea8cf15414f",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:fc8ab8fc07e5c27700a5d49ce0eeec40884da00f:configs/classification_sailor2_8b.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/classification_sailor2_8b.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-fc8ab8f-False-classification_sailor2_8b.json",
+      "evidence_sha256": "ec3a45eb858d2099043ebe49d3d49f670e531c548d5d2224663df39945527a8d",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:fc8ab8fc07e5c27700a5d49ce0eeec40884da00f:configs/classification_sailor2_8b_8epochs.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/classification_sailor2_8b_8epochs.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-fc8ab8f-False-classification_sailor2_8b_8epochs.json",
+      "evidence_sha256": "568a57f9e0647c6507ce5b609762f63867e55ed2aa2cfc21917a5ac2d8ea7efe",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:fc8ab8fc07e5c27700a5d49ce0eeec40884da00f:configs/correction.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/correction.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-fc8ab8f-False-correction.json",
+      "evidence_sha256": "424db3344e01e41557c1017c5d1a012f52f6882897460226cb9473f771768847",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:fc8ab8fc07e5c27700a5d49ce0eeec40884da00f:configs/encoder_bamibert.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/encoder_bamibert.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-fc8ab8f-False-encoder_bamibert.json",
+      "evidence_sha256": "95d6e221db6c11eda515c37a94b845771fa8a952c211c140a25f2b0f6b7089cb",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:fc8ab8fc07e5c27700a5d49ce0eeec40884da00f^3:configs/classification_sailor2_8b_focal.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/classification_sailor2_8b_focal.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-fc8ab8f-True-classification_sailor2_8b_focal.json",
+      "evidence_sha256": "5405bcf310d19f757f0da90db32ec7f5aadb0e43c119c2f1da463a476bb634db",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:fc8ab8fc07e5c27700a5d49ce0eeec40884da00f^3:configs/classification_sailor2_8b_smoothing.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/classification_sailor2_8b_smoothing.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-fc8ab8f-True-classification_sailor2_8b_smoothing.json",
+      "evidence_sha256": "fb6afd2793113c87c31c5672448afd75ee46d5e075d04f11cabc00b48dc08b6b",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "stash:fc8ab8fc07e5c27700a5d49ce0eeec40884da00f^3:configs/classification_sailor2_8b_supcon.json",
+      "status": "stashed_recipe_only",
+      "title": "configs/classification_sailor2_8b_supcon.json",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/agents/private/recovered-notes/stash-fc8ab8f-True-classification_sailor2_8b_supcon.json",
+      "evidence_sha256": "8e8ac0ace477bc6db9dda0648ee5af2c92c78214dcfaa6d3bc9067f2dde11a94",
+      "scope": "recovered draft recipe; no completion or metric inferred"
+    },
+    {
+      "id": "lexical-probe:original_only",
+      "status": "measured_probe_not_promoted",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/audit-kano-20261013/classifier-probes.json",
+      "evidence_sha256": "d62e2c1fd033acef8ce2c31ef62826523bf847e6f0bc94fe2cb25a2f1d664f26",
+      "metrics": {
+        "training_rows": 312,
+        "selected_C": 0.1,
+        "training_group_cv_macro_f1": 0.42288184901252696,
+        "holdout_macro_f1": 0.2710082791247782,
+        "holdout_micro_f1": 0.5555555555555556,
+        "per_class_f1": [
+          0.8089887640449438,
+          0.42105263157894735,
+          0.0,
+          0.0,
+          0.125
+        ],
+        "confusion_matrix": [
+          [
+            36,
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            6,
+            8,
+            1,
+            1,
+            4
+          ],
+          [
+            2,
+            3,
+            0,
+            1,
+            1
+          ],
+          [
+            1,
+            4,
+            0,
+            0,
+            2
+          ],
+          [
+            4,
+            2,
+            0,
+            0,
+            1
+          ]
+        ]
+      },
+      "scope": "training-only grouped CV selected C; same 81-row holdout"
+    },
+    {
+      "id": "lexical-probe:current_augmentation",
+      "status": "measured_probe_not_promoted",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/audit-kano-20261013/classifier-probes.json",
+      "evidence_sha256": "d62e2c1fd033acef8ce2c31ef62826523bf847e6f0bc94fe2cb25a2f1d664f26",
+      "metrics": {
+        "training_rows": 504,
+        "selected_C": 0.1,
+        "training_group_cv_macro_f1": 0.4470468089700224,
+        "holdout_macro_f1": 0.29529729729729726,
+        "holdout_micro_f1": 0.48148148148148145,
+        "per_class_f1": [
+          0.75,
+          0.4864864864864865,
+          0.0,
+          0.0,
+          0.24
+        ],
+        "confusion_matrix": [
+          [
+            27,
+            2,
+            5,
+            1,
+            5
+          ],
+          [
+            3,
+            9,
+            1,
+            1,
+            6
+          ],
+          [
+            0,
+            3,
+            0,
+            2,
+            2
+          ],
+          [
+            1,
+            2,
+            2,
+            0,
+            2
+          ],
+          [
+            1,
+            1,
+            0,
+            2,
+            3
+          ]
+        ]
+      },
+      "scope": "training-only grouped CV selected C; same 81-row holdout"
+    }
+  ]
+}

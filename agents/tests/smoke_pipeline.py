@@ -122,9 +122,16 @@ def main():
     manifest = json.loads((run / "pipeline_manifest.json").read_text())
     assert manifest["submission"]["status"] == "completed" and not manifest["submission"]["evaluated"]
     assert (run / "run_handoff.json").is_file()
-    assert (run / "classification/oof_metrics.json").is_file() and (run / "correction/metrics.json").is_file()
+    classifier_config = json.loads((run / "classification/config.json").read_text())
+    expected_folds = classifier_config["oof"]["enabled"]
+    assert (run / "classification/oof_metrics.json").is_file() == expected_folds
+    assert (run / "classification/hints.json").is_file() == expected_folds
+    assert (run / "correction/metrics.json").is_file()
+    inference = json.loads((run / "correction/adapter/inference.json").read_text())
+    assert inference["hint_mode"] == json.loads((root / "correction.json").read_text())["inference"]["hint_mode"]
     print(json.dumps({"status": "passed", "device": args.device, "world_size": args.world_size,
-                      "run": str(run), "log": str(root / "pipeline.log"), "submission_rows": len(rows)}, indent=2))
+                      "run": str(run), "log": str(root / "pipeline.log"), "submission_rows": len(rows),
+                      "oof_enabled": expected_folds, "hint_mode": inference["hint_mode"]}, indent=2))
 
 
 if __name__ == "__main__":

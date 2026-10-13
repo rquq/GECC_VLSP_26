@@ -26,19 +26,23 @@ Inputs default to `dataset/` and outputs to `runs/`. The canonical archive takes
 
 ## Pipeline
 
-Both stages use the pinned `sail/Sailor-7B-Chat` revision. The classifier trains a soft hierarchical clean/error and conditional four-subtype head. Its five training epochs use LR 5e-5, effective batch eight, seed 42, and LoRA rank 16. Five grouped OOF fits supply training-only predicted hints; validation hints come from the selected main classifier. The independent corrector trains response-only JSON for eight epochs at LR 2e-5. Every input reaches correction, including predicted-clean sentences.
+Both stages use the pinned `sail/Sailor-7B-Chat` revision. The classifier trains a soft hierarchical clean/error and conditional four-subtype head for five epochs at LR 5e-5, effective batch eight, seed 42, and LoRA rank 16. The independent corrector trains response-only JSON for eight epochs at LR 2e-5, using the source sentence without a label hint. Every input reaches correction, including predicted-clean sentences. The current run has two fits and no OOF training; saved classifier predictions supply classification metrics only.
+
+The previous five-fold hint system is preserved in `../alpha/preserved/kaggle-fold-hints-47f3a23/` and Git tag `alpha-fold-hints-20261013`. Its notebook pins that tag. The new no-fold run uses the same data and budgets to isolate removal of hints; its full-size score remains pending.
 
 Selected corrector reload reuses the frozen base after releasing optimizer/DDP state. Native BF16 support is checked with emulation disabled; T4s use FP16. Valid greedy corrections are preserved. Malformed sentence JSON receives one schema-constrained beam retry; unresolved invalid output keeps diagnostics and fails export rather than inventing a correction.
 
 The lower-level `model.two_phase` and `model.pipeline_predict` CLIs remain available for targeted development, saved-run reuse, and recovery. A task2 recipe can set `classifier_run` and optionally `initial_adapter`; those are committed choices. Hint ablation, edit generation, and reranking live in separate research modules and have no notebook switches. Neither a changed corrector prompt nor a different synthetic pool should be promoted without a measured comparison.
 
-For inexpensive classifier screening, commit `mode="task1"` in the experiment recipe and `oof.enabled=false` in the classifier config. The notebook displays the classifier report without requiring an inference input or fabricating a full submission. Once a classifier recipe earns further testing, commit `mode="both"` and restore OOF generation. Normal notebook runs require a clean Git checkout.
+For inexpensive classifier screening, commit `mode="task1"` in the experiment recipe. The notebook displays the classifier report without requiring an inference input or fabricating a full submission. Return to `mode="both"` for the current independent corrector; OOF remains disabled. Predicted-hint correction requires genuine OOF artifacts. Normal notebook runs require a clean Git checkout.
 
 ## Evaluation and next experiments
 
 KANO's format-corrected public result is Macro-F1 0.3473, Micro-F1 0.5485, GLEU+ 0.7224, exact match 0.5395, ROUGE-L 0.8262, and combined 0.5349. Classification is the main current bottleneck. The latest local classifier gets 40/40 clean rows right but only 15/41 error subtypes right. Its synthetic rare-type supervision is dominated by single patterns. Prioritize diverse, reviewed training examples and controlled model/data comparisons over more epochs.
 
 The existing 81-row holdout and original files remain unchanged. Repair training annotations in a private versioned overlay with evidence and review confidence. Repaired/full corrections and synthetic pairs must stay inside the training partition; source/parent families remain together during OOF splitting. Report error-only correction metrics alongside all-row metrics, and retain annotation-like reference diagnostics. Local metrics are not an official scorer reproduction.
+
+Every experiment belongs in `agents/experiments/`, including user requests, negative outcomes, failures and historical claims. The launcher writes local events there and into each saved run. `agents/experiments/HISTORY.md` indexes recovered artifacts/notes without rerunning old training; `DATA_PLAN.md` describes subtype curation and a bounded eligible local-teacher pilot. Eleven mechanical repair proposals remain private and unpromoted. Root `AGENTS.md` makes this documentation workflow persistent.
 
 ## Resource tracks and privacy
 

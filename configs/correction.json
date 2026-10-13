@@ -1,7 +1,7 @@
 {
   "task": "correction",
   "run": {
-    "name": "sailor-7b-qlora-correction",
+    "name": "sailor-7b-no-hint-correction",
     "output_root": "runs",
     "device": "cuda",
     "world_size": 2,
@@ -36,7 +36,15 @@
     "r": 16,
     "lora_alpha": 32,
     "lora_dropout": 0.05,
-    "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+    "target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ],
     "bias": "none"
   },
   "training": {
@@ -47,11 +55,13 @@
       "num_train_epochs": 8,
       "max_steps": -1,
       "per_device_train_batch_size": 1,
-      "learning_rate": 2e-5,
+      "learning_rate": 2e-05,
       "warmup_ratio": 0.1,
       "weight_decay": 0.01,
       "gradient_checkpointing": true,
-      "gradient_checkpointing_kwargs": {"use_reentrant": false},
+      "gradient_checkpointing_kwargs": {
+        "use_reentrant": false
+      },
       "optim": "adamw_torch",
       "logging_steps": 1,
       "dataloader_num_workers": 0,
@@ -59,21 +69,14 @@
       "max_grad_norm": 1.0,
       "adam_beta1": 0.9,
       "adam_beta2": 0.999,
-      "adam_epsilon": 1e-8
+      "adam_epsilon": 1e-08
     }
   },
   "inference": {
     "output_format": "sentence",
-    "hint_mode": "predicted",
+    "hint_mode": "none",
     "user_role": "question",
-    "prompt": "Hãy sửa lỗi ngữ pháp Tiếng Việt. Nhãn dự đoán chỉ là gợi ý, không bắt buộc sửa theo nhãn. Sửa ít nhất có thể, giữ nguyên ý nghĩa và hãy giữ nguyên câu đúng. Chỉ trả lời JSON với duy nhất khóa corrected_sentence chứa câu hoàn chỉnh; không giải thích.",
-    "hint_descriptions": [
-      "câu không có lỗi",
-      "lỗi cấu trúc câu (quan hệ chủ ngữ, vị ngữ, các vế câu)",
-      "lỗi cấu trúc ngữ đoạn (thành phần trong cụm từ)",
-      "lỗi sử dụng từ công cụ (quan hệ từ, liên từ, từ phụ trợ)",
-      "lỗi chấm câu (thiếu, thừa hoặc dùng sai dấu câu)"
-    ]
+    "prompt": "Hãy sửa lỗi ngữ pháp Tiếng Việt. Sửa ít nhất có thể, giữ nguyên ý nghĩa và hãy giữ nguyên câu đúng. Chỉ trả lời JSON với duy nhất khóa corrected_sentence chứa câu hoàn chỉnh; không giải thích."
   },
   "generation": {
     "max_new_tokens": 192,
@@ -81,7 +84,11 @@
     "use_cache": true
   },
   "evaluation": {
-    "selection_metrics": ["corrections.error_only.gleu_plus", "corrections.error_only.exact_match", "clean_preservation.exact_source_preservation"],
+    "selection_metrics": [
+      "corrections.error_only.gleu_plus",
+      "corrections.error_only.exact_match",
+      "clean_preservation.exact_source_preservation"
+    ],
     "save_epoch_adapters": false
   }
 }

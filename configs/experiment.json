@@ -1,5 +1,5 @@
 {
-  "name": "sailor7b-constrained",
+  "name": "sailor7b-no-folds",
   "mode": "both",
   "classification_config": "configs/baseline.json",
   "correction_config": "configs/correction.json",

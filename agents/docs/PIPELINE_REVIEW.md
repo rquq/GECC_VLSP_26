@@ -1,5 +1,7 @@
 # Pipeline review — 2026-10-13
 
+This review describes the preserved five-fold pipeline at commit 47f3a23. The current no-fold/no-hint recipe and its pending full-size result are documented in `agents/experiments/CURRENT.md`; dataset work follows `DATA_PLAN.md` and `agents/docs/DATA_GUIDELINES.md`.
+
 KANO's second entry verifies the submission-format diagnosis: combined 0.5349, GLEU+ 0.7224, exact match 0.5395, ROUGE-L 0.8262, Macro-F1 0.3473, and Micro-F1 0.5485. Classification is now the primary bottleneck. The corrected submission preserved labels and sentences and changed strings to singleton lists.
 
 ## Resource track

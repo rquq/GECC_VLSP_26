@@ -156,13 +156,29 @@ def main():
     output_root = Path(args.output_root) if args.output_root else (Path("/kaggle/working/runs") if kaggle else PROJECT_ROOT / "runs")
     work, command = prepare_run(args.recipe, input_root, output_root, world_size=world_size)
     print(f"VGEC_RUN_DIR:{work / 'run'}", flush=True)
-    subprocess.run(command + ["--preflight-only"], cwd=PROJECT_ROOT, check=True)
-    if not args.preflight_only:
-        subprocess.run(command, cwd=PROJECT_ROOT, check=True)
-        recipe = json.loads(Path(args.recipe).read_text())
-        required = "classification/metrics.json" if recipe["mode"] == "task1" else "results.zip"
-        if not (work / "run" / required).is_file():
-            raise RuntimeError(f"Training ended without required artifact {required}; inspect the run diagnostics")
+    from tools.experiment_log import record
+    manifest = json.loads((work / "experiment_manifest.json").read_text())
+    identity = {"name": manifest["recipe"]["name"], "mode": manifest["recipe"]["mode"],
+                "commit": source["commit"], "recipe_sha256": manifest["recipe_sha256"],
+                "input_sha256": {key: item["sha256"] for key, item in manifest["inputs"].items()},
+                "preflight_only": args.preflight_only}
+    record(work, "started", **identity)
+    try:
+        subprocess.run(command + ["--preflight-only"], cwd=PROJECT_ROOT, check=True)
+        if not args.preflight_only:
+            subprocess.run(command, cwd=PROJECT_ROOT, check=True)
+            required = "classification/metrics.json" if identity["mode"] == "task1" else "results.zip"
+            if not (work / "run" / required).is_file():
+                raise RuntimeError(f"Training ended without required artifact {required}; inspect the run diagnostics")
+            from model.tracking import result_metrics
+            report = json.loads((work / "run/pipeline_manifest.json").read_text())
+            identity["classification"] = result_metrics(report["classification_metrics"])
+            if "correction_metrics" in report:
+                identity["correction"] = result_metrics(report["correction_metrics"])
+        record(work, "preflight_passed" if args.preflight_only else "completed", **identity)
+    except BaseException as error:
+        record(work, "failed", error_type=type(error).__name__, **identity)
+        raise
 
 
 if __name__ == "__main__":

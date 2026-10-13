@@ -116,7 +116,8 @@ def validate_classifier_run(classifier_run, classification=None, *, require_hint
     missing = [str(path.relative_to(classifier_run)) for path in required if not path.is_file()]
     if missing:
         raise FileNotFoundError("Completed classifier reuse requires saved adapter/head and metadata; missing: " + ", ".join(missing)
-                                + ". For Task2, train Task1 with oof.enabled=true on the same correction dataset.")
+                                + (". For predicted-hint Task2, train Task1 with oof.enabled=true on the same correction dataset."
+                                   if require_hints else ". Use a completed Task1 classifier with saved validation predictions."))
     from .classification import _require_hierarchy, _preprocessing
     from .data import LABELS
     saved, adapter, config = (_json(checkpoint / "classifier_config.json"),
@@ -169,6 +170,24 @@ def validate_classifier_run(classifier_run, classification=None, *, require_hint
     return config
 
 
+def validation_predictions(classifier_run, records):
+    """Load selected-classifier predictions for scoring; never substitute gold labels."""
+    from .correction import _hint_index
+    from .data import _id_key
+    root = Path(classifier_run)
+    if _json(root / "validation.json") != records:
+        raise ValueError("Classifier and corrector validation records differ")
+    rows = _json(root / "predictions.json")
+    indexed = {_id_key(row["id"]): row for row in records}
+    for row in rows:
+        original = indexed.get(_id_key(row["id"]))
+        if original is None or row.get("source") != original["source"]:
+            raise ValueError("Saved classifier prediction source differs from validation")
+    hints = [{"id": row["id"], "label": row["predicted_class"],
+              "probabilities": row["probabilities"]} for row in rows]
+    return _hint_index(records, hints)
+
+
 def validate_reuse_data(classifier_run, correction, data_path, *, original_path=None):
     """Reject population changes before any launch; never regenerate in-sample hints."""
     from .correction import validate_hints
@@ -181,6 +200,10 @@ def validate_reuse_data(classifier_run, correction, data_path, *, original_path=
     train, validation, provenance = load_training_split(data_path, fraction, seed)
     if _json(root / "validation.json") != validation:
         raise ValueError("Reused classifier validation split differs from correction holdout; train a fresh Task1/OOF run")
+    if correction.get("inference", {}).get("hint_mode", "predicted") == "none":
+        validation_predictions(root, validation)
+        return {"correction_train": len(train), "validation": len(validation), "seed": seed,
+                "hint_mode": "none", "hints_enabled": False}
     artifact = _json(root / "hints.json")
     if manifest.get("correction_data_sha256") != artifact.get("correction_data_sha256"):
         raise ValueError("Saved classifier manifest and OOF correction dataset hashes differ")

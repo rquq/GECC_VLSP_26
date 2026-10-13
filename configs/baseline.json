@@ -80,8 +80,6 @@
     }
   },
   "oof": {
-    "enabled": true,
-    "folds": 5,
-    "epochs": 3
+    "enabled": false
   }
 }
