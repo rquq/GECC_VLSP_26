@@ -98,6 +98,7 @@ def fit(train, validation, output, deadline):
     output.mkdir()
     model = AutoModelForSequenceClassification.from_pretrained(MODEL, revision=REVISION, num_labels=5,
                                                                attn_implementation="sdpa")
+    model.config.classifier_compute_dtype = "float16"
     parameters = sum(p.numel() for p in model.parameters())
     if parameters != 102955013 or parameters > 8_000_000_000:
         raise ValueError("Bami architecture parameter audit differs")
@@ -171,8 +172,9 @@ def main():
     parser.add_argument("--control",type=Path,required=True)
     parser.add_argument("--candidate",type=Path,required=True)
     parser.add_argument("--output",type=Path,required=True)
+    parser.add_argument("--resume",action="store_true",help="Reuse verified completed fits; never rerun a completed screen")
     args = parser.parse_args()
-    args.output.mkdir(parents=True)
+    args.output.mkdir(parents=True,exist_ok=args.resume)
     bundles = [load_classifier_split(args.original,p,.2,42) for p in (args.control,args.candidate)]
     originals,holdout = split_records(load_records(args.original),.2,42)
     fits,validation,grouping = screening_split(originals,[(rows,info["provenance"]) for rows,info in bundles])
@@ -181,11 +183,25 @@ def main():
         original_sha256=hashlib.sha256(args.original.read_bytes()).hexdigest(),grouping=grouping,
         screen_validation_ids=[r["id"] for r in validation],fit_counts=list(map(len,fits)),
         bundle_sha256=[hashlib.sha256(p.read_bytes()).hexdigest() for p in (args.control,args.candidate)])
-    write_json(args.output/"screen_manifest.json",manifest)
+    manifest_path=args.output/"screen_manifest.json"
+    if args.resume:
+        previous=json.loads(manifest_path.read_text())
+        if any(previous[k]!=manifest[k] for k in ("model","revision","original_sha256","bundle_sha256","screen_validation_ids","fit_counts")):
+            raise ValueError("Resume screen model/data/split differs")
+        write_json(args.output/"resume_manifest.json",manifest)
+    else:
+        write_json(manifest_path,manifest)
     record(args.output,"started",experiment="approved-two-bami-screens",**manifest)
     began=time.monotonic(); summaries=[]
     try:
         for name,rows in zip(("control","candidate"),fits):
+            completed=args.output/name/"internal_metrics.json"
+            if args.resume and completed.exists():
+                summary=json.loads(completed.read_text())
+                if summary.get("reload_verified") is not True:
+                    raise ValueError("Cannot resume an unverified fit")
+                summaries.append(summary)
+                continue
             print(json.dumps(dict(stage=name,train_rows=len(rows),internal_validation=len(validation))),flush=True)
             summaries.append(fit(rows,validation,args.output/name,began+30*60))
         selected=max(range(2),key=lambda i:summaries[i]["classification"]["macro_f1"])
