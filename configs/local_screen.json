@@ -90,6 +90,16 @@
       "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
       "learning_rate": 2e-05,
       "license": "Apache-2.0"
+    },
+    {
+      "name": "bami-flat-originals",
+      "task": "classification",
+      "model": "Qualcomm-AI-Research/BamiBERT",
+      "revision": "57bc1340debbe4e348ec549047a763caebe4a977",
+      "learning_rate": 2e-05,
+      "license": "BSD-3-Clause-Clear + Qualcomm Responsible AI license",
+      "originals_only": true,
+      "epochs": 9
     }
   ]
 }

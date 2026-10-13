@@ -15,7 +15,7 @@ import subprocess
 import sys
 import time
 
-from model.data import load_classifier_split, load_records, load_training_split, split_records
+from model.data import _id_key, load_classifier_split, load_records, load_training_split, split_records
 from model.metrics import experiment_report
 from model.runtime import CompleteEpochMixin, write_json
 from tools.local_classifier import screening_split
@@ -88,8 +88,11 @@ def train(candidate, final=False, epochs=None):
     task = candidate["task"]
     split = json.loads((OUTPUT / f"{task}_split.json").read_text())
     train_rows, validation = (split["full_train"], split["holdout"]) if final else (split["fit"], split["internal"])
+    if candidate.get("originals_only"):
+        original_ids = {_id_key(r["id"]) for r in load_records(DATA / "VGEC 2026_v1.json")}
+        train_rows = [r for r in train_rows if _id_key(r["id"]) in original_ids]
     # Final fits do not access holdout until the predetermined number of epochs is finished.
-    epochs = epochs or cfg["epochs"][task]
+    epochs = epochs or candidate.get("epochs", cfg["epochs"][task])
     output = OUTPUT / (candidate["name"] + ("-final" if final else ""))
     output.mkdir(exist_ok=False)
     began = time.monotonic()
