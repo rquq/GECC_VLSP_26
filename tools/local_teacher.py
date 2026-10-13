@@ -18,7 +18,7 @@ MECHANISMS = {
     3: ["missing required preposition", "wrong preposition", "redundant copula", "duplicated aspect particle", "missing correlative function word", "wrong correlative function word"],
     4: ["missing enumeration comma", "missing introduction colon", "unmatched quotation mark", "incorrect sentence boundary", "wrong clause separator", "missing parenthetical comma"],
 }
-TAXONOMY = "0 grammatical; 1 sentence structure; 2 phrase structure; 3 function words; 4 punctuation. Spelling, style, vocabulary and semantic changes are outside this taxonomy."
+TAXONOMY = "0 câu đúng; 1 lỗi cấu trúc câu (thiếu chủ ngữ/vị ngữ/mệnh đề chính); 2 lỗi cấu trúc cụm từ (trật tự thành tố trong cụm danh từ/động từ/tính từ); 3 lỗi hư từ (giới từ, liên từ, trợ từ); 4 lỗi dấu câu. A punctuation-only error is 4, never 1. Vietnamese verbs do NOT require a tense particle. Spelling, style, vocabulary and semantic changes are outside this taxonomy."
 
 
 def parse_json(text):
@@ -39,6 +39,7 @@ def main():
     parser.add_argument("--original", type=Path, required=True)
     parser.add_argument("--repairs", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--resume", action="store_true", help="Continue remaining keys within the original call/time budget")
     args = parser.parse_args()
     from model.data import load_records, split_records
     from tools.experiment_log import record
@@ -46,8 +47,9 @@ def main():
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, set_seed
     args.output.mkdir(parents=True, exist_ok=True)
     journal = args.output / "calls.jsonl"
-    if journal.exists():
+    if journal.exists() and not args.resume:
         raise ValueError("Pilot output already exists; no implicit repeat of generation")
+    previous = [json.loads(line) for line in journal.read_text().splitlines()] if journal.exists() else []
     train, _ = split_records(load_records(args.original), .2, 42)
     original_ids = {r["id"] for r in train}
     repairs = json.loads(args.repairs.read_text())["candidate_changes"]
@@ -58,10 +60,16 @@ def main():
     meta = dict(model=MODEL, revision=REVISION, parameters=PARAMETERS, source_commit=source_commit,
                 original_sha256=hashlib.sha256(args.original.read_bytes()).hexdigest(), seed=42,
                 max_calls=144, max_gpu_minutes=90, max_input_tokens=768, max_new_tokens=384)
-    (args.output / "manifest.json").write_text(json.dumps(meta, indent=2)+"\n")
+    if not args.resume:
+        (args.output / "manifest.json").write_text(json.dumps(meta, indent=2)+"\n")
+    else:
+        prior_manifest = json.loads((args.output / "manifest.json").read_text())
+        if any(prior_manifest.get(k) != meta[k] for k in ("model", "revision", "original_sha256", "max_calls")):
+            raise ValueError("Resume model/data/budget differs")
+        (args.output / "resume_manifest.json").write_text(json.dumps(meta, indent=2)+"\n")
     record(args.output, "started", experiment="approved-local-teacher-pilot", **meta)
-    began = time.monotonic()
-    calls = 0
+    began = time.monotonic() - (previous[-1]["elapsed_seconds"] if previous else 0)
+    calls = len(previous)
     tokenizer = AutoTokenizer.from_pretrained(MODEL, revision=REVISION)
     model = AutoModelForCausalLM.from_pretrained(MODEL, revision=REVISION,
         quantization_config=BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
@@ -106,6 +114,8 @@ def main():
 
     try:
         for repair in repairs:
+            if any(e["kind"] == "blind_review" and e["key"] == "repair-"+str(repair["id"]) for e in previous):
+                continue
             verify("repair-"+str(repair["id"]), repair["original"]["Input"], repair["proposed_full_correction"])
         contexts = [r for r in train if r["label"] == 0 and len(tokenizer.encode(r["source"])) <= 220]
         random.Random(42).shuffle(contexts)
@@ -114,11 +124,15 @@ def main():
                 mechanism = MECHANISMS[label][attempt % 6]
                 parent = contexts[((label-1)*16+attempt) % len(contexts)]
                 key = f"teacher-{label}-{attempt:02d}"
-                event = call("generation", key, "Create one NEW natural complete Vietnamese sentence pair. "
-                    "Use only the topic/vocabulary of the training context as inspiration; do not copy the sentence. "
+                if any(e["kind"] == "generation" and e["key"] == key for e in previous):
+                    continue
+                event = call("generation", key, "Build a Vietnamese minimal error/clean pair. "
+                    "The TARGET must be the given grammatical training sentence copied EXACTLY, including punctuation. "
+                    "Create SOURCE by introducing one clear required grammatical error into that target. "
                     "Include exactly one clear grammatical error, requiring a minimal correction. "
                     "Preserve meaning, entities and numbers in the pair. No ellipsis, explanations inside sentences, "
                     "trivial repeated terminal punctuation, misspellings or optional stylistic revisions. "
+                    "Do not add/remove optional tense particles merely to imply tense. Do not leave source identical to target. "
                     f"Required error class: {label}; mechanism: {mechanism}. "
                     "Return {\"source\": erroneous sentence, \"target\": grammatical complete sentence, "
                     "\"label\": integer, \"reason\": brief English explanation}. Training context:\n"+parent["source"], True)

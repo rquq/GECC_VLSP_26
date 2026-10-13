@@ -154,6 +154,9 @@ def load_training_split(path: str | Path, validation_fraction: float, seed: int)
     if isinstance(raw, list):
         train, validation = split_records(_records_from_raw(raw), validation_fraction, seed)
         return train, validation, {"format": "raw", "original_rows": len(raw)}
+    if isinstance(raw, dict) and raw.get("format") == "vgec-reviewed-v4":
+        from .reviewed_data import load_reviewed
+        return load_reviewed(raw, validation_fraction, seed)
     if not isinstance(raw, dict) or raw.get("format") != "vgec-balanced-v3":
         raise ValueError("Expected raw dataset array or vgec-balanced-v3 bundle")
     if type(raw.get("seed")) is not int or raw["seed"] != 42:
@@ -278,6 +281,13 @@ def load_classifier_split(original_path, bundle_path, validation_fraction, seed)
     original_raw = json.loads(Path(original_path).read_text(encoding="utf-8"))
     originals, validation = split_records(_records_from_raw(original_raw), validation_fraction, seed)
     train, heldout, info = load_training_split(bundle_path, validation_fraction, seed)
+    if info["format"] == "vgec-reviewed-v4":
+        if (info["provenance"]["stage"] != "classification"
+                or info["provenance"]["original_snapshot"] != original_raw
+                or info["original_sha256"] != hashlib.sha256(Path(original_path).read_bytes()).hexdigest()
+                or heldout != validation):
+            raise ValueError("Reviewed classifier original snapshot/hash/holdout differs")
+        return train, info
     if info["format"] != "vgec-balanced-v3":
         raise ValueError("Classifier requires a mixed v3 training bundle")
     provenance = info["provenance"]
