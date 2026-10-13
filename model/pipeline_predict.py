@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .data import _validate_records, load_records
 from .runtime import resolve_output, resolve_submission_data, write_json
-from .prediction_export import comparison_rows, submission_rows
+from .prediction_export import comparison_rows, submission_rows, write_submission
 
 
 def run_inference(classifier, adapter, records, output, *, device="cuda", batch_size=1,
@@ -26,7 +26,10 @@ def run_inference(classifier, adapter, records, output, *, device="cuda", batch_
     if not records:
         raise ValueError("Input must contain at least one record")
     output = Path(output).expanduser().resolve()
+    if output.name != "results.json":
+        raise ValueError("Organizer prediction file must be named results.json; choose a new directory for another export")
     paths = {"submission": str(output),
+             "zip": str(output.with_suffix(".zip")),
              "comparisons": str(output.with_suffix(".comparisons.json")),
              "evaluation": str(output.with_suffix(".evaluation.json"))}
     if evaluate:
@@ -62,7 +65,7 @@ def run_inference(classifier, adapter, records, output, *, device="cuda", batch_
     metadata = {"input_scope": input_scope, "input_path": str(input_path) if input_path else None,
                 "count": len(records), "evaluated": evaluate,
                 "classifier": str(classifier), "adapter": str(adapter), "artifacts": paths,
-                "submission_schema": "ID/Output: Error_Type_Id (integer 0..4), Fixed Sentence (nonblank string)"}
+                "submission_schema": "ID/Output: Error_Type_Id (integer 0..4), Fixed Sentence (singleton list of nonblank text)"}
     export_error = None
     try:
         submission = submission_rows(records, predictions)
@@ -74,16 +77,18 @@ def run_inference(classifier, adapter, records, output, *, device="cuda", batch_
         write_json(paths["metrics"], metrics)
         metadata.update(combined_score=metrics["combined_score"],
                         combined_score_metadata=metrics["combined_score_metadata"])
-        print(json.dumps(metrics, ensure_ascii=False, indent=2), flush=True)
+        from .tracking import result_metrics
+        print(json.dumps(result_metrics(metrics), ensure_ascii=False), flush=True)
     elif evaluate:
         paths.pop("metrics")
         metadata.update(evaluated=False, evaluation_failure="Invalid non-string predicted correction; cannot score")
     if export_error is not None:
         paths.pop("submission")
+        paths.pop("zip")
         metadata.update(status="failed", failure=str(export_error))
         write_json(paths["evaluation"], metadata)
         raise export_error
-    write_json(output, submission)
+    write_submission(output, submission)
     metadata["status"] = "completed"
     write_json(paths["evaluation"], metadata)
     print(json.dumps(metadata, ensure_ascii=False, indent=2), flush=True)
@@ -98,7 +103,7 @@ def main():
     stages.add_argument("--classifier", help="Saved classifier checkpoint; requires --adapter")
     parser.add_argument("--adapter", help="Saved correction adapter, when using --classifier")
     parser.add_argument("--data", required=True, help="Raw organizer ID/Input JSON array, or auto to discover public_test.json")
-    parser.add_argument("--output", help="Submission JSON; defaults to a fresh runs/submission-*/submission.json")
+    parser.add_argument("--output", help="Prediction file named results.json; defaults to a fresh runs/submission-*/results.json")
     parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--evaluate", action="store_true", help="Require gold labels and write local evaluation metrics")
@@ -120,7 +125,7 @@ def main():
         parser.error("No public_test.json found; attach it or pass --data with its path")
     records = load_records(data, require_labels=args.evaluate)
     output = (Path(args.output) if args.output else
-              resolve_output({"run": {"name": "submission", "output_root": "runs"}}) / "submission.json")
+              resolve_output({"run": {"name": "submission", "output_root": "runs"}}) / "results.json")
     run_inference(classifier, adapter, records, output, device=args.device,
                   batch_size=args.batch_size, evaluate=args.evaluate, input_path=data,
                   hint_mode=args.hint_mode, rerank=args.rerank)

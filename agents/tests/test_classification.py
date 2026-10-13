@@ -271,6 +271,90 @@ class QwenClassifierTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "architecture metadata"):
                     classify(checkpoint, records, "cpu", 1)
 
+    def test_added_padding_saves_embeddings_only_for_actual_resize(self):
+        import json
+        import torch
+        from unittest.mock import patch
+        from peft import PeftModel
+        from safetensors.torch import load_file
+        from tokenizers import Tokenizer
+        from tokenizers.models import WordLevel
+        from tokenizers.pre_tokenizers import WhitespaceSplit
+        from transformers import PreTrainedTokenizerFast, Qwen2Config, Qwen2ForSequenceClassification
+        from model.classification import _load_tokenizer
+        from model.tracking import TrackingRun
+
+        # Qwen2 is available in the project's Transformers 4.51.3 environment.
+        vocab = {"<unk>": 0, "<eos>": 1, "Tôi": 2, "đọc": 3, "sách": 4,
+                 "rất": 5, "hay": 6}
+        records = [{"id": i, "source": text, "label": i}
+                   for i, text in enumerate(("Tôi <eos>", "Tôi đọc sách rất hay",
+                                             "đọc sách", "sách <eos>", "Tôi đọc"))]
+        for spare_rows in (2, 0):
+            with self.subTest(spare_rows=spare_rows), tempfile.TemporaryDirectory() as directory:
+                torch.manual_seed(42)
+                backend = Tokenizer(WordLevel(vocab, unk_token="<unk>"))
+                backend.pre_tokenizer = WhitespaceSplit()
+                tokenizer = PreTrainedTokenizerFast(tokenizer_object=backend, unk_token="<unk>",
+                                                   eos_token="<eos>", pad_token="<eos>")
+                tokenizer.model_input_names = ["input_ids", "attention_mask"]
+                base_model = Qwen2ForSequenceClassification(Qwen2Config(
+                    vocab_size=len(vocab) + spare_rows, hidden_size=16, intermediate_size=32,
+                    num_hidden_layers=1, num_attention_heads=2, num_key_value_heads=1,
+                    max_position_embeddings=64, num_labels=5, pad_token_id=1,
+                    eos_token_id=1, attention_dropout=0.0))
+                root = Path(directory)
+                base = root / "base"
+                base_model.save_pretrained(base)
+                tokenizer.save_pretrained(base)
+                config = {
+                    "model": {"name": str(base), "revision": "local", "load_in_4bit": False,
+                              "compute_dtype": "float32", "attn_implementation": "eager"},
+                    "lora": {"r": 2, "lora_alpha": 4, "lora_dropout": 0,
+                             "target_modules": ["q_proj", "v_proj"], "bias": "none"},
+                    "training": {"max_length": 32, "effective_batch_size": 2,
+                                 "args": {"num_train_epochs": 1, "max_steps": 1,
+                                          "per_device_train_batch_size": 1, "learning_rate": 0.05,
+                                          "gradient_checkpointing": False, "optim": "adamw_torch",
+                                          "disable_tqdm": True}},
+                    "tracking": {"enabled": False},
+                }
+                preprocessing = _preprocessing(config)
+                live_tokenizer = _load_tokenizer(base)
+                self.assertTrue(_configure_padding(live_tokenizer))
+                live_predictions = []
+                original_save = PeftModel.save_pretrained
+
+                def capture_and_save(model, *args, **kwargs):
+                    # Observe the actual trained model before saving; do not replace its forward.
+                    live_predictions.extend(_predict(model, live_tokenizer, records,
+                                                     preprocessing, "cpu", 5))
+                    return original_save(model, *args, **kwargs)
+
+                checkpoint = root / "classifier"
+                with patch.object(PeftModel, "save_pretrained", capture_and_save), TrackingRun() as tracking:
+                    _fit(config, records, None, checkpoint, root, "cpu", 42,
+                         preprocessing, tracking=tracking)
+                saved = json.loads((checkpoint / "classifier_config.json").read_text())
+                self.assertTrue(saved["added_pad_token"])
+                self.assertEqual(saved["tokenizer_length"], len(vocab) + 1)
+                self.assertNotEqual(saved["pad_token_id"], live_tokenizer.eos_token_id)
+                state = load_file(str(checkpoint / "adapter_model.safetensors"))
+                embeddings = [value for key, value in state.items() if "embed_tokens" in key]
+                self.assertEqual(bool(embeddings), spare_rows == 0)
+                if embeddings:
+                    self.assertEqual(embeddings[0].shape[0], len(vocab) + 1)
+                self.assertTrue(any(key.endswith(".score.weight") for key in state))
+                self.assertTrue(any("lora_B" in key and torch.count_nonzero(value).item()
+                                    for key, value in state.items()))
+                expected = torch.tensor([row["probabilities"] for row in live_predictions])
+                for batch_size in (1, 5):
+                    actual = classify(checkpoint, records, "cpu", batch_size)
+                    self.assertEqual([row["label"] for row in actual],
+                                     [row["label"] for row in live_predictions])
+                    torch.testing.assert_close(
+                        torch.tensor([row["probabilities"] for row in actual]), expected,
+                        atol=1e-6, rtol=1e-6)
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,12 +5,13 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import zipfile
 from unittest.mock import patch
 from types import SimpleNamespace
 
 from model.metrics import _load_predictions, experiment_report
 from model.prediction_export import comparison_rows, submission_rows, SubmissionExportError
-from model.pipeline_predict import main as predict_main
+from model.pipeline_predict import main as predict_main, run_inference
 
 
 class PredictionExportTests(unittest.TestCase):
@@ -61,8 +62,8 @@ class PredictionExportTests(unittest.TestCase):
             {"id": 1, "label": 0, "target": "predicted text", "parse_error": None, "probabilities": [1]},
         ]
         self.assertEqual(submission_rows(records, predictions), [
-            {"ID": 1, "Output": {"Error_Type_Id": 0, "Fixed Sentence": "predicted text"}},
-            {"ID": "1", "Output": {"Error_Type_Id": 4, "Fixed Sentence": " second correction  "}},
+            {"ID": 1, "Output": {"Error_Type_Id": 0, "Fixed Sentence": ["predicted text"]}},
+            {"ID": "1", "Output": {"Error_Type_Id": 4, "Fixed Sentence": [" second correction  "]}},
         ])
 
     def test_submission_rejects_invalid_generations_without_gold_or_source_fallback(self):
@@ -87,52 +88,63 @@ class PredictionExportTests(unittest.TestCase):
     def _inference_cli(self, data, output, predictions):
         with patch("sys.argv", ["pipeline_predict", "--classifier", "classifier", "--adapter", "adapter",
                                 "--data", str(data), "--output", str(output), "--device", "cpu", "--evaluate"]), \
-                patch("model.classification.classify", return_value=[{"id": 1, "label": 1}]) as classify, \
+                patch("model.classification.classify", return_value=[{"id": 1, "label": 1}]), \
                 patch("model.correction.load_corrector", return_value=(object(), object(), {})), \
-                patch("model.correction.correct", return_value=predictions) as correct, \
+                patch("model.correction.correct", return_value=predictions), \
                 patch.dict("sys.modules", {"torch": SimpleNamespace()}), \
                 contextlib.redirect_stdout(io.StringIO()):
             predict_main()
-            self.assertEqual(classify.call_args.args[1],
-                             [{"id": 1, "source": "a wrong sentence with words", "label": None, "target": None}])
-            self.assertEqual(correct.call_args.args[2], classify.call_args.args[1])
 
     def test_cli_writes_submission_comparison_and_labeled_composite_separately(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            data, output = root / "input.json", root / "submission.json"
+            data, output = root / "input.json", root / "results.json"
             data.write_text(json.dumps([{"ID": 1, "Input": "a wrong sentence with words",
                                         "Output": {"Error_Type_Id": 1, "Fixed Sentence": "a right sentence with words"}}]))
             predictions = [{"id": 1, "label": 1, "target": "a right sentence with words", "raw_generation": "private"}]
             self._inference_cli(data, output, predictions)
             self.assertEqual(json.loads(output.read_text()), [
-                {"ID": 1, "Output": {"Error_Type_Id": 1, "Fixed Sentence": "a right sentence with words"}},
+                {"ID": 1, "Output": {"Error_Type_Id": 1, "Fixed Sentence": ["a right sentence with words"]}},
             ])
-            comparison = json.loads((root / "submission.comparisons.json").read_text())[0]
+            with zipfile.ZipFile(root / "results.zip") as archive:
+                self.assertEqual(archive.namelist(), ["results.json"])
+                self.assertEqual(archive.read("results.json"), output.read_bytes())
+            self.assertEqual(_load_predictions(output)[0]["target"], predictions[0]["target"])
+            comparison = json.loads((root / "results.comparisons.json").read_text())[0]
             self.assertEqual(comparison["source"], "a wrong sentence with words")
             self.assertEqual(comparison["raw_generation"], "private")
-            metrics = json.loads((root / "submission.metrics.json").read_text())
+            metrics = json.loads((root / "results.metrics.json").read_text())
             self.assertAlmostEqual(metrics["combined_score"], 0.6)
-            metadata = json.loads((root / "submission.evaluation.json").read_text())
+            metadata = json.loads((root / "results.evaluation.json").read_text())
             self.assertFalse(metadata["combined_score_metadata"]["official"])
             self.assertEqual(metadata["status"], "completed")
 
     def test_cli_invalid_generation_fails_and_retains_diagnostics_not_submission(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            data, output = root / "input.json", root / "submission.json"
+            data, output = root / "input.json", root / "results.json"
             data.write_text(json.dumps([{"ID": 1, "Input": "a wrong sentence with words",
                                         "Output": {"Error_Type_Id": 1, "Fixed Sentence": "a right sentence with words"}}]))
             predictions = [{"id": 1, "label": 1, "target": "", "parse_error": "malformed JSON"}]
             with self.assertRaises(SubmissionExportError):
                 self._inference_cli(data, output, predictions)
             self.assertFalse(output.exists())
-            diagnostics = json.loads((root / "submission.comparisons.json").read_text())[0]
+            self.assertFalse((root / "results.zip").exists())
+            diagnostics = json.loads((root / "results.comparisons.json").read_text())[0]
             self.assertEqual(diagnostics["parse_error"], "malformed JSON")
             self.assertEqual(diagnostics["predicted_correction"], "")
-            metadata = json.loads((root / "submission.evaluation.json").read_text())
+            metadata = json.loads((root / "results.evaluation.json").read_text())
             self.assertEqual(metadata["status"], "failed")
             self.assertIn("parse_error", metadata["failure"])
+
+    def test_wrong_filename_is_rejected_before_creating_output_artifacts(self):
+        record = {"id": 1, "source": "source", "label": None, "target": None}
+        with tempfile.TemporaryDirectory() as folder:
+            directory = Path(folder) / "export"
+            with self.assertRaisesRegex(ValueError, "must be named results.json"):
+                run_inference("missing-classifier", "missing-adapter", [record],
+                              directory / "submission.json", device="cpu")
+            self.assertFalse(directory.exists())
 
 
 

@@ -3,7 +3,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import tempfile
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from model.correction import (_parse_correction, _reload_selected_corrector,
                               correct, encode_record, load_corrector, validate_hints)
@@ -49,22 +49,43 @@ class CorrectionGenerationTests(unittest.TestCase):
                  for row in records]
         tokenizer = MagicMock(pad_token_id=0, eos_token_id=3)
         tokenizer.apply_chat_template.return_value = [1, 2]
-        tokenizer.decode.side_effect = ['{"corrected_sentence":"Câu được sửa."}', "not JSON"]
+        tokenizer.decode.side_effect = ['{"corrected_sentence":"Câu được sửa."}', "not JSON", "still not JSON"]
         model = MagicMock()
         model.get_input_embeddings.return_value = SimpleNamespace(weight=torch.empty(0))
         model.generate.return_value = torch.tensor([[1, 2, 3]])
         inference = {"prompt": "correct", "hint_descriptions": ["clean"] * 5,
                      "generation": {"max_new_tokens": 8}, "max_length": 8}
 
-        predictions = correct(model, tokenizer, records, hints, inference)
+        with patch("lmformatenforcer.integrations.transformers.build_transformers_prefix_allowed_tokens_fn", return_value=lambda *_: [3]):
+            predictions = correct(model, tokenizer, records, hints, inference)
 
-        self.assertEqual(model.generate.call_count, 2)
+        self.assertEqual(model.generate.call_count, 3)
         self.assertEqual([row["label"] for row in predictions], [0, 0])
         self.assertEqual(predictions[0]["target"], "Câu được sửa.")
         self.assertIsNone(predictions[0]["parse_error"])
         self.assertEqual(predictions[1]["target"], "")
-        self.assertEqual(predictions[1]["raw_generation"], "not JSON")
+        self.assertEqual(predictions[1]["raw_generation"], "still not JSON")
+        self.assertTrue(predictions[1]["regenerated"])
+        self.assertEqual(model.generate.call_args.kwargs["num_beams"], 4)
         self.assertIsNotNone(predictions[1]["parse_error"])
+
+    def test_invalid_json_recovers_without_changing_label_or_using_gold(self):
+        import torch
+        record = {"id": 9, "source": "Câu gốc.", "label": 4, "target": "Private gold"}
+        tokenizer = MagicMock(pad_token_id=0, eos_token_id=3)
+        tokenizer.apply_chat_template.return_value = [1, 2]
+        tokenizer.decode.side_effect = ["bad JSON", '{"corrected_sentence":"Câu được sửa."}']
+        model = MagicMock()
+        model.get_input_embeddings.return_value = SimpleNamespace(weight=torch.empty(0))
+        model.generate.return_value = torch.tensor([[1, 2, 3]])
+        inference = {"prompt": "correct", "hint_mode": "none", "generation": {}, "max_length": 32}
+        with patch("lmformatenforcer.integrations.transformers.build_transformers_prefix_allowed_tokens_fn", return_value=lambda *_: [3]):
+            prediction = correct(model, tokenizer, [record], [{"id": 9, "label": 2, "probabilities": [0., 0., 1., 0., 0.]}], inference)[0]
+        self.assertEqual(prediction["label"], 2)
+        self.assertEqual(prediction["target"], "Câu được sửa.")
+        self.assertIsNone(prediction["parse_error"])
+        self.assertTrue(prediction["regenerated"])
+        self.assertNotIn("Private gold", str(tokenizer.apply_chat_template.call_args))
 
 
 class HintContractTests(unittest.TestCase):

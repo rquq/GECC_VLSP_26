@@ -7,6 +7,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
+def native_bf16_supported():
+    """Do not mistake PyTorch's BF16 emulation on T4 for native support."""
+    import torch
+    return torch.cuda.is_bf16_supported(including_emulation=False)
+
+
 class CompleteEpochMixin:
     """Consume rank-local final batches with Transformers 4.x accumulation."""
 

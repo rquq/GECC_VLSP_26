@@ -6,7 +6,7 @@
     "device": "cuda",
     "world_size": 2,
     "seed": 42,
-    "archive": true
+    "archive": false
   },
   "tracking": {
     "enabled": true,

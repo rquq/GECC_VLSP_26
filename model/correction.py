@@ -318,6 +318,23 @@ def correct(model, tokenizer, records, hints, inference):
                 target, error = _parse_correction(text, record["source"], inference.get("output_format", "sentence"))
                 candidates.append({"target": target, "raw_generation": text, "parse_error": error,
                                    "origin": "beam" if ranking else "generation"})
+            # Preserve every valid greedy prediction. Recover only malformed full-
+            # sentence JSON with the same bounded method used for the public run.
+            if not ranking and candidates[0]["parse_error"] and inference.get("output_format", "sentence") == "sentence":
+                from lmformatenforcer import JsonSchemaParser
+                from lmformatenforcer.integrations.transformers import build_transformers_prefix_allowed_tokens_fn
+                schema = {"type": "object", "properties": {"corrected_sentence": {"type": "string", "minLength": 1}},
+                          "required": ["corrected_sentence"], "additionalProperties": False}
+                constrained = {**generation, "do_sample": False, "num_beams": 4, "num_return_sequences": 1,
+                               "length_penalty": 0.0, "early_stopping": True,
+                               "max_new_tokens": max(generation["max_new_tokens"], inference["max_length"] + 64),
+                               "prefix_allowed_tokens_fn": build_transformers_prefix_allowed_tokens_fn(tokenizer, JsonSchemaParser(schema))}
+                retry = model.generate(input_ids=ids, attention_mask=torch.ones_like(ids), **constrained)
+                sequence = retry.sequences[0] if hasattr(retry, "sequences") else retry[0]
+                text = tokenizer.decode(sequence[len(prompt):], skip_special_tokens=True).strip()
+                target, error = _parse_correction(text)
+                candidates[0] = {"target": target, "raw_generation": text, "parse_error": error,
+                                 "origin": "schema_constrained_retry"}
             selected = 0
             if reranker is not None:
                 candidates.append({"target": record["source"], "raw_generation": None,
@@ -326,6 +343,8 @@ def correct(model, tokenizer, records, hints, inference):
             chosen = candidates[selected]
             prediction = {"id": record["id"], "label": hint["label"], "target": chosen["target"],
                           "raw_generation": chosen["raw_generation"], "parse_error": chosen["parse_error"]}
+            if chosen["origin"] == "schema_constrained_retry":
+                prediction["regenerated"] = True
             if ranking:
                 prediction.update(candidates=candidates, selected_candidate=selected, reranking=ranking)
             predictions.append(prediction)
@@ -342,10 +361,16 @@ def _dtype(settings, device):
         indices = range(2) if settings.get("device_map", "single") == "balanced" else [int(os.environ.get("LOCAL_RANK", "0"))]
         for index in indices:
             with torch.cuda.device(index):
-                supported.append(torch.cuda.is_bf16_supported())
+                from .runtime import native_bf16_supported
+                supported.append(native_bf16_supported())
         return torch.bfloat16 if all(supported) else torch.float16
     if value not in ("float16", "bfloat16", "float32"):
         raise ValueError("compute_dtype must be auto, float16, bfloat16, or float32")
+    if value == "bfloat16" and device == "cuda":
+        from .runtime import native_bf16_supported
+        with torch.cuda.device(int(os.environ.get("LOCAL_RANK", "0"))):
+            if not native_bf16_supported():
+                return torch.float16
     return getattr(torch, value)
 
 

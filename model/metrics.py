@@ -246,7 +246,12 @@ def _load_predictions(path: str | Path) -> list[dict]:
                 raise ValueError(f"Prediction Output for ID {row['ID']!r} must be an object")
             if "Fixed Sentence" not in output:
                 raise ValueError(f"Missing Fixed Sentence for ID {row['ID']!r}")
-            predictions.append({"id": row["ID"], "label": output.get("Error_Type_Id"), "target": output["Fixed Sentence"]})
+            target = output["Fixed Sentence"]
+            if isinstance(target, list):
+                if len(target) != 1 or not isinstance(target[0], str):
+                    raise ValueError("Local scoring requires exactly one string correction per ID")
+                target = target[0]
+            predictions.append({"id": row["ID"], "label": output.get("Error_Type_Id"), "target": target})
         elif "predicted_class" in row and "predicted_correction" in row:
             predictions.append({**row, "label": row["predicted_class"],
                                 "target": row["predicted_correction"]})

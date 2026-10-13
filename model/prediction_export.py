@@ -2,6 +2,7 @@
 import argparse
 import json
 from pathlib import Path
+import zipfile
 
 from .data import _id_key, _valid_label, _validate_records
 
@@ -43,9 +44,22 @@ def submission_rows(records, predictions):
         if not isinstance(target, str) or not target.strip():
             raise SubmissionExportError(f"Blank or invalid corrected text for ID {record['id']!r}")
         rows.append({"ID": record["id"], "Output": {
-            "Error_Type_Id": prediction["label"], "Fixed Sentence": target,
+            "Error_Type_Id": prediction["label"], "Fixed Sentence": [target],
         }})
     return rows
+
+
+def write_submission(path, rows):
+    """Write the leaderboard-tested schema and a ZIP containing only results.json."""
+    from .runtime import write_json
+    path = Path(path)
+    if path.name != "results.json":
+        raise ValueError("Organizer prediction file must be named results.json")
+    write_json(path, rows)
+    archive = path.with_suffix(".zip")
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as handle:
+        handle.write(path, arcname="results.json")
+    return archive
 
 
 def comparison_rows(records, predictions):
@@ -63,7 +77,7 @@ def comparison_rows(records, predictions):
             "predicted_correction": prediction.get("target"),
         }
         for field in ("raw_generation", "parse_error", "probabilities", "fold",
-                      "candidates", "selected_candidate", "reranking"):
+                      "candidates", "selected_candidate", "reranking", "regenerated"):
             if field in prediction:
                 row[field] = prediction[field]
         rows.append(row)

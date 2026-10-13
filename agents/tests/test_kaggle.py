@@ -48,7 +48,8 @@ class NotebookSourceTests(unittest.TestCase):
     def write_project(self, marker):
         (self.origin / "README.md").write_text(marker)
         for name in ["requirements-kaggle.txt", "model/classification.py", "model/correction.py",
-                     "model/two_phase.py", "configs/baseline.json", "configs/correction.json"]:
+                     "model/two_phase.py", "configs/baseline.json", "configs/correction.json",
+                     "configs/experiment.json", "tools/run_experiment.py"]:
             path = self.origin / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("" if path.suffix != ".json" else "{}")

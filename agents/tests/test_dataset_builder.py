@@ -286,6 +286,18 @@ class CorpusAugmentationTests(unittest.TestCase):
 
     def test_real_corpus_pool_is_deterministic_train_only_and_originals_immutable(self):
         original = Path(__file__).resolve().parents[2] / "dataset/original/VGEC 2026_v1.json"
+        if not original.is_file():
+            import zipfile
+            archive = original.parents[1] / "kaggle-input/VGEC26-rebuilt.zip"
+            if not archive.is_file():
+                self.skipTest("Private corpus integration requires the original data or canonical ZIP")
+            temporary = tempfile.TemporaryDirectory()
+            self.addCleanup(temporary.cleanup)
+            original = Path(temporary.name) / original.name
+            archive_hash = hashlib.sha256(archive.read_bytes()).hexdigest()
+            self.addCleanup(lambda: self.assertEqual(hashlib.sha256(archive.read_bytes()).hexdigest(), archive_hash))
+            with zipfile.ZipFile(archive) as handle:
+                original.write_bytes(handle.read(original.name))
         before = {path: hashlib.sha256(path.read_bytes()).hexdigest()
                   for path in original.parent.iterdir() if path.is_file()}
         rows = author_pool(original)

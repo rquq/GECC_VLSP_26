@@ -94,7 +94,8 @@ def placement_preflight(settings, device="cuda"):
     if requested not in ("bfloat16", "float16", "float32"):
         raise ValueError("model.compute_dtype must be bfloat16, float16, or float32")
     with torch.cuda.device(index):
-        actual = "float16" if requested == "bfloat16" and not torch.cuda.is_bf16_supported() else requested
+        from .runtime import native_bf16_supported
+        actual = "float16" if requested == "bfloat16" and not native_bf16_supported() else requested
     return {"device": f"cuda:{index}", "compute_dtype": actual, "quantized": quantized}
 
 
@@ -161,7 +162,8 @@ def _load_base(settings, tokenizer, placement):
                 llm_int8_skip_modules=["score"]),
             device_map={"": torch.device(placement["device"]).index})
     model = AutoModelForSequenceClassification.from_pretrained(settings["name"], **kwargs)
-    if len(tokenizer) > model.get_input_embeddings().num_embeddings:
+    model.config.classifier_embeddings_resized = len(tokenizer) > model.get_input_embeddings().num_embeddings
+    if model.config.classifier_embeddings_resized:
         model.resize_token_embeddings(len(tokenizer))
     model.config.pad_token_id = tokenizer.pad_token_id
     model.config.use_cache = False
@@ -366,6 +368,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     tokenizer = _load_tokenizer(settings["name"], revision=settings["revision"])
     added_pad = _configure_padding(tokenizer)
     model = _load_base(settings, tokenizer, placement)
+    resized_embeddings = model.config.classifier_embeddings_resized
     checkpoint_kwargs = {"use_reentrant": False}
     gradient_checkpointing = config["training"]["args"].get("gradient_checkpointing", True)
     if placement["quantized"]:
@@ -440,7 +443,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
 
     def save_model():
         checkpoint.mkdir(parents=True, exist_ok=True)
-        trainer.accelerator.unwrap_model(model).save_pretrained(checkpoint, save_embedding_layers=added_pad)
+        trainer.accelerator.unwrap_model(model).save_pretrained(checkpoint, save_embedding_layers=resized_embeddings)
         tokenizer.save_pretrained(checkpoint)
         write_json(checkpoint / "preprocessing.json", preprocessing)
         write_json(checkpoint / "classifier_config.json", classifier_config)

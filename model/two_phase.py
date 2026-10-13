@@ -252,7 +252,7 @@ def main(*, tracking):
         try:
             submission = run_inference(
                 packaged_classifier / "classifier", output / "correction" / "adapter", records,
-                output / "submission.json", device=corrector["run"]["device"],
+                output / "results.json", device=corrector["run"]["device"],
                 batch_size=classifier.get("evaluation", {}).get("batch_size", 1),
                 evaluate=evaluated,
                 input_scope="explicit_submission" if submission_records is not None else "validation",
@@ -260,8 +260,8 @@ def main(*, tracking):
         except SubmissionExportError as error:
             # Training succeeded: archive its reusable stages and failed export diagnostics.
             # The standalone inference CLI still propagates this error and exits nonzero.
-            submission = json.loads((output / "submission.evaluation.json").read_text())
-            print(f"Submission unavailable: {error}; no submission.json was fabricated", flush=True)
+            submission = json.loads((output / "results.evaluation.json").read_text())
+            print(f"Submission unavailable: {error}; no results.json was fabricated", flush=True)
         # Keep archived artifact references portable; provenance remains in evaluation metadata.
         submission["artifacts"] = {name: Path(path).relative_to(output).as_posix()
                                    for name, path in submission["artifacts"].items()}
@@ -269,7 +269,7 @@ def main(*, tracking):
         manifest["combined_score"] = manifest["correction_metrics"]["combined_score"]
         manifest["combined_score_metadata"] = manifest["correction_metrics"]["combined_score_metadata"]
         if submission["evaluated"]:
-            tracking.evaluation(json.loads((output / "submission.metrics.json").read_text()), "submission")
+            tracking.evaluation(json.loads((output / "results.metrics.json").read_text()), "submission")
     else:
         manifest["submission"] = {"status": "unavailable", "reason": "Task1-only has no corrector; no full GEC submission was fabricated"}
         print(manifest["submission"]["reason"], flush=True)
