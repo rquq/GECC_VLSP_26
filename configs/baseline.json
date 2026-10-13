@@ -1,7 +1,7 @@
 {
   "task": "classification",
   "run": {
-    "name": "sailor-7b-baseline-seed42",
+    "name": "qwen2.5-7b-baseline-seed42",
     "output_root": "runs",
     "device": "cuda",
     "world_size": 2,
@@ -26,8 +26,8 @@
     "augmentation_filename": "VGEC_classifier.json"
   },
   "model": {
-    "name": "sail/Sailor-7B-Chat",
-    "revision": "19066fae0a8a3ba029c190d8e3dacccf4d1234b8",
+    "name": "Qwen/Qwen2.5-7B-Instruct",
+    "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
     "load_in_4bit": true,
     "compute_dtype": "bfloat16",
     "quant_type": "nf4",

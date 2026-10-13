@@ -1,5 +1,11 @@
 # Current experiment — 2026-10-13
 
+**qwen25-7b-reviewed-both** is the user-authorized Kaggle experiment. Both classification and correction train fresh LoRA adapters on pinned Qwen/Qwen2.5-7B-Instruct. Classifier: 5 epochs, LR 5e-5, 504 training rows. Corrector: 8 epochs, LR 2e-5, 414 reviewed training rows, standard `user` chat role. Both use rank16, seed42, effective batch8 and the unchanged 81-row holdout. Mode is `both`; classifier_run and initial_adapter are null. No folds, hints, notebook toggles or Sailor adapter reuse.
+
+The existing private VGEC26-reviewed-v4.zip is still usable; its saved Sailor classifier is ignored. Dataset hashes and all other training settings are unchanged. Native parameter counts, actual data/tokenizer checks, 141 passing tests, real tiny two-stage smoke and T4x2 placement simulation are recorded in QWEN_BOTH.md/.json. Full-size training and new official scores remain pending on Kaggle. This is a requested experiment, not a measured Qwen win.
+
+## Previous prepared Sailor handoff (historical)
+
 **sailor7b-reviewed-corrector-only** is prepared and locally checked. The user will retrain the corrector on Kaggle. The recipe reuses the completed Sailor-7B classifier and trains one Sailor-7B-Chat corrector for 8 epochs: no folds, no hints, no notebook toggles. The production ZIP includes the saved classifier and reviewed 414-row correction dataset. Full-size Kaggle training and new official scores remain pending.
 
 The approved local Qwen pilot and two Bami screens are completed. No synthetic candidate or classifier replacement was promoted. Five supported original clean annotations enter the correction dataset; the legacy augmentation remains unchanged. See LOCAL_REVIEW_RESULTS.md / .json for scores, hashes, failed/recovered attempts, evidence and limits.

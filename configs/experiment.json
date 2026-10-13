@@ -1,9 +1,9 @@
 {
-  "name": "sailor7b-reviewed-corrector-only",
-  "mode": "task2",
+  "name": "qwen25-7b-reviewed-both",
+  "mode": "both",
   "classification_config": "configs/baseline.json",
   "correction_config": "configs/correction.json",
-  "classifier_run": "reviewed-classifier",
+  "classifier_run": null,
   "initial_adapter": null,
   "data_archive": "VGEC26-reviewed-v4.zip",
   "submission_filename": "public_test.json",

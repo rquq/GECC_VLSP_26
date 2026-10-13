@@ -1,0 +1,126 @@
+{
+  "id": "20261013:Qwen-both-Kaggle",
+  "status": "implemented_locally_verified_full_Kaggle_training_pending",
+  "authorization": "User explicitly requested classification and corrector training on Qwen, edit Kaggle, commit and push",
+  "source_parent_commit": "acb998f65562a32b965d6b588ac064b4501ee7eb",
+  "source_commit": "Commit containing this record and the matching config_sha256; exact runtime commit recorded by launcher",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+  "mode": "both",
+  "training": {
+    "classification": {
+      "epochs": 5,
+      "learning_rate": 5e-05,
+      "training_rows": 504,
+      "objective": "weighted BCE + 2*conditional subtype CE"
+    },
+    "correction": {
+      "epochs": 8,
+      "learning_rate": 2e-05,
+      "training_rows": 414,
+      "user_role": "user",
+      "output": "response-only JSON corrected_sentence"
+    },
+    "seed": 42,
+    "effective_batch_size": 8,
+    "microbatch_per_gpu": 1,
+    "max_length": 512,
+    "lora_rank": 16,
+    "lora_alpha": 32,
+    "world_size": 2,
+    "folds": false,
+    "hints": false,
+    "notebook_toggles": false,
+    "classifier_reused": false,
+    "initial_adapter": null
+  },
+  "data_sha256": {
+    "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+    "classification": "6ed5b8a75f6692c816dd180923007d4aca7fe46184e78c75359a82eeeab19530",
+    "correction": "5675cc7dbcc81d7b018af471905aa827c032cc1445efb226d810d1604a9ad7b0"
+  },
+  "config_sha256": {
+    "experiment.json": "9ee9f3e88dace3b1b1cd0c46e9763ada2aa20b2591077085eaf46e71ca4130a5",
+    "baseline.json": "f8e3d53ca71edf6fd0d7429715472f0371e01bc4761a053c22f26ffac9b53431",
+    "correction.json": "f75a516651e456ab54aacdcccdf478052652f1041c93817f3925af763c785ec4"
+  },
+  "parameter_audit": {
+    "classification": {
+      "base": 7070637056,
+      "adapter": 40370176,
+      "saved_module_copies": 17920,
+      "padding_allowance": 3584,
+      "total_upper_bound": 7111028736,
+      "limit": 8000000000
+    },
+    "correction": {
+      "base": 7615616512,
+      "adapter": 40370176,
+      "saved_module_copies": 0,
+      "padding_allowance": 0,
+      "total_upper_bound": 7655986688,
+      "limit": 8000000000
+    }
+  },
+  "verification": {
+    "unit_tests": 141,
+    "unit_seconds": 16.964,
+    "tokenizer_data_audit": {
+      "parameters": {
+        "classification": {
+          "base": 7070637056,
+          "adapter": 40370176,
+          "saved_module_copies": 17920,
+          "padding_allowance": 3584,
+          "total_upper_bound": 7111028736,
+          "limit": 8000000000
+        },
+        "correction": {
+          "base": 7615616512,
+          "adapter": 40370176,
+          "saved_module_copies": 0,
+          "padding_allowance": 0,
+          "total_upper_bound": 7655986688,
+          "limit": 8000000000
+        }
+      },
+      "correction_training_rows": 414,
+      "validation_rows": 81,
+      "max_correction_tokens": 222,
+      "user_role": "user",
+      "pad_token_id": 151643,
+      "eos_token_id": 151645,
+      "padding_added": false,
+      "all_sources_preserved": true,
+      "response_only_masking": true,
+      "no_adapter_reuse": true,
+      "full_training_run": false,
+      "resolved_work": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/qwen-both-audit-20261013/qwen25-7b-reviewed-both-20261013T154251560124Z",
+      "config_sha256": {
+        "experiment.json": "9ee9f3e88dace3b1b1cd0c46e9763ada2aa20b2591077085eaf46e71ca4130a5",
+        "baseline.json": "f8e3d53ca71edf6fd0d7429715472f0371e01bc4761a053c22f26ffac9b53431",
+        "correction.json": "f75a516651e456ab54aacdcccdf478052652f1041c93817f3925af763c785ec4"
+      }
+    },
+    "tiny_pipeline": {
+      "status": "passed",
+      "device": "cpu",
+      "world_size": 1,
+      "run": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/smoke-cpu-1-20261013T154258472964Z/outputs/tiny-pipeline-20261013T154303014126Z/run",
+      "log": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/smoke-cpu-1-20261013T154258472964Z/pipeline.log",
+      "submission_rows": 2,
+      "oof_enabled": false,
+      "hint_mode": "none"
+    },
+    "t4_placement": "passed with native configs/data and simulated T4x2 capacity/FP16 capability; no full-size training",
+    "full_training_run": false
+  },
+  "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/qwen-both-audit-20261013",
+  "logs": [
+    "runs/qwen-both-tests-20261013.log",
+    "runs/qwen-both-audit-20261013.log",
+    "runs/qwen-both-pipeline-smoke-20261013.log",
+    "runs/qwen-both-t4-preflight-20261013.log"
+  ],
+  "scores": null
+}

@@ -1,5 +1,7 @@
 # No-fold implementation checks — 2026-10-13
 
+Latest Qwen both-stage switch: QWEN_BOTH.md/.json records 141 tests passing in 16.964s, native size/tokenizer checks against the actual 414/81 correction rows, a real tiny two-stage CPU submission and native-config T4x2 placement simulation. Both stages train fresh, with no saved Sailor reuse. Full-size Qwen Kaggle training has not run here. The checks below describe earlier Sailor preparation.
+
 Full-size Sailor-7B training and official evaluation are pending. No score improvement is established by these checks. All training below used newly created tiny fixtures; no historical full-size experiment was rerun.
 
 - 130 unit/contract tests passed; log: `runs/audit-kano-20261013/no-fold-tests-final.log`.

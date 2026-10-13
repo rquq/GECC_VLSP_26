@@ -1,5 +1,7 @@
 # Sailor, Qwen and SeaLLMs review — 2026-10-13
 
+Subsequent user instruction explicitly selected fresh Qwen classification and correction training. QWEN_BOTH.md/.json records that implemented experiment; the earlier recommendation below is historical and does not block the authorized change. License limits remain applicable.
+
 The user asked whether Sailor-7B should be replaced by Qwen2.5-7B-Instruct or SeaLLMs-v3-7B-Chat. Keep the prepared Sailor corrector-only recipe. There is no matched correction or classification comparison proving either replacement improves this task. Qwen remains a possible later corrector challenger; SeaLLMs is not an appropriate teacher for training other LLMs under its linked license. No additional weights, inference, synthesis or fits were run for this review.
 
 | Candidate | Native causal parameters | Current rank-16 corrector LoRA upper bound | Decision |

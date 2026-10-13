@@ -1,5 +1,7 @@
 # Vietnamese model/data proposal — 2026-10-13
 
+Historical review record: the user subsequently requested fresh Qwen training for both stages. The active implementation is QWEN_BOTH.md/.json and CURRENT.md; the completed local pilot results below remain unchanged evidence.
+
 Status: user-approved execution completed. The teacher pilot admitted no new synthetic pairs; the two Bami screens did not justify promotion. Retain saved Sailor classification and prepare the five supported clean repairs for a one-fit no-fold/no-hint corrector Kaggle run. Outcomes and failure recovery are recorded in LOCAL_REVIEW_RESULTS.md / .json.
 
 The subsequent Qwen-versus-SeaLLMs replacement question is reviewed in REPLACEMENT_REVIEW.md. Both fit the 8B size limit with current corrector LoRA; SeaLLMs' linked license excludes it as a teacher for Sailor/Qwen, and its chat template requires a different input role. Neither is promoted without a measured task comparison.

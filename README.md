@@ -1,4 +1,4 @@
-# Sailor-7B Vietnamese error classification and correction
+# Qwen2.5-7B Vietnamese error classification and correction
 
 The Kaggle and local notebooks run the same committed experiment. Experiment choices belong in `configs/experiment.json`, `configs/baseline.json`, and `configs/correction.json`; notebook cells contain no recipe overrides, training switches, or diagnostic toggles. Ask for an experiment in chat, review its config/code change, commit it, and run the notebook against that published commit.
 
@@ -8,7 +8,7 @@ Import `notebooks/kaggle_two_phase.ipynb`, enable Internet, select GPU T4 ×2, a
 
 The notebook clones a fresh `kaggle-linux` checkout and creates an isolated training environment while retaining Kaggle's CUDA PyTorch. It runs `python -m tools.run_experiment`. The runner resolves the committed recipe, checks the input hashes and model parameter limits, adapts placement to one or two visible GPUs, checks the full pipeline, then trains and exports.
 
-Attach the complete private `dataset/kaggle-reviewed-ready-20261013/VGEC26-reviewed-v4.zip` (about 2.47 GiB), or all of its extracted files including `reviewed-classifier/`. It contains the retained classifier, original corpus, pinned classifier bundle, reviewed corrector bundle and public inference input. Keep this Kaggle dataset private. The committed recipe pins all training hashes. Missing, ambiguous, or mismatched inputs stop before expensive training. Public/private inputs are inference-only; missing submission data never silently switches this launcher to a validation submission. Change `submission_filename` in the committed recipe for private testing.
+Attach the existing private `dataset/kaggle-reviewed-ready-20261013/VGEC26-reviewed-v4.zip`, or its original corpus, classifier bundle, reviewed corrector bundle and public inference input. The ZIP's saved Sailor classifier is unused by the current fresh Qwen run; no new data upload is required if this archive is already attached. Keep this Kaggle dataset private. The committed recipe pins all training hashes. Missing, ambiguous, or mismatched inputs stop before expensive training. Public/private inputs are inference-only; missing submission data never silently switches this launcher to a validation submission. Change `submission_filename` in the committed recipe for private testing.
 
 The fresh run contains the exact commit, immutable input hashes, resolved configs, logs, selected adapters, local reports, and `run/results.zip`. Upload that ZIP. It contains only root `results.json` with singleton-list corrections, the format verified by KANO's second public entry. Diagnostics, sources, and gold remain separate files.
 
@@ -26,7 +26,7 @@ Inputs default to `dataset/` and outputs to `runs/`. The canonical archive takes
 
 ## Pipeline
 
-Both stages use the pinned `sail/Sailor-7B-Chat` revision. The retained classifier was trained with a soft hierarchical clean/error and conditional four-subtype head for five epochs at LR 5e-5, effective batch eight, seed 42, and LoRA rank 16. The independent corrector trains response-only JSON for eight epochs at LR 2e-5, using the source sentence without a label hint. Every input reaches correction, including predicted-clean sentences. The current recipe reuses the completed Sailor classifier and trains only the independent corrector: one fit, no OOF training and no prompt hints. Saved classifier validation predictions supply classification metrics only.
+Both stages train fresh adapters on `Qwen/Qwen2.5-7B-Instruct`, pinned to `a09a35458c702b33eeacc393d103063234e8bc28`. The classifier trains a soft hierarchical clean/error and conditional four-subtype head for five epochs at LR 5e-5, effective batch eight, seed 42, and LoRA rank 16. The independent corrector trains response-only JSON for eight epochs at LR 2e-5, using the source sentence without a label hint and Qwen's standard `user` chat role. Every input reaches correction, including predicted-clean sentences. The current `both` recipe trains two stages without OOF or hints; it reuses no Sailor classifier or correction adapter.
 
 The previous five-fold hint system is preserved in `../alpha/preserved/kaggle-fold-hints-47f3a23/` and Git tag `alpha-fold-hints-20261013`. Its notebook pins that tag. The reviewed corrector dataset adds five verified clean annotations while preserving the original augmentation and 81-row holdout. Its full-size no-hint score remains pending.
 
@@ -34,7 +34,7 @@ Selected corrector reload reuses the frozen base after releasing optimizer/DDP s
 
 The lower-level `model.two_phase` and `model.pipeline_predict` CLIs remain available for targeted development, saved-run reuse, and recovery. A task2 recipe can set `classifier_run` and optionally `initial_adapter`; those are committed choices. Hint ablation, edit generation, and reranking live in separate research modules and have no notebook switches. Neither a changed corrector prompt nor a different synthetic pool should be promoted without a measured comparison.
 
-For inexpensive classifier screening, commit `mode="task1"` in the experiment recipe. The notebook displays the classifier report without requiring an inference input or fabricating a full submission. A fresh two-fit experiment uses `mode="both"`; the current corrector-only recipe uses `mode="task2"` and its saved classifier. OOF remains disabled. Predicted-hint correction requires genuine OOF artifacts. Normal notebook runs require a clean Git checkout.
+For inexpensive classifier screening, commit `mode="task1"` in the experiment recipe. The notebook displays the classifier report without requiring an inference input or fabricating a full submission. The current Qwen recipe uses `mode="both"` for fresh classification and correction. OOF remains disabled. Predicted-hint correction requires genuine OOF artifacts. Normal notebook runs require a clean Git checkout.
 
 ## Evaluation and next experiments
 
