@@ -1,0 +1,183 @@
+"""Exercise the notebook bootstrap with real, local Git repositories."""
+import contextlib
+import io
+import json
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+import unittest
+from unittest.mock import patch
+
+from tools import runtime
+from tools.runtime import DATA_FILENAME, discover_data
+
+from model.runtime import resolve_submission_data
+PROJECT = Path(__file__).resolve().parents[2]
+
+
+class NotebookSourceTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.folder = Path(self.temporary.name)
+        self.origin = self.folder / "origin"
+        self.clone = self.folder / "clone"
+        self.origin.mkdir()
+        self.git(self.origin, "init", "-b", "main")
+        self.git(self.origin, "config", "user.name", "Notebook test")
+        self.git(self.origin, "config", "user.email", "notebook@example.invalid")
+        self.write_project("main contents")
+        self.git(self.origin, "add", ".")
+        self.git(self.origin, "commit", "-m", "Main fixture")
+        self.git(self.origin, "switch", "-c", "test/baseline")
+        self.write_project("baseline contents")
+        self.git(self.origin, "commit", "-am", "Baseline fixture")
+        notebook = json.loads((PROJECT / "notebooks/kaggle_two_phase.ipynb").read_text())
+        self.source = "".join(notebook["cells"][2]["source"])
+        self.namespace = {"Path": Path, "subprocess": subprocess, "json": json,
+                          "os": os,
+                          "sys": __import__("sys"), "urllib": __import__("urllib.request"),
+                          "REPO_URL": self.origin.as_uri(), "BRANCH": "test/baseline",
+                          "SOURCE_ROOT": self.folder}
+
+    def git(self, directory, *args):
+        return subprocess.check_output(["git", "-C", str(directory), *args],
+                                       stderr=subprocess.PIPE, text=True).strip()
+
+    def write_project(self, marker):
+        (self.origin / "README.md").write_text(marker)
+        for name in ["requirements-kaggle.txt", "model/classification.py", "model/correction.py",
+                     "model/two_phase.py", "configs/baseline.json", "configs/correction.json",
+                     "configs/experiment.json", "tools/run_experiment.py"]:
+            path = self.origin / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("" if path.suffix != ".json" else "{}")
+
+    def run_cell(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            exec(compile(self.source, "kaggle-source-cell", "exec"), self.namespace)
+        self.clone = self.namespace["PROJECT_DIR"]
+
+    def test_clones_requested_branch_at_repository_root(self):
+        self.run_cell()
+        self.assertEqual((self.namespace["PROJECT_DIR"] / "README.md").read_text(), "baseline contents")
+        self.assertEqual(self.namespace.get("SOURCE_INFO", {}).get("commit"),
+                         self.git(self.origin, "rev-parse", "HEAD"))
+
+    def test_rerun_clones_current_branch_updates(self):
+        self.run_cell()
+        self.write_project("updated baseline")
+        self.git(self.origin, "commit", "-am", "Update baseline")
+        self.run_cell()
+        self.assertEqual((self.clone / "README.md").read_text(), "updated baseline")
+        self.assertEqual(self.namespace["SOURCE_INFO"]["commit"], self.git(self.origin, "rev-parse", "HEAD"))
+
+    def test_rerun_preserves_dirty_source_and_uses_fresh_code(self):
+        self.run_cell()
+        previous = self.clone
+        (previous / "README.md").write_text("local changes")
+        self.run_cell()
+        self.assertNotEqual(self.clone, previous)
+        self.assertEqual((previous / "README.md").read_text(), "local changes")
+        self.assertEqual((self.clone / "README.md").read_text(), "baseline contents")
+        self.assertEqual(self.namespace["SOURCE_INFO"]["commit"], self.git(self.origin, "rev-parse", "HEAD"))
+
+    def test_missing_branch_has_actionable_error(self):
+        self.namespace["BRANCH"] = "not-published"
+        with self.assertRaisesRegex(RuntimeError, "[Bb]ranch.*not found"):
+            self.run_cell()
+
+    def test_github_failure_redacts_and_releases_credentials(self):
+        from types import SimpleNamespace
+        secret = "fixture-private-token"
+        self.namespace["REPO_URL"] = "https://github.com/example/private.git"
+        secrets = SimpleNamespace(UserSecretsClient=lambda: SimpleNamespace(get_secret=lambda _: secret))
+        failure = subprocess.CompletedProcess([], 128, stdout="", stderr=f"authentication failed: {secret}")
+        with patch.dict("sys.modules", {"kaggle_secrets": secrets}), \
+                patch("subprocess.run", return_value=failure), self.assertRaises(RuntimeError) as error:
+            self.run_cell()
+        self.assertNotIn(secret, str(error.exception))
+        self.assertNotIn("token", self.namespace)
+        self.assertNotIn("env", self.namespace)
+        self.assertNotIn("result", self.namespace)
+
+
+    def test_run_provenance_records_real_git_identity(self):
+        self.run_cell()
+        source = runtime.source_identity(self.clone)
+        self.assertEqual(source["repo_url"], self.origin.as_uri())
+        self.assertEqual(source["branch"], "test/baseline")
+        self.assertEqual(source["commit"], self.git(self.origin, "rev-parse", "HEAD"))
+        self.assertFalse(source["dirty"])
+        (self.clone / "README.md").write_text("changed locally")
+        self.assertTrue(runtime.source_identity(self.clone)["dirty"])
+
+
+class KaggleDataTests(unittest.TestCase):
+    def test_mounted_input_wins_over_repository_copy(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            repo = root / "repo"
+            mounted = root / "input" / "private-data" / DATA_FILENAME
+            fallback = repo / "dataset" / "newdataset" / DATA_FILENAME
+            for path in [mounted, fallback]:
+                path.parent.mkdir(parents=True)
+                path.write_text("[]")
+            self.assertEqual(discover_data(None, repo, root / "input"), mounted.resolve())
+
+    def test_ambiguous_inputs_require_explicit_path(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            files = [root / name / DATA_FILENAME for name in ["one", "two"]]
+            for path in files:
+                path.parent.mkdir()
+                path.write_text("[]")
+            with self.assertRaisesRegex(ValueError, "Multiple Kaggle datasets"):
+                discover_data(None, root / "repo", root)
+            self.assertEqual(discover_data(files[1], root / "repo", root), files[1].resolve())
+
+
+
+
+class SubmissionDiscoveryTests(unittest.TestCase):
+    def test_attached_public_test_wins_over_local_copy(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            project, inputs = root / "project", root / "input"
+            local = project / "dataset/newdataset/public_test.json"
+            attached = inputs / "public/public_test.json"
+            for path in (local, attached):
+                path.parent.mkdir(parents=True)
+                path.write_text("[]")
+            with patch("model.runtime.PROJECT_ROOT", project):
+                self.assertEqual(resolve_submission_data(input_root=inputs), attached.resolve())
+                attached.unlink()
+                self.assertEqual(resolve_submission_data(input_root=inputs), local.resolve())
+
+    def test_missing_auto_is_optional_but_explicit_input_is_required(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            with patch("model.runtime.PROJECT_ROOT", root):
+                self.assertIsNone(resolve_submission_data(input_root=root / "input"))
+                self.assertIsNone(resolve_submission_data(None, input_root=root))
+                with self.assertRaises(FileNotFoundError):
+                    resolve_submission_data(root / "missing.json", input_root=root)
+
+    def test_ambiguous_public_tests_require_explicit_choice(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for inputs in (root / "input", root / "project/dataset"):
+                files = [inputs / name / "public_test.json" for name in ("one", "two")]
+                for path in files:
+                    path.parent.mkdir(parents=True)
+                    path.write_text("[]")
+                with patch("model.runtime.PROJECT_ROOT", root / "project"):
+                    with self.assertRaises(ValueError):
+                        resolve_submission_data(input_root=inputs)
+                    self.assertEqual(resolve_submission_data(files[1], input_root=inputs), files[1].resolve())
+                    self.assertIsNone(resolve_submission_data(None, input_root=inputs))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,15 @@
+{
+  "name": "sailor7b-constrained",
+  "mode": "both",
+  "classification_config": "configs/baseline.json",
+  "correction_config": "configs/correction.json",
+  "classifier_run": null,
+  "initial_adapter": null,
+  "data_archive": "VGEC26-rebuilt.zip",
+  "submission_filename": "public_test.json",
+  "data_sha256": {
+    "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+    "classification": "6ed5b8a75f6692c816dd180923007d4aca7fe46184e78c75359a82eeeab19530",
+    "correction": "a87b53c370ae4341841c313ebc525ea207465e8a43c4767d000e693ee1b9253d"
+  }
+}

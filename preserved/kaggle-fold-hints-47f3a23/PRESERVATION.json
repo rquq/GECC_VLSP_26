@@ -1,0 +1,28 @@
+{
+  "source_commit": "47f3a233cb8b26a8ecd595467dce5d55cbd36449",
+  "source_branch": "kaggle-linux",
+  "purpose": "Preserved five-fold OOF-hint pipeline before no-fold experiment",
+  "source_archive_sha256": "dbfa8f09f388f332957792046aa2110abdb7e07a9c542b92c6c052eb6b8017ae",
+  "private_dataset_sha256": "1e653a12079d83be7b23d14eb42c24a19f282d985e0723ada46957a7ad34e76b",
+  "saved_run": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/12_10_2026/runs/sailor-7b-both-20261012-145038-393535",
+  "weights_copied": false,
+  "baseline_validation_unchanged": true,
+  "kaggle_source_ref": "alpha-fold-hints-20261013",
+  "notebook_transport_override": "Pinned to the preserved 47f3a23 tag; experiment code/configs unchanged",
+  "preserved_inference_artifacts": "runs/preserved-fold-hints",
+  "models": {
+    "classification": {
+      "path": "../alpha/preserved/kaggle-fold-hints-47f3a23/runs/preserved-fold-hints/classification/classifier/adapter_model.safetensors",
+      "sha256": "1c2c6c97815c50b05066192930b80ffdb9b08112f45b6bfc8396bb27a997b99a",
+      "bytes": 2649370968,
+      "hardlinked": true
+    },
+    "correction": {
+      "path": "../alpha/preserved/kaggle-fold-hints-47f3a23/runs/preserved-fold-hints/correction/adapter/adapter_model.safetensors",
+      "sha256": "ca2522c535eedafd3650664c405701bd02f220a149dcc17feb57586a3947d562",
+      "bytes": 159967880,
+      "hardlinked": true
+    }
+  },
+  "fold_model_weights_duplicated": false
+}

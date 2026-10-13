@@ -1,3 +1,5 @@
+> The current five-fold Sailor-7B pipeline is reserved in [preserved/kaggle-fold-hints-47f3a23](preserved/kaggle-fold-hints-47f3a23/README.md). Its Kaggle notebook pins tag alpha-fold-hints-20261013. Existing alpha experiments below remain historical evidence. The next no-fold/no-hint run is in ../kaggle-linux; see agents/experiments/CURRENT.md and HISTORY.md. Historical Sailor2 components exceed competition 1038's strict 8B limit.
+
 # Sailor2 Task 1 → Task 2: Kaggle and local
 
 This branch keeps the existing Sailor2 Task 1 baseline and restores alpha's

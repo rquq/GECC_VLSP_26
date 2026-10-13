@@ -1,0 +1,40 @@
+# Python and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+*.egg-info/
+build/
+dist/
+
+# Credentials and notebook state
+.env
+.env.*
+.netrc
+.pypirc
+.streamlit/secrets.toml
+.ipynb_checkpoints/
+
+# Private competition data and model/runtime outputs
+dataset/
+runs/
+outputs/
+wandb/
+*.zip
+*.log
+*.safetensors
+*.pt
+VGEC*.json
+public_test.json
+private_test.json
+synthetic_pool.json
+Metrics_GEC.pdf
+VLSP2026-ViGEC-UserAgreement.docx
+/alpha/
+
+# Local agent notes; selected documentation and tests are tracked explicitly.
+/agents/
