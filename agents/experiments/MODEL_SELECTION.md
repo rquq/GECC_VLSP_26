@@ -1,8 +1,10 @@
 # Vietnamese model/data proposal — 2026-10-13
 
-Status: review and preparation complete; synthetic generation, new model training, and dataset promotion await the user's requested approval. The current notebook recipe remains Sailor-7B-Chat without folds or correction hints. No full-size model was trained and no teacher weights were downloaded for this review.
+Status: user-approved execution completed. The teacher pilot admitted no new synthetic pairs; the two Bami screens did not justify promotion. Retain saved Sailor classification and prepare the five supported clean repairs for a one-fit no-fold/no-hint corrector Kaggle run. Outcomes and failure recovery are recorded in LOCAL_REVIEW_RESULTS.md / .json.
 
-## Selected direction
+The subsequent Qwen-versus-SeaLLMs replacement question is reviewed in REPLACEMENT_REVIEW.md. Both fit the 8B size limit with current corrector LoRA; SeaLLMs' linked license excludes it as a teacher for Sailor/Qwen, and its chat template requires a different input role. Neither is promoted without a measured task comparison.
+
+## Initial approved roles (outcomes below)
 
 | Role | Decision | Evidence and practical limit |
 |---|---|---|
@@ -15,15 +17,15 @@ Status: review and preparation complete; synthetic generation, new model trainin
 
 BamiBERT's archived five-epoch flat-CE run reported Macro-F1 0.509337 / Micro-F1 0.666667, with 156.9 seconds excluding initial loading/final reload. That used a different 480-row training recipe and a repeatedly selected holdout. It is a speed/feasibility reference, not a fair win over the present Sailor run (504 training rows; local Macro-F1 0.434133; official Macro-F1 0.3473). Historical equal-weight encoder ensembles failed to improve Macro-F1. Do not restore an ensemble by default.
 
-## Data review completed
+## Data review before execution (historical)
 
 All 103 queue rows were structurally triaged; complete-source candidates were inspected linguistically. Incomplete source context was not reconstructed. Of the 11 previously proposed completions, five are prepared for blind verification: source-suffix copies retaining explicit reference edits. Six are held for ambiguous source acceptability, multiple edit types, subtype mismatch, or duplicate unresolved families. Separately, five complete sources have explicit organizer annotations declaring them correct; their candidate clean targets are exact source copies. Two other explicit claims have incomplete sources and remain quarantined.
 
 The previous reported eight source-correctness contradictions included a false positive: an instruction about punctuation used the phrase “đúng quy cách.” There are seven explicit sentence-correctness claims, not eight. New builder policy v2 recognizes the explicit claim. Existing pinned policy-v1 bundles still validate under their recorded policy, so the 504-row no-fold baseline is unchanged. Unknown policies are rejected. Correction annotation references remain quarantined.
 
-Private review/evidence: `dataset/review/reviewed-training-repairs-20261013.json`. Ten prepared changes (five reference completions plus five annotation-supported clean candidates) await independent eligible verification and approval. Originals, labels, and every active training/holdout file remain unchanged. Structural/analytical review is not human adjudication and does not prove a subtype.
+Private review/evidence: `dataset/review/reviewed-training-repairs-20261013.json`. At plan time, ten prepared changes (five reference completions plus five annotation-supported clean candidates) awaited independent eligible verification and approval. Execution admitted five clean repairs and withheld all five completions. Original files and the holdout remain unchanged; the correction overlay is versioned separately. Structural/analytical review is not human adjudication and does not prove a subtype.
 
-## Bounded approved-next work
+## Approved execution budget (historical plan)
 
 1. Verify the ten candidates with an eligible local model, showing source and taxonomy without the proposed label/correction. Reject unresolved ambiguity; never invent omitted context or rewrite targets with Codex. Apply supported changes only in a private versioned overlay, preserving original values and provenance.
 2. Ask pinned Qwen2.5-7B-Instruct for at most 64 error/clean pairs, 16 per error class across six mechanisms per class, at most three pairs per mechanism. Include matched clean counterparts. Labels, complete targets, explanations and minimal edits must come from the eligible teacher. Use training-only domains, private prompts/outputs, one resident model, NF4, input cap 768 tokens, output cap 384 tokens, seed 42. Total generation/blind-check calls are capped at 144 and GPU wall time at 90 minutes. Stop with a partial candidate set at the cap; do not auto-expand it.
@@ -42,3 +44,15 @@ Model sources: [Qwen2.5](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct), [Bami
 ## Verification
 
 Actual native meta-architecture parameter counts and Sailor adapter upper bounds were computed without downloading weights. BamiBERT's published BPE backend and native tokenizer agree on Vietnamese/accent/punctuation fixtures; special token IDs fit its vocabulary and raw text needs no external segmentation. PhoGPT's import incompatibility was checked in the actual 4.51.3 environment. Three annotation regression tests failed before the fix and pass afterward; all 133 tests passed in 14.773 seconds. The exact recipe-pinned ZIP inputs were also resolved and validated: 504 classifier rows, 409 corrector rows and 81 holdout rows, with matching hashes and legacy curation compatibility. Logs/config snapshots: ignored `runs/audit-model-selection-20261013/`.
+
+User approval received 2026-10-13: execute the bounded local teacher pilot and two BamiBERT screens, prepare reviewed private data for the user to retrain the no-fold corrector on Kaggle. No further approval is required within these budgets. Execution outcomes will be appended below.
+
+Execution: the approved Qwen pilot attempted 64 pairs (60 parsed), using 123 total calls and 900 seconds including bounded reloads. Two quality-review interruptions tightened the remaining prompts without repeating completed keys or expanding the attempt/call budget. No synthetic pairs met obligatory subtype/meaning review and diversity requirements, so none were admitted. Five explicit original clean annotations passed eligible blind review; five reference-completion candidates remain pending. Raw evidence and rejected outputs are private under runs/local-teacher-20261013 and dataset/review/local-teacher-decisions-20261013.json.
+
+Prepared classifier candidate: 318 original rows, no synthetic augmentation, 5 supported clean repairs. Prepared corrector candidate: 414 rows (222 usable originals including the 5 repairs + the exact 192 legacy synthetic rows). The 222-row all-original corrector draft was rejected for production because it leaves only 2/6/1 phrase/function/punctuation examples; this is a preparation audit, not a training result. Correction-only legacy import is byte-preserved and still validates its strict v3 contract; no new synthetic candidate bypasses the v4 checks. Bami screens started on source 69cc399 with shared 64-row internal validation, control440/candidate254 fit rows; no frozen holdout used for epoch or variant selection.
+
+Promotion criteria fixed before viewing Bami holdout results: Macro-F1 greater than Sailor 0.4341325941, higher mean recall across classes 2/3/4, at least 38/40 clean correct, and at least 29/41 errors detected (Sailor31/41). Otherwise retain the saved Sailor classifier. Select the Bami variant by internal Macro-F1 first and evaluate only that variant on the frozen 81 rows.
+
+Final outcomes: see LOCAL_REVIEW_RESULTS.md and LOCAL_REVIEW_RESULTS.json. The production recipe is now corrector-only with a portable saved Sailor classifier and the reviewed 414-row correction bundle. No new classifier score gain is claimed.
+
+A native Sailor second opinion used five remaining calls on the existing reference completions, with no new sentences or training. It also did not support promotion. The total teacher budget consumed was 128 calls and approximately 1,039 seconds. The host-RAM mmap failure was recovered by streaming identical tensors into smaller loading shards; exact tensor equality was tested. Details are in LOCAL_REVIEW_RESULTS.md.

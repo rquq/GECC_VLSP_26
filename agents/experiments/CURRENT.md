@@ -1,3 +1,13 @@
+# Alpha preservation status — 2026-10-13
+
+This checkout preserves the earlier no-fold control and the frozen five-fold system. The active experiment lives in `../kaggle-linux`, commit `acb998f`; alpha runtime/configs are unchanged by this documentation update.
+
+The approved Qwen pilot and two Bami screens completed with negative promotion results. Five supported clean repairs enter the active branch's prepared 414-row corrector dataset; its retained Sailor classifier is unchanged. The active Kaggle recipe trains one corrector, with no folds/hints/toggles, and remains pending the user's Kaggle run. See LOCAL_REVIEW_RESULTS.md/.json and REPLACEMENT_REVIEW.md for measured scores, failures, private artifact paths and the Qwen/SeaLLMs audit. SeaLLMs is excluded as a teacher for other LLMs under its linked license.
+
+Verification records copied here describe runs in kaggle-linux, not new training in alpha. Original runs, the preserved source/data/weights and tag `alpha-fold-hints-20261013` remain intact. No historical training was repeated.
+
+## Historical preparation record
+
 # Current experiment — 2026-10-13
 
 **sailor7b-no-folds** is implemented and locally verified; the full-size Kaggle run is pending. The user requested removal of expensive fold training and preservation of the existing system in alpha.

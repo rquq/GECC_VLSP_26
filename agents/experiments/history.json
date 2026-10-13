@@ -1721,6 +1721,77 @@
         ]
       },
       "scope": "training-only grouped CV selected C; same 81-row holdout"
+    },
+    {
+      "id": "20261013:approved-Qwen-pilot",
+      "status": "completed_negative",
+      "attempts": 64,
+      "calls": 123,
+      "admitted": 0,
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-teacher-20261013",
+      "source_commits": [
+        "5c765c0",
+        "e977e5e",
+        "41e1b6e"
+      ]
+    },
+    {
+      "id": "20261013:native-Sailor-second-opinion",
+      "status": "completed_negative_recovered_mmap_failure",
+      "reviews": 5,
+      "admitted": 0,
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-teacher-20261013/native-second-opinion",
+      "source_commits": [
+        "b9b7ed0",
+        "2cb3f07",
+        "6725249"
+      ]
+    },
+    {
+      "id": "20261013:Bami-control-reload-failure",
+      "status": "completed_training_then_failed_reload_check_recovered_without_retraining",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/bami-reviewed-screen-20261013.log",
+      "source_commit": "69cc399"
+    },
+    {
+      "id": "20261013:Bami-grouped-data-screens",
+      "status": "completed_negative_promotion",
+      "classification": {
+        "macro_f1": 0.32557686961356685,
+        "micro_f1": 0.5679012345679012,
+        "scope": "selected control checkpoint, unchanged 81-row holdout",
+        "promoted": false
+      },
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/bami-reviewed-screen-20261013/result.json",
+      "source_commits": [
+        "69cc399",
+        "037317a",
+        "a51edd9"
+      ]
+    },
+    {
+      "id": "20261013:reviewed-corrector-handoff",
+      "status": "prepared_not_trained",
+      "repair_count": 5,
+      "correction_rows": 414,
+      "classifier_reused": true,
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/kaggle-reviewed-ready-20261013/VGEC26-reviewed-v4.zip",
+      "source_commit": "aac69de"
+    },
+    {
+      "id": "20261013:reviewed-v4-tiny-reuse-smoke",
+      "status": "passed_tiny_fixture",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/reviewed-reuse-smoke-20261013/result.json",
+      "source_commit": "aac69de"
+    },
+    {
+      "id": "20261013:Qwen-SeaLLMs-replacement-review",
+      "status": "metadata_tokenizer_license_audit_only_no_weights_or_training",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/audit-seallms-20261013/audit.json",
+      "parameters": 7615616512,
+      "corrector_upper_bound": 7655986688,
+      "cross_model_synthetic_teacher": false,
+      "production_replacement": false
     }
   ]
 }

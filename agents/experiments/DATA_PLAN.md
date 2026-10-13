@@ -1,6 +1,6 @@
 # Data and score plan
 
-The user's 2026-10-13 native-model review is prepared in MODEL_SELECTION.md and MODEL_SELECTION.json. It proposes Qwen2.5-7B generation, a fast BamiBERT classifier screen and retained Sailor-7B-Chat correction. The user explicitly requested approval before those new experiments/data promotions; they have not started. That proposal refines the budgets and model order below.
+The native-model review was approved and executed. LOCAL_REVIEW_RESULTS.md / .json record the failed synthetic pilot, negative Bami comparison and prepared five-repair corrector dataset. The production recipe is now corrector-only with the saved Sailor classifier. The earlier planning sequence below is historical; new work must use current evidence and receive authorization for any expanded budget.
 
 ## First comparison: cheap no-fold system
 
