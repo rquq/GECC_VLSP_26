@@ -49,6 +49,11 @@ def load_reviewed(raw, fraction, seed):
         elif not (review.get("single_error") is True and review.get("required_edit") is True
                   and repair.get("method") == "deterministic_reference_prefix_plus_source_suffix"):
             raise ValueError("Reviewed reference repair must retain subtype and require the edit")
+        else:
+            from tools.propose_training_repairs import trailing_reference_candidate
+            candidate = trailing_reference_candidate(original_record["source"], original_record["target"])
+            if not candidate or candidate["target"] != record["target"] or candidate["evidence"] != repair["evidence"]:
+                raise ValueError("Reviewed reference repair differs from deterministic source-span reconstruction")
         expected[key] = after
     from tools.build_dataset import audit_record
     stage = provenance.get("stage")
@@ -68,6 +73,13 @@ def load_reviewed(raw, fraction, seed):
         if len(values) != len(keys) or {_id_key(v) for v in values} != keys:
             raise ValueError("Reviewed original retention differs from declared audit policy")
     train = _records_from_raw(raw.get("train"))
+    grouped = {}
+    for r in train:
+        key = _source_key(r["source"])
+        annotation = (r["label"], r["target"])
+        if key in grouped and grouped[key] != annotation:
+            raise ValueError("Reviewed duplicate sources have conflicting annotations")
+        grouped[key] = annotation
     train_ids = {_id_key(r["id"]) for r in train}
     if { _id_key(r["ID"]): r for r in raw["train"] if _id_key(r["ID"]) in original_ids} != {k: expected[k] for k in retained}:
         raise ValueError("Reviewed original rows differ from supported repair overlay")
@@ -103,6 +115,12 @@ def load_reviewed(raw, fraction, seed):
                 or m.get("review_status") != "accepted" or not m.get("family")
                 or not m.get("review_evidence")):
             raise ValueError("Reviewed synthetic lacks eligible teacher/parent/review provenance")
+        check = m.get("blind_review", {})
+        if row["label"] != 0 and (check.get("source_label") != row["label"] or check.get("target_label") != 0
+                or any(check.get(f) is not True for f in ("single_error", "meaning_preserved", "required_edit"))):
+            raise ValueError("Reviewed synthetic blind subtype/meaning verification differs")
+        if not row["source"].strip() or audit_record(row, {"Output":{"Fixed Sentence":row["target"]}})["quarantine_reasons"]:
+            raise ValueError("Reviewed synthetic violates structural curation checks")
         if row["label"] == 0:
             if row["source"] != row["target"]:
                 raise ValueError("Reviewed matched clean control must be exact identity")

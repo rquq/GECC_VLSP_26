@@ -32,6 +32,7 @@ def screening_split(originals, bundles):
     for rows, provenance in bundles:
         original_ids = set(parent)
         meta = {_id_key(r["id"]): r for r in provenance["train_rows"]}
+        forced_train.update(_id_key(k) for k in provenance.get("quarantined_ids", []))
         for repair in provenance.get("repairs", []):
             forced_train.add(_id_key(repair["before"]["ID"]))
         for row in rows:

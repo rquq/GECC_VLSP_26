@@ -20,7 +20,8 @@ _PRIVATE_KEYS = {"source", "target", "reference", "prediction", "predictions", "
                  "prompt", "content", "train_rows", "authored_overrides", "data_provenance",
                  "provenance", "classifier_provenance", "reference_audit", "annotation_like_audit",
                  "annotation_audit", "hint_descriptions", "input", "output", "fixed sentence",
-                 "raw_generation", "target_correction", "predicted_correction", "candidates"}
+                 "raw_generation", "target_correction", "predicted_correction", "candidates",
+                 "original_snapshot", "repairs", "before", "after", "review_evidence", "reason"}
 
 
 def safe_value(value, *, allow_prompt=False):
