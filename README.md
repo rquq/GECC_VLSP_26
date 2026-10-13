@@ -343,11 +343,19 @@ original saved prompt.
 ### Recover a run that failed after training
 
 If training finished but the final `load_corrector` call failed its GPU-memory
-preflight, the selected checkpoint is already in `correction/adapter`. Preserve
-the entire run directory before restarting the Kaggle session. Do not rerun
-training merely to evaluate that checkpoint. In `epoch_history.json`, the highest
-`selection_values` tuple wins (earliest epoch on ties); the saved adapter is not
-necessarily from the last epoch.
+preflight, the selected checkpoint is already in `correction/adapter`. All eight
+epochs completed in the reported failure; only final evaluation and subsequent
+submission export failed. Preserve the entire run directory before restarting
+the Kaggle session. Do not rerun training merely to evaluate that checkpoint.
+In `epoch_history.json`, the highest `selection_values` tuple wins (earliest epoch
+on ties); the saved adapter is not necessarily from the last epoch.
+
+New training runs release Trainer/Accelerator/optimizer ownership, unload the
+last-epoch LoRA without merging, and attach the selected on-disk adapter to the
+same frozen base. Adapter placement stays on the base's existing devices;
+gradient checkpointing and embedding-gradient hooks are disabled for inference.
+Rank 1 releases its training replica before waiting for rank 0's final evaluation.
+No second base allocation or weakened memory preflight is needed.
 
 Run this notebook cell after the dependency bootstrap, with `RUN` set to the
 preserved run directory. It evaluates the saved corrector in a fresh subprocess
@@ -355,7 +363,7 @@ using the original validation hints, without loading a second classifier or
 changing the configured memory reserve:
 
 ```python
-RUN = Path("/kaggle/working/output/YOUR_COMPLETED_RUN")
+RUN = Path("/kaggle/working/runs/YOUR_COMPLETED_RUN")
 recovery = r'''
 import json, sys
 from pathlib import Path
@@ -383,6 +391,22 @@ subprocess.run([str(TRAINING_PYTHON), "-c", recovery, str(RUN), "cuda"],
 
 This recovers predictions and metrics only; it does not fabricate the missing
 run/pipeline completion manifests or reproduce lost trainer optimizer state.
+For public-test submission recovery, use the saved stages directly rather than
+`--run`, which requires completed manifests. In a fresh process with the current
+code and training dependencies:
+
+```bash
+python -m model.pipeline_predict \
+  --classifier /kaggle/working/runs/YOUR_COMPLETED_RUN/classification/classifier \
+  --adapter /kaggle/working/runs/YOUR_COMPLETED_RUN/correction/adapter \
+  --data /kaggle/input/datasets/YOUR_PRIVATE_DATASET/public_test.json \
+  --output /kaggle/working/runs/YOUR_COMPLETED_RUN/recovered-submission.json
+```
+
+Use `TRAINING_PYTHON` in a notebook subprocess instead of the kernel interpreter.
+This creates the organizer-format submission and separate diagnostic/metadata
+files without retraining; no gold-free combined score is invented. Existing
+output artifacts are never overwritten: choose a new output filename on retry.
 
 
 ## Recommended local correction experiments
@@ -634,3 +658,10 @@ local Chromium runtime lacks NSS/NSPR and ALSA libraries; these checks verified
 the server payload, not the rendered W&B workspace.
 The 111-test regression suite passed.
 This does not claim full Sailor-7B-Chat training or a correction-quality gain.
+
+The post-training correction reload now reuses the frozen base and replaces
+only the selected adapter. The regression suite passed 115 tests. Real tiny
+Qwen2 runs completed two correction epochs on CPU, two-process CPU DDP, and
+single-GPU CUDA NF4, including partial accumulation windows. Final reload kept
+the same base and exact selected tensors; final metrics matched the selected
+epoch. This verifies the reload path, not full Sailor-7B-Chat T4 memory headroom.

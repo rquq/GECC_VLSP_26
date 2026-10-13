@@ -5,7 +5,8 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock
 
-from model.correction import _parse_correction, correct, encode_record, validate_hints
+from model.correction import (_parse_correction, _reload_selected_corrector,
+                              correct, encode_record, load_corrector, validate_hints)
 
 
 class CorrectionGenerationTests(unittest.TestCase):
@@ -117,6 +118,72 @@ class HintContractTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "declared mixed partition"):
                     validate_hints(missing_quarantine, correction, validation, provenance,
                                    classifier, path, 42, .2)
+
+
+class SelectedAdapterReloadTests(unittest.TestCase):
+    def test_selected_weights_replace_last_epoch_without_merging_or_copying_base(self):
+        import torch
+        from peft import LoraConfig, TaskType, get_peft_model
+        from tokenizers import Tokenizer
+        from tokenizers.models import WordLevel
+        from transformers import PreTrainedTokenizerFast, Qwen2Config, Qwen2ForCausalLM
+
+        torch.manual_seed(42)
+        base = Qwen2ForCausalLM(Qwen2Config(
+            vocab_size=16, hidden_size=16, intermediate_size=32, num_hidden_layers=1,
+            num_attention_heads=2, num_key_value_heads=1, max_position_embeddings=64,
+            pad_token_id=0, eos_token_id=2, tie_word_embeddings=False))
+        tokenizer = PreTrainedTokenizerFast(
+            tokenizer_object=Tokenizer(WordLevel({"<pad>": 0, "<unk>": 1, "<eos>": 2},
+                                                unk_token="<unk>")),
+            pad_token="<pad>", unk_token="<unk>", eos_token="<eos>")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base_path, adapter = root / "base", root / "adapter"
+            base.save_pretrained(base_path)
+            settings = {"name": str(base_path), "revision": "local", "load_in_4bit": False,
+                        "device_map": "single", "compute_dtype": "float32"}
+            inference = {"prompt": "saved prompt", "hint_mode": "none",
+                         "max_length": 32, "generation": {"max_new_tokens": 4, "do_sample": False}}
+            frozen_weight = base.model.layers[0].self_attn.q_proj.weight
+            frozen_snapshot = frozen_weight.detach().clone()
+            model = get_peft_model(base, LoraConfig(
+                r=2, lora_alpha=4, target_modules=["q_proj", "v_proj"], task_type=TaskType.CAUSAL_LM))
+            with torch.no_grad():
+                for name, parameter in model.named_parameters():
+                    if "lora_" in name:
+                        parameter.fill_(0.1)
+            model.eval()
+            tokens = torch.tensor([[3, 4, 5]])
+            with torch.no_grad():
+                selected_logits = model(tokens).logits.clone()
+            model.save_pretrained(adapter)
+            tokenizer.save_pretrained(adapter)
+            for name, value in (("loading.json", settings), ("inference.json", inference)):
+                (adapter / name).write_text(json.dumps(value), encoding="utf-8")
+            with torch.no_grad():
+                for name, parameter in model.named_parameters():
+                    if "lora_" in name:
+                        parameter.fill_(0.9)
+                last_epoch_logits = model(tokens).logits
+            self.assertFalse(torch.allclose(selected_logits, last_epoch_logits))
+            model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+            model.enable_input_require_grads()
+            reloaded, _, saved_inference = _reload_selected_corrector(model, adapter)
+            self.assertIs(reloaded.get_base_model(), base)
+            self.assertIs(base.model.layers[0].self_attn.q_proj.base_layer.weight, frozen_weight)
+            torch.testing.assert_close(frozen_weight, frozen_snapshot)
+            self.assertFalse(base.is_gradient_checkpointing)
+            self.assertFalse(base.get_input_embeddings()(tokens).requires_grad)
+            self.assertFalse(any(parameter.requires_grad for parameter in reloaded.parameters()))
+            self.assertEqual(saved_inference, inference)
+            fresh, _, _ = load_corrector(adapter, "cpu")
+            with torch.no_grad():
+                torch.testing.assert_close(reloaded(tokens).logits, selected_logits)
+                torch.testing.assert_close(reloaded(tokens).logits, fresh(tokens).logits)
+                expected = fresh.generate(tokens, max_new_tokens=4, do_sample=False)
+                actual = reloaded.generate(tokens, max_new_tokens=4, do_sample=False)
+                torch.testing.assert_close(actual, expected)
 
 
 if __name__ == "__main__":

@@ -472,21 +472,42 @@ def _load_base(settings, device, placement=None):
 
 def load_corrector(adapter, device="cuda"):
     """Reload the saved base placement, tokenizer, adapter and exact inference prompt."""
-    from peft import PeftModel, prepare_model_for_kbit_training
-    from transformers import AutoTokenizer
     adapter = Path(adapter)
     settings = json.loads((adapter / "loading.json").read_text(encoding="utf-8"))
     inference = json.loads((adapter / "inference.json").read_text(encoding="utf-8"))
     validate_inference(inference)
-    base = _load_base(settings, device)
+    return _attach_corrector(_load_base(settings, device), adapter, settings, inference)
+
+
+def _attach_corrector(base, adapter, settings, inference):
+    from peft import PeftModel, prepare_model_for_kbit_training
+    from transformers import AutoTokenizer
     if settings.get("load_in_4bit"):
         base = prepare_model_for_kbit_training(base, use_gradient_checkpointing=False)
-    model = PeftModel.from_pretrained(base, adapter, is_trainable=False)
+    model = PeftModel.from_pretrained(
+        base, adapter, is_trainable=False,
+        torch_device=str(base.get_input_embeddings().weight.device),
+        device_map=getattr(base, "hf_device_map", None))
     model.is_parallelizable = settings.get("device_map", "single") == "balanced"
     model.model_parallel = settings.get("device_map", "single") == "balanced"
     tokenizer = AutoTokenizer.from_pretrained(adapter)
     model.eval()
     return model, tokenizer, inference
+
+
+def _reload_selected_corrector(model, adapter):
+    """Replace training LoRA with saved selected weights; never merge or load a second base."""
+    adapter = Path(adapter)
+    settings = json.loads((adapter / "loading.json").read_text(encoding="utf-8"))
+    inference = json.loads((adapter / "inference.json").read_text(encoding="utf-8"))
+    validate_inference(inference)
+    base = model.unload()
+    # PEFT unload removes the layers but leaves the old adapter registry behind.
+    del base.peft_config
+    base.gradient_checkpointing_disable()
+    if hasattr(base, "_require_grads_hook"):
+        base.disable_input_require_grads()
+    return _attach_corrector(base, adapter, settings, inference)
 
 
 @tracked_entrypoint
@@ -699,25 +720,32 @@ def main(*, tracking):
     trainable_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total_parameters = sum(p.numel() for p in model.parameters())
     peak_memory = {f"cuda:{i}": torch.cuda.max_memory_allocated(i) for i in range(torch.cuda.device_count())} if device == "cuda" else {}
-    # Callbacks retain their own model/optimizer references independently of
-    # Trainer and Accelerator. Detach every training owner before loading a
-    # second base, including wrapped DDP models and optimizer state tensors.
+    # Keep the frozen base, but release DDP wrappers and optimizer state before
+    # replacing the final-epoch LoRA with the selected adapter from disk.
     trainer.callback_handler.model = None
     trainer.callback_handler.optimizer = None
     trainer.callback_handler.lr_scheduler = None
     trainer.model = trainer.model_wrapped = trainer.optimizer = trainer.lr_scheduler = None
     trainer.accelerator.free_memory()
     trainer.accelerator.scaler = None
-    del trainer, model
+    del trainer
     gc.collect()
     if device == "cuda":
         torch.cuda.empty_cache()
     barrier()
     if rank != 0:
+        del model
+        gc.collect()
+        if device == "cuda":
+            torch.cuda.empty_cache()
         barrier()
         torch.distributed.destroy_process_group()
         return
-    reloaded, reloaded_tokenizer, saved_inference = load_corrector(adapter_path, device)
+    reloaded, reloaded_tokenizer, saved_inference = _reload_selected_corrector(model, adapter_path)
+    del model
+    gc.collect()
+    if device == "cuda":
+        torch.cuda.empty_cache()
     predictions = correct(reloaded, reloaded_tokenizer, validation, selected_hints, saved_inference)
     metrics = experiment_report(validation, predictions)
     write_json(output / "predictions.json", comparison_rows(validation, predictions))
