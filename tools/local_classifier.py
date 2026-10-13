@@ -106,7 +106,8 @@ def fit(train, validation, output, deadline):
                   data=dict(validation_fraction=.2), model=dict(name=MODEL, revision=REVISION,backend="encoder"),
                   training=dict(max_length=512, effective_batch_size=8, class_weight_power=.5))
     preprocessing = _preprocessing(config)
-    weights, weight_metadata = _class_weights(train, .5)
+    weight_metadata = _class_weights(train, .5)
+    weights = weight_metadata["weights"]
     class Deadline(TrainerCallback):
         def on_step_begin(self, args, state, control, **kwargs):
             if time.monotonic() >= deadline:

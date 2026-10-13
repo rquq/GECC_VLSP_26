@@ -83,7 +83,7 @@ def load_reviewed(raw, fraction, seed):
     if len(metadata) != len(metadata_rows) or set(metadata) != train_ids:
         raise ValueError("Reviewed train-row provenance must cover IDs exactly once")
     synthetic = [r for r in train if _id_key(r["id"]) in synthetic_ids]
-    syn_by_id = {_id_key(r["id"]): r for r in synthetic}
+    train_by_id = {_id_key(r["id"]): r for r in train}
     mechanisms = Counter()
     synthetic_counts = Counter(r["label"] for r in synthetic)
     original_counts = Counter(r["label"] for r in train if _id_key(r["id"]) in retained)
@@ -107,7 +107,7 @@ def load_reviewed(raw, fraction, seed):
             if row["source"] != row["target"]:
                 raise ValueError("Reviewed matched clean control must be exact identity")
         else:
-            clean = syn_by_id.get(_id_key(m.get("clean_id")))
+            clean = train_by_id.get(_id_key(m.get("clean_id")))
             if not clean or clean["label"] != 0 or clean["source"] != row["target"]:
                 raise ValueError("Reviewed synthetic error must have its matched clean counterpart")
             mechanisms[row["label"], m.get("mechanism")] += 1

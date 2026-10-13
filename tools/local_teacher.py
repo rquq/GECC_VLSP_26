@@ -105,12 +105,15 @@ def main():
         return event
 
     def verify(key, source, target):
-        return call("blind_review", key, "Independently judge the source and target without knowing the proposed class. "
+        return call("blind_review", key, "Đọc từng câu độc lập và phân loại lỗi ngữ pháp theo 0..4. "
+                    "Không mặc định câu source là đúng. Câu đúng vẫn mang nhãn 0 dù có nhiều hay ít từ hơn. "
+                    "Phân biệt lỗi bắt buộc với thay đổi phong cách tùy chọn. Không coi dấu câu là lỗi cấu trúc câu. "
+                    "Independently judge the source and target without knowing the proposed class. "
                     "Return {\"source_label\": integer 0..4, \"target_label\": integer 0..4, "
                     "\"single_error\": boolean, \"meaning_preserved\": boolean, \"required_edit\": boolean, "
                     "\"reason\": brief English explanation}. If source is grammatical choose 0; "
                     "optional stylistic edits are not errors. Assess ambiguity conservatively.\n" +
-                    json.dumps(dict(source=source, target=target), ensure_ascii=False))
+                    json.dumps(dict(target=target, source=source), ensure_ascii=False))
 
     try:
         for repair in repairs:
@@ -126,7 +129,11 @@ def main():
                 key = f"teacher-{label}-{attempt:02d}"
                 if any(e["kind"] == "generation" and e["key"] == key for e in previous):
                     continue
-                event = call("generation", key, "Build a Vietnamese minimal error/clean pair. "
+                event = call("generation", key, "Tạo cặp câu tiếng Việt chỉ khác nhau ở đúng một lỗi ngữ pháp. "
+                    "target PHẢI sao chép nguyên văn câu ngữ cảnh dưới đây, KHÔNG thay đổi một ký tự nào. "
+                    "source là câu sai: chỉ sửa một thành tố của câu ngữ cảnh để tạo lỗi rõ ràng theo loại được yêu cầu. "
+                    "KHÔNG sửa lỗi vào target. Nếu không làm được thì trả về label 0 và hai câu giống nhau. "
+                    "Build a Vietnamese minimal error/clean pair. "
                     "The TARGET must be the given grammatical training sentence copied EXACTLY, including punctuation. "
                     "Create SOURCE by introducing one clear required grammatical error into that target. "
                     "Include exactly one clear grammatical error, requiring a minimal correction. "
