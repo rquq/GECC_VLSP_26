@@ -26,6 +26,16 @@ DATA = ROOT / "dataset/kaggle-qwen-ready-20261013"
 CONFIG = ROOT / "configs/local_screen.json"
 
 
+def weighted_classification_loss(logits, labels, weights):
+    """Preserve weights when accumulating single-row microbatches.
+
+    PyTorch's weighted mean divides by the batch's weight sum, cancelling
+    class weighting entirely for microbatch one. Average weighted row losses.
+    """
+    import torch.nn.functional as F
+    return F.cross_entropy(logits.float(), labels, weight=weights.to(labels.device), reduction="none").mean()
+
+
 def prepare():
     OUTPUT.mkdir(exist_ok=True)
     original = DATA / "VGEC 2026_v1.json"
@@ -158,7 +168,7 @@ def train(candidate, final=False, epochs=None):
         def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
             labels = inputs.pop("labels")
             outputs = model(**inputs)
-            loss = torch.nn.functional.cross_entropy(outputs.logits.float(), labels, weight=weights.to(labels.device))
+            loss = weighted_classification_loss(outputs.logits, labels, weights)
             return (loss, outputs) if return_outputs else loss
 
     args = dict(output_dir=str(output / "epochs"), num_train_epochs=epochs,
