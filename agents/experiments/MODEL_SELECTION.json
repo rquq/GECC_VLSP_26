@@ -149,7 +149,16 @@
     "concurrent_models": 1,
     "stop_at_budget_without_auto_expansion": true,
     "new_wording_authored_by_codex": false,
-    "final_accepted_mechanism_cap_fraction": 0.2
+    "final_accepted_mechanism_cap_fraction": 0.2,
+    "outcome": {
+      "status": "completed_negative",
+      "attempted_pairs": 64,
+      "valid_generation_json": 60,
+      "total_calls": 123,
+      "admitted_pairs": 0,
+      "elapsed_seconds": 900,
+      "quality_interruptions": 2
+    }
   },
   "classifier_screen": {
     "model": "Qualcomm-AI-Research/BamiBERT",
@@ -169,7 +178,8 @@
     "max_gpu_wall_minutes": 30,
     "folds": false,
     "corrector_fits": 0,
-    "internal_screening": "one fixed parent-grouped training-only split; frozen 81-row holdout is not used for screen selection"
+    "internal_screening": "one fixed parent-grouped training-only split; frozen 81-row holdout is not used for screen selection",
+    "status": "started"
   },
   "promotion": {
     "holdout_count": 81,
@@ -178,7 +188,9 @@
     "candidate_repairs": {
       "reference_completions": 5,
       "explicit_annotation_supported_clean_candidates": 5,
-      "private_path": "dataset/review/reviewed-training-repairs-20261013.json"
+      "private_path": "dataset/review/reviewed-training-repairs-20261013.json",
+      "accepted_clean_repairs": 5,
+      "reference_completions_pending": 5
     },
     "acceptance": "Blind subtype/meaning verification, original and holdout hashes preserved, matched clean controls, duplicates/families checked, rare-class gain with no material clean/error regression; one selected frozen-holdout comparison; no ensemble default.",
     "bundle_policy": "Separately versioned reviewed-bundle schema with provenance-validated repairs and under-cap synthetic counts; legacy validators remain strict.",
@@ -191,7 +203,7 @@
     "corrector_hints": "none",
     "notebook_toggles": false,
     "new_full_size_training_started": false,
-    "new_synthetic_generation_started": false
+    "new_synthetic_generation_started": true
   },
   "verification": {
     "tests_passed": 133,

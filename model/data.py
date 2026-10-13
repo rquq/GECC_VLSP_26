@@ -157,6 +157,11 @@ def load_training_split(path: str | Path, validation_fraction: float, seed: int)
     if isinstance(raw, dict) and raw.get("format") == "vgec-reviewed-v4":
         from .reviewed_data import load_reviewed
         return load_reviewed(raw, validation_fraction, seed)
+    return _load_legacy_bundle(raw, validation_fraction, seed)
+
+
+def _load_legacy_bundle(raw, validation_fraction, seed):
+    """Validate the original v3 contract, including exact quality-cap counts."""
     if not isinstance(raw, dict) or raw.get("format") != "vgec-balanced-v3":
         raise ValueError("Expected raw dataset array or vgec-balanced-v3 bundle")
     if type(raw.get("seed")) is not int or raw["seed"] != 42:

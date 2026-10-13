@@ -1,5 +1,6 @@
 """Strict reviewed v4 bundles, separate from reproducible legacy v3 policy."""
 from collections import Counter
+import base64
 import hashlib
 import json
 
@@ -59,6 +60,25 @@ def load_reviewed(raw, fraction, seed):
     stage = provenance.get("stage")
     if stage not in ("classification", "correction"):
         raise ValueError("Reviewed stage must be classification or correction")
+    legacy_rows = {}
+    legacy_metadata = {}
+    if "preserved_legacy_bundle" in provenance:
+        if stage != "correction":
+            raise ValueError("Legacy augmentation preservation is correction-only")
+        from .data import _load_legacy_bundle
+        imported = base64.b64decode(provenance["preserved_legacy_bundle"], validate=True)
+        if hashlib.sha256(imported).hexdigest() != provenance.get("preserved_legacy_sha256"):
+            raise ValueError("Preserved legacy byte digest differs")
+        legacy = json.loads(imported)
+        _, legacy_validation, legacy_info = _load_legacy_bundle(legacy, fraction, seed)
+        if (legacy_validation != validation or legacy_info["original_sha256"] != raw["original_sha256"]
+                or {_id_key(k) for k in legacy_info["provenance"]["original_train_ids"]} != original_ids):
+            raise ValueError("Preserved legacy original population/holdout differs")
+        legacy_ids = {_id_key(k) for k in legacy_info["provenance"]["selected_synthetic_ids"]}
+        legacy_rows = {_id_key(r["ID"]):r for r in legacy["train"] if _id_key(r["ID"]) in legacy_ids}
+        legacy_metadata = {_id_key(r["id"]):r for r in legacy_info["provenance"]["train_rows"] if _id_key(r["id"]) in legacy_ids}
+        if len(legacy_metadata) != len(legacy_rows):
+            raise ValueError("Preserved legacy augmentation lacks complete metadata")
     excluded = set()
     for key, value in expected.items():
         r = _records_from_raw([value])[0]
@@ -95,9 +115,13 @@ def load_reviewed(raw, fraction, seed):
     if len(metadata) != len(metadata_rows) or set(metadata) != train_ids:
         raise ValueError("Reviewed train-row provenance must cover IDs exactly once")
     synthetic = [r for r in train if _id_key(r["id"]) in synthetic_ids]
+    actual_legacy = {_id_key(r["ID"]):r for r in raw["train"] if _id_key(r["ID"]) in legacy_rows}
+    if actual_legacy != legacy_rows or any(metadata.get(k) != m for k,m in legacy_metadata.items()):
+        raise ValueError("Preserved legacy rows/metadata must remain exactly unchanged")
+    new_synthetic = [r for r in synthetic if _id_key(r["id"]) not in legacy_rows]
     train_by_id = {_id_key(r["id"]): r for r in train}
     mechanisms = Counter()
-    synthetic_counts = Counter(r["label"] for r in synthetic)
+    synthetic_counts = Counter(r["label"] for r in new_synthetic)
     original_counts = Counter(r["label"] for r in train if _id_key(r["id"]) in retained)
     if set(original_counts) != set(range(5)) or synthetic_counts[0] > 40:
         raise ValueError("Reviewed originals must cover all classes; clean augmentation cap is 40")
@@ -109,6 +133,8 @@ def load_reviewed(raw, fraction, seed):
             raise ValueError("Reviewed provenance kind differs")
         if _id_key(row["id"]) not in synthetic_ids:
             continue
+        if _id_key(row["id"]) in legacy_rows:
+            continue  # Exact pinned legacy import was validated with its unchanged v3 contract.
         if (not m.get("parent_ids") or any(_id_key(p) not in original_ids for p in m["parent_ids"])
                 or m.get("teacher_parameters", 8_000_000_001) > 8_000_000_000
                 or not m.get("teacher_revision") or not m.get("output_sha256")

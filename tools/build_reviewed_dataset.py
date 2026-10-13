@@ -1,5 +1,6 @@
 """Build private v4 bundles from eligible-teacher outputs and explicit review decisions."""
 import argparse
+import base64
 from collections import Counter
 import copy
 import hashlib
@@ -16,7 +17,7 @@ from tools.build_dataset import audit_record
 from tools.local_teacher import MODEL, PARAMETERS, REVISION
 
 
-def build(original, repair_candidates, pilot, decisions, public_test, output):
+def build(original, repair_candidates, pilot, decisions, public_test, output, legacy_correction=None):
     if output.exists():
         raise ValueError("Reviewed output must be new; never replace the original/pinned bundle")
     raw = json.loads(original.read_text())
@@ -71,6 +72,16 @@ def build(original, repair_candidates, pilot, decisions, public_test, output):
             output_sha256=event["output_sha256"],review_status="accepted",blind_review=check,
             review_evidence=choice["synthetic_evidence"][key]))
     output.mkdir(parents=True,mode=0o700)
+    legacy_rows=[];legacy_metadata=[];legacy_bytes=None
+    if legacy_correction:
+        _, legacy_validation, legacy_info=load_training_split(legacy_correction,.2,42)
+        if legacy_validation != validation or legacy_info["original_sha256"] != hashlib.sha256(original.read_bytes()).hexdigest():
+            raise ValueError("Preserved corrector augmentation has a different original/holdout")
+        legacy_bytes=legacy_correction.read_bytes()
+        legacy=json.loads(legacy_bytes)
+        legacy_ids={_id_key(k) for k in legacy_info["provenance"]["selected_synthetic_ids"]}
+        legacy_rows=[r for r in legacy["train"] if _id_key(r["ID"]) in legacy_ids]
+        legacy_metadata=[r for r in legacy_info["provenance"]["train_rows"] if _id_key(r["id"]) in legacy_ids]
     original_digest=hashlib.sha256(original.read_bytes()).hexdigest()
     summaries={}
     for stage,name in (("classification","VGEC_classifier.json"),("correction","VGEC_balanced.json")):
@@ -85,21 +96,26 @@ def build(original, repair_candidates, pilot, decisions, public_test, output):
             else:
                 retained.append(row)
                 provenance_rows.append(dict(id=r["id"],kind="original",original_id=r["id"],audit_flags=audit["flags"]))
-        training=retained+copy.deepcopy(errors)
+        stage_errors=copy.deepcopy(errors)+(copy.deepcopy(legacy_rows) if stage=="correction" else [])
+        stage_metadata=metadata+(legacy_metadata if stage=="correction" else [])
+        training=retained+stage_errors
         random.Random(42).shuffle(training)
         provenance=dict(stage=stage,original_snapshot=raw,original_snapshot_sha256=canonical_hash(raw),repairs=repairs,
             original_train_ids=[r["id"] for r in originals],retained_original_train_ids=[r["ID"] for r in retained],
-            quarantined_ids=omitted,selected_synthetic_ids=[r["ID"] for r in errors],train_rows=provenance_rows+metadata,
-            training_class_counts=_counts(_records_from_raw(training)),synthetic_class_counts=_counts(_records_from_raw(errors)),
+            quarantined_ids=omitted,selected_synthetic_ids=[r["ID"] for r in stage_errors],train_rows=provenance_rows+stage_metadata,
+            training_class_counts=_counts(_records_from_raw(training)),synthetic_class_counts=_counts(_records_from_raw(stage_errors)),
             balance_policy="reviewed_under_cap_2x_matched_controls",teacher_manifest=manifest,
             review_decisions_sha256=hashlib.sha256(decisions.read_bytes()).hexdigest(),validation_raw_unchanged=True)
+        if stage=="correction" and legacy_bytes:
+            provenance.update(preserved_legacy_bundle=base64.b64encode(legacy_bytes).decode(),
+                              preserved_legacy_sha256=hashlib.sha256(legacy_bytes).hexdigest())
         bundle=dict(format="vgec-reviewed-v4",seed=42,validation_fraction=.2,original_sha256=original_digest,
                     train=training,validation=[before[_id_key(r["id"])] for r in validation],provenance=provenance)
         write_json(output/name,bundle)
         load_training_split(output/name,.2,42)
         if stage=="classification":
             load_classifier_split(original,output/name,.2,42)
-        summaries[stage]=dict(rows=len(training),originals=len(retained),synthetics=len(errors),
+        summaries[stage]=dict(rows=len(training),originals=len(retained),synthetics=len(stage_errors),
             quarantined=len(omitted),counts=provenance["training_class_counts"],sha256=hashlib.sha256((output/name).read_bytes()).hexdigest())
     (output/"VGEC 2026_v1.json").write_bytes(original.read_bytes())
     (output/"public_test.json").write_bytes(public_test.read_bytes())
@@ -121,8 +137,9 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     for name in ("original","repair-candidates","pilot","decisions","public-test","output"):
         parser.add_argument("--"+name,type=Path,required=True)
+    parser.add_argument("--legacy-correction",type=Path,help="Preserve exact pinned v3 corrector augmentation")
     a=parser.parse_args()
-    print(json.dumps(build(a.original,a.repair_candidates,a.pilot,a.decisions,a.public_test,a.output),indent=2))
+    print(json.dumps(build(a.original,a.repair_candidates,a.pilot,a.decisions,a.public_test,a.output,a.legacy_correction),indent=2))
 
 
 if __name__=="__main__":
