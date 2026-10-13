@@ -12,6 +12,16 @@ from .runtime import resolve_output, resolve_submission_data, write_json
 from .prediction_export import comparison_rows, submission_rows, write_submission
 
 
+def _classify_isolated(classifier, records, device, batch_size):
+    """Exit the classifier process before the corrector allocates CUDA weights."""
+    from concurrent.futures import ProcessPoolExecutor
+    from multiprocessing import get_context
+    from .classification import classify
+
+    with ProcessPoolExecutor(max_workers=1, mp_context=get_context("spawn")) as worker:
+        return worker.submit(classify, classifier, records, device, batch_size).result()
+
+
 def run_inference(classifier, adapter, records, output, *, device="cuda", batch_size=1,
                   evaluate=False, input_scope="explicit_submission", input_path=None,
                   hint_mode=None, rerank=False):
@@ -31,6 +41,7 @@ def run_inference(classifier, adapter, records, output, *, device="cuda", batch_
     paths = {"submission": str(output),
              "zip": str(output.with_suffix(".zip")),
              "comparisons": str(output.with_suffix(".comparisons.json")),
+             "classification": str(output.with_suffix(".classification.json")),
              "evaluation": str(output.with_suffix(".evaluation.json"))}
     if evaluate:
         paths["metrics"] = str(output.with_suffix(".metrics.json"))
@@ -42,7 +53,10 @@ def run_inference(classifier, adapter, records, output, *, device="cuda", batch_
     inference_records = [{"id": row["id"], "source": row["source"], "label": None,
                           "target": None} for row in records]
     from .classification import classify
-    hints = classify(classifier, inference_records, device=device, batch_size=batch_size)
+    hints = (_classify_isolated(classifier, inference_records, device, batch_size)
+             if device == "cuda" else
+             classify(classifier, inference_records, device=device, batch_size=batch_size))
+    write_json(paths["classification"], hints)
     # Stage 1 releases its weights before loading the independently fitted corrector.
     gc.collect()
     import torch

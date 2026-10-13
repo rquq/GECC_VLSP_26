@@ -1,6 +1,6 @@
 {
   "date": "2026-10-13",
-  "status": "ready_locally_verified_full_Kaggle_training_pending",
+  "status": "full_Kaggle_training_completed_public_submission_recovered",
   "authorization": "User requested readiness, experiment recap, private upload ZIP and pushing six corrector epochs",
   "source_parent_commit": "d666f263e6a9388ce750bc0054a35801c9630a87",
   "implementation_commit": "Commit containing this record and matching configuration hashes; launcher records exact runtime commit",
@@ -62,7 +62,7 @@
       "oof_enabled": false,
       "hint_mode": "none"
     },
-    "full_size_Qwen_training_completed": false,
+    "full_size_Qwen_training_completed": true,
     "audit": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/qwen-six-ready-20261013/audit.json"
   },
   "experiment_recap": [
@@ -109,13 +109,22 @@
     },
     {
       "experiment": "Fresh Qwen both-stage no-fold run",
-      "status": "prepared_not_full_size_trained",
+      "status": "full_size_both_stages_completed_post_training_export_failed",
       "epochs": [
         5,
         6
-      ]
+      ],
+      "classifier_macro_f1": 0.5951759622491329,
+      "classifier_micro_f1": 0.7530864197530864,
+      "corrector_selected_epoch": 5,
+      "corrector_error_gleu_plus": 0.21858770154200563
     }
   ],
   "historical_recovery": "Recovered surviving alpha/test/Kaggle evidence without retraining; preserved five-fold snapshot in alpha",
-  "score_improvement_established": false
+  "score_improvement_established": false,
+  "completed_run_record": "agents/experiments/QWEN_RUN_20261013.json",
+  "latest_unit_tests": 143,
+  "local_classifier_improvement_measured": true,
+  "official_score_pending": true,
+  "recovered_public_submission": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/13_10_2026/runs/qwen25-7b-reviewed-both-20261013T161655075757Z/run/results.zip"
 }

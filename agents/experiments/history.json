@@ -1832,6 +1832,109 @@
       "classification_epochs": 5,
       "correction_epochs": 6,
       "scores": null
+    },
+    {
+      "id": "artifact:kaggle-linux:runs/13_10_2026:qwen25-7b-reviewed-both",
+      "status": "full_training_completed_public_submission_recovered",
+      "evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/13_10_2026/runs/qwen25-7b-reviewed-both-20261013T161655075757Z/run/classification/metrics.json",
+      "evidence_sha256": "07b3e8dd76b3c240ff7aaed26964a8bbd566c1c0617d7a4d492068c7053f2da7",
+      "source_commit": "b2aa2800ca2e294bea70b42b2392de947966fd09",
+      "count": 81,
+      "classification": {
+        "macro_f1": 0.5951759622491329,
+        "micro_f1": 0.7530864197530864,
+        "confusion_matrix": [
+          [
+            37,
+            0,
+            1,
+            2,
+            0,
+            0
+          ],
+          [
+            0,
+            15,
+            2,
+            2,
+            1,
+            0
+          ],
+          [
+            0,
+            2,
+            3,
+            2,
+            0,
+            0
+          ],
+          [
+            1,
+            2,
+            1,
+            3,
+            0,
+            0
+          ],
+          [
+            0,
+            2,
+            2,
+            0,
+            3,
+            0
+          ]
+        ],
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "prediction_columns": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          "invalid"
+        ],
+        "per_class": {
+          "0": {
+            "precision": 0.9736842105263158,
+            "recall": 0.925,
+            "f1": 0.9487179487179487,
+            "support": 40
+          },
+          "1": {
+            "precision": 0.7142857142857143,
+            "recall": 0.75,
+            "f1": 0.7317073170731707,
+            "support": 20
+          },
+          "2": {
+            "precision": 0.3333333333333333,
+            "recall": 0.42857142857142855,
+            "f1": 0.375,
+            "support": 7
+          },
+          "3": {
+            "precision": 0.3333333333333333,
+            "recall": 0.42857142857142855,
+            "f1": 0.375,
+            "support": 7
+          },
+          "4": {
+            "precision": 0.75,
+            "recall": 0.42857142857142855,
+            "f1": 0.5454545454545454,
+            "support": 7
+          }
+        }
+      },
+      "corrector_record": "agents/experiments/QWEN_RUN_20261013.json",
+      "training_rerun": false
     }
   ]
 }

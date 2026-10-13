@@ -6,6 +6,7 @@ Recovery uses surviving run artifacts, archived agent notes, Git history, and ma
 
 | Run | Macro-F1 | Micro-F1 | Evidence |
 |---|---:|---:|---|
+| Kaggle 13_10_2026: fresh Qwen both-stage | 0.595176 | 0.753086 | `runs/13_10_2026/runs/qwen25-7b-reviewed-both-20261013T161655075757Z/run/classification/metrics.json`; full stages completed; failed public export recovered without retraining; QWEN_RUN_20261013.json |
 | test:runs/sailor2-8b-lambda2-audited-no-rdrop-seed42 | 0.632750 | 0.802469 | `/home/quq/machineLearning/competitions/VLSP26_4/test/runs/sailor2-8b-lambda2-audited-no-rdrop-seed42/metrics.json` |
 | alpha:runs/balanced-decision-seed42 | 0.643934 | 0.802469 | `/home/quq/machineLearning/competitions/VLSP26_4/alpha/runs/balanced-decision-seed42/metrics.json` |
 | alpha:runs/domain-reviewed-seed42 | 0.551511 | 0.802469 | `/home/quq/machineLearning/competitions/VLSP26_4/alpha/runs/domain-reviewed-seed42/metrics.json` |

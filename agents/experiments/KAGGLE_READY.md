@@ -1,5 +1,7 @@
 # Kaggle upload and six-epoch Qwen run — 2026-10-13
 
+**Outcome imported on 2026-10-14:** both full-size Qwen stages completed in the supplied 13_10_2026 run. Public export then failed at the inference memory guard; saved-checkpoint recovery and the fix are documented in QWEN_RUN_20261013.md/.json. The text below records the original preparation, not the latest run status.
+
 The user requested a readiness check, experiment recap, upload ZIP and explicit push of six corrector epochs. The current recipe trains fresh Qwen2.5-7B-Instruct classification for 5 epochs and correction for 6 epochs, selecting the best evaluated corrector adapter. Both use pinned revision `a09a35458c702b33eeacc393d103063234e8bc28`. No folds, hints, notebook toggles or prior adapter reuse. Full-size Qwen training and new official scores remain pending; local readiness is not a completed Kaggle run.
 
 Upload `/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/kaggle-qwen-ready-20261013/VGEC26-qwen-reviewed-v4.zip` as a private Kaggle dataset and attach only this data version. ZIP size: 396,081 bytes (about 387 KiB); SHA256 `3813d5c80e7031db4540698d863bacd3825a0c802097f12f700bc8c5480e28f8`. Members at root: original corpus JSON, VGEC_classifier.json, VGEC_balanced.json, public_test.json and manifest.json. No model weights or private review logs are packaged. The old 2.47 GiB saved-classifier handoff remains preserved separately and is unnecessary for this fresh run. Qwen base weights download through Hugging Face when the notebook loads the model; enable Internet.

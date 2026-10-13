@@ -374,7 +374,7 @@ def _dtype(settings, device):
     return getattr(torch, value)
 
 
-def placement_preflight(settings, device="cuda", *, local_rank=None):
+def placement_preflight(settings, device="cuda", *, local_rank=None, training=True):
     """Build an explicit Qwen layer map and budget weights before loading them."""
     import torch
     from accelerate import init_empty_weights
@@ -441,9 +441,10 @@ def placement_preflight(settings, device="cuda", *, local_rank=None):
         size = math.ceil(parameter.numel() * (0.625 if packed else 4)) if quantized else parameter.numel() * parameter.element_size()
         weights[destination] = weights.get(destination, 0) + size
     del skeleton
-    # Allow frozen weights plus FP32 LoRA/Adam states, checkpointed activations,
-    # full-vocabulary FP32 loss logits, generation KV cache, and CUDA workspaces.
-    reserve = 4 * 1024 ** 3
+    # Training also needs optimizer states and loss/activation workspaces.
+    # Reloaded inference preserves FP32 prepared weights but needs only its
+    # generation KV cache and CUDA workspaces, plus the weight margin below.
+    reserve = (4 if training else 1) * 1024 ** 3
     budgets = {}
     for destination, size in weights.items():
         required = math.ceil(size * 1.10) + reserve
@@ -452,7 +453,8 @@ def placement_preflight(settings, device="cuda", *, local_rank=None):
             index = int(destination.split(":")[1])
             free, total = torch.cuda.mem_get_info(index)
             if required > free:
-                raise RuntimeError(f"{destination} has {free / 1024**3:.2f} GiB free; estimated weights plus conservative training reserve need {required / 1024**3:.2f} GiB. Use sufficient GPU memory or balanced placement; no offload.")
+                purpose = "training" if training else "inference"
+                raise RuntimeError(f"{destination} has {free / 1024**3:.2f} GiB free; estimated weights plus conservative {purpose} reserve need {required / 1024**3:.2f} GiB. Use sufficient GPU memory or balanced placement; no offload.")
         else:
             total = None
         budgets[destination] = {"weight_bytes": size, "required_bytes": required,
@@ -501,7 +503,8 @@ def load_corrector(adapter, device="cuda"):
     settings = json.loads((adapter / "loading.json").read_text(encoding="utf-8"))
     inference = json.loads((adapter / "inference.json").read_text(encoding="utf-8"))
     validate_inference(inference)
-    return _attach_corrector(_load_base(settings, device), adapter, settings, inference)
+    placement = placement_preflight(settings, device, training=False)
+    return _attach_corrector(_load_base(settings, device, placement), adapter, settings, inference)
 
 
 def _attach_corrector(base, adapter, settings, inference):

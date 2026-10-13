@@ -252,6 +252,13 @@ class QwenClassifierTests(unittest.TestCase):
             torch.testing.assert_close(values.sum(-1), torch.ones(5))
             torch.testing.assert_close(values, torch.tensor([row["probabilities"] for row in single]),
                                        atol=1e-6, rtol=1e-6)
+            from model.pipeline_predict import _classify_isolated
+            isolated = _classify_isolated(checkpoint, records, "cpu", 5)
+            self.assertEqual([row["id"] for row in isolated], list(range(5)))
+            self.assertEqual([row["label"] for row in isolated],
+                             [row["label"] for row in batched])
+            torch.testing.assert_close(values, torch.tensor([row["probabilities"] for row in isolated]),
+                                       atol=1e-6, rtol=1e-6)
             # Reloaded raw scores must compose to precisely the public probabilities.
             from peft import PeftModel
             reloaded = PeftModel.from_pretrained(model, checkpoint, is_trainable=False)
