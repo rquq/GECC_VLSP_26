@@ -103,6 +103,7 @@ def train(candidate, final=False, epochs=None):
     if task == "classification":
         model = AutoModelForSequenceClassification.from_pretrained(candidate["model"], revision=candidate["revision"],
                                                                   num_labels=5, attn_implementation="sdpa")
+        model.config.pad_token_id = tokenizer.pad_token_id
         labels = [r["label"] for r in train_rows + validation]
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(candidate["model"], revision=candidate["revision"],
