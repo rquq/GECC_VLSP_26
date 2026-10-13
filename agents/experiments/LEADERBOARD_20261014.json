@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-14",
+  "user": "KANO",
+  "source": "User screenshot",
+  "screenshot_sha256": "020ddfbe38d91b25d3207f7dd82efdff068046b13a5395520364f423be14ba58",
+  "previous": {
+    "entries": 2,
+    "combined": 0.5349,
+    "gleu_plus": 0.7224,
+    "macro_f1": 0.3473,
+    "micro_f1": 0.5485,
+    "exact_match": 0.5395,
+    "rouge_l": 0.8262
+  },
+  "current": {
+    "entries": 3,
+    "combined": 0.5282,
+    "gleu_plus": 0.7373,
+    "macro_f1": 0.3191,
+    "micro_f1": 0.5192,
+    "exact_match": 0.5144,
+    "rouge_l": 0.8357
+  },
+  "combined_formula": "(Macro-F1 + all-row GLEU+) / 2",
+  "caveat": "Rounded displayed metrics; prediction-flip comparison has no public gold labels",
+  "prediction_changes": {
+    "sailor": {
+      "rows": 443,
+      "labels": {
+        "4": 52,
+        "1": 61,
+        "2": 75,
+        "0": 206,
+        "3": 49
+      }
+    },
+    "qwen": {
+      "rows": 443,
+      "labels": {
+        "3": 57,
+        "1": 92,
+        "0": 184,
+        "4": 42,
+        "2": 68
+      }
+    },
+    "changes": {
+      "labels": 229,
+      "corrections": 155
+    }
+  },
+  "local_qwen": {
+    "macro_f1": 0.5951759622491329,
+    "all_row_gleu_plus": 0.6291697887410947,
+    "error_only_gleu_plus": 0.21858770154200563,
+    "combined_v2": 0.6121728754951139,
+    "combined_v1": 0.40688183189556926
+  }
+}

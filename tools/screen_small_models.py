@@ -17,7 +17,7 @@ import time
 
 from model.data import load_classifier_split, load_records, load_training_split, split_records
 from model.metrics import experiment_report
-from model.runtime import write_json
+from model.runtime import CompleteEpochMixin, write_json
 from tools.local_classifier import screening_split
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -83,6 +83,8 @@ def train(candidate, final=False, epochs=None):
     from model.classification import _classification_metrics
 
     cfg = json.loads(CONFIG.read_text())
+    source_commit = subprocess.check_output(["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True).strip()
+    code_sha256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     task = candidate["task"]
     split = json.loads((OUTPUT / f"{task}_split.json").read_text())
     train_rows, validation = (split["full_train"], split["holdout"]) if final else (split["fit"], split["internal"])
@@ -164,7 +166,7 @@ def train(candidate, final=False, epochs=None):
                 raise TimeoutError("Local trial budget exhausted")
 
     weights = torch.tensor([len(train_rows)/(5*Counter(r["label"] for r in train_rows)[i]) for i in range(5)]).sqrt()
-    class WeightedTrainer(Trainer):
+    class WeightedTrainer(CompleteEpochMixin, Trainer):
         def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
             labels = inputs.pop("labels")
             outputs = model(**inputs)
@@ -185,7 +187,9 @@ def train(candidate, final=False, epochs=None):
     else:
         arguments = Seq2SeqTrainingArguments(**args, predict_with_generate=True, generation_max_length=cfg["max_length"],
                                              generation_num_beams=1)
-        trainer_cls, collator = Seq2SeqTrainer, DataCollatorForSeq2Seq(tokenizer, model=model)
+        class CompleteSeq2SeqTrainer(CompleteEpochMixin, Seq2SeqTrainer):
+            pass
+        trainer_cls, collator = CompleteSeq2SeqTrainer, DataCollatorForSeq2Seq(tokenizer, model=model)
     trainer = trainer_cls(model=model, args=arguments, train_dataset=encoded[:len(train_rows)],
                           eval_dataset=None if final else encoded[len(train_rows):],
                           data_collator=collator, processing_class=tokenizer, compute_metrics=metrics,
@@ -199,7 +203,7 @@ def train(candidate, final=False, epochs=None):
     if not final:
         selected_epoch = next(round(e["epoch"]) for e in trainer.state.log_history
                               if e.get("step") == selected_epoch and ("eval_macro_f1" in e or "eval_gleu_plus" in e))
-    summary = {"candidate": candidate, "source_commit": subprocess.check_output(["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True).strip(),
+    summary = {"candidate": candidate, "source_commit": source_commit, "code_sha256": code_sha256,
                "task": task, "scope": "frozen_holdout" if final else "training_only_internal",
                "train_count": len(train_rows), "validation_count": len(validation),
                "epochs": epochs, "selected_epoch": selected_epoch, "optimizer_steps": result.global_step,
