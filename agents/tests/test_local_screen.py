@@ -15,6 +15,19 @@ class WeightedScreenLossTests(unittest.TestCase):
         gradient, = torch.autograd.grad(micro, logits)
         self.assertAlmostEqual(abs(gradient[1, 1].item() / gradient[0, 0].item()), 3.)
 
+    def test_tokenizer_identity_preserves_source_but_keeps_real_edits(self):
+        from tokenizers import Tokenizer, models, pre_tokenizers
+        from transformers import PreTrainedTokenizerFast
+        from tools.screen_small_models import restore_tokenizer_identity
+
+        backend = Tokenizer(models.WordLevel({'[UNK]': 0, 'this': 1, 'sentence': 2, 'correction': 3}, unk_token='[UNK]'))
+        backend.pre_tokenizer = pre_tokenizers.Whitespace()
+        tokenizer = PreTrainedTokenizerFast(tokenizer_object=backend, unk_token='[UNK]')
+        source = 'this  sentence'
+        self.assertEqual(restore_tokenizer_identity(tokenizer, source, 'this sentence'), source)
+        self.assertEqual(restore_tokenizer_identity(tokenizer, source, 'this correction'), 'this correction')
+        self.assertEqual(restore_tokenizer_identity(tokenizer, source, ''), '')
+
 
 if __name__ == '__main__':
     unittest.main()

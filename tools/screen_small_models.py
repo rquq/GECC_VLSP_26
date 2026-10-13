@@ -36,6 +36,18 @@ def weighted_classification_loss(logits, labels, weights):
     return F.cross_entropy(logits.float(), labels, weight=weights.to(labels.device), reduction="none").mean()
 
 
+def restore_tokenizer_identity(tokenizer, source, prediction):
+    """Restore original formatting only when generation equals tokenizer copy.
+
+    Encoder-decoder tokenizers can lose characters or spacing on roundtrip.
+    This uses no gold labels/targets, retains real edits and never fills blanks.
+    """
+    if not prediction.strip():
+        return prediction
+    copied = tokenizer.decode(tokenizer.encode(source), skip_special_tokens=True).strip()
+    return source if prediction.strip() == copied else prediction
+
+
 def prepare():
     OUTPUT.mkdir(exist_ok=True)
     original = DATA / "VGEC 2026_v1.json"
