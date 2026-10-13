@@ -1,0 +1,17 @@
+{
+  "seed": 42,
+  "epochs": {"classification": 5, "correction": 6},
+  "effective_batch_size": 8,
+  "max_length": 256,
+  "max_trial_seconds": 5400,
+  "candidates": [
+    {"name": "phobert-base", "task": "classification", "model": "vinai/phobert-base", "revision": "01daacda68afe13d83023d16ec647239e344a1e6", "segmentation": true, "learning_rate": 0.00002, "license": "MIT"},
+    {"name": "phobert-large", "task": "classification", "model": "vinai/phobert-large", "revision": "70e2cfcd3cce29c970aee4954ea34a32bb30afdc", "segmentation": true, "learning_rate": 0.00002, "license": "MIT"},
+    {"name": "bami-flat", "task": "classification", "model": "Qualcomm-AI-Research/BamiBERT", "revision": "57bc1340debbe4e348ec549047a763caebe4a977", "learning_rate": 0.00002, "license": "BSD-3-Clause-Clear + Qualcomm Responsible AI license"},
+    {"name": "xlmr-base", "task": "classification", "model": "FacebookAI/xlm-roberta-base", "revision": "e73636d4f797dec63c3081bb6ed5c7b0bb3f2089", "learning_rate": 0.00002, "license": "MIT"},
+    {"name": "visobert", "task": "classification", "model": "uitnlp/visobert", "revision": "196a62afad9cbe4f52a54aabad828b13f0eec59a", "learning_rate": 0.00002, "license": "Research-only model-card permission"},
+    {"name": "bartpho-syllable", "task": "correction", "model": "vinai/bartpho-syllable", "revision": "36eee8b4d648dd99da56462edcda3c5c97f7f3de", "learning_rate": 0.00003, "license": "MIT"},
+    {"name": "vit5-base", "task": "correction", "model": "VietAI/vit5-base", "revision": "2209a38d735ede63e88f5aa52bcdc11a05a37b85", "learning_rate": 0.00005, "license": "MIT"},
+    {"name": "vit5-large-lora", "task": "correction", "model": "VietAI/vit5-large", "revision": "b4c595ddd20d8e35bcde32588838dcb449e2d428", "learning_rate": 0.0002, "lora": true, "license": "MIT"}
+  ]
+}

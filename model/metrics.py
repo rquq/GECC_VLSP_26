@@ -16,9 +16,11 @@ from .data import LABELS, _id_key, _valid_label, _validate_records, load_records
 
 COMBINED_SCORE_METADATA = {
     "official": False,
-    "formula": "0.5 * classification.macro_f1 + 0.5 * corrections.error_only.gleu_plus",
-    "scope": "Macro-F1 over all five classes; GLEU+ over gold error rows (labels 1..4) only",
-    "no_error_rows": "combined_score is null when the gold data has no error rows",
+    "formula": "0.5 * classification.macro_f1 + 0.5 * corrections.all.gleu_plus",
+    "scope": "Macro-F1 over all five classes; GLEU+ over all scored rows, including clean rows",
+    "version": 2,
+    "reference": "https://aihub.ml/competitions/1038#learn_the_details-evaluation",
+    "implementation": "Local GLEU+ approximation; official scoring remains authoritative",
     "checkpoint_selection": "Unchanged; combined_score is a local reporting metric only",
 }
 
@@ -151,7 +153,7 @@ def score(records: list[dict], predictions: list[dict]) -> dict:
     correct = sum(confusion[label][label] for label in LABELS)
     classification_macro_f1 = sum(value["f1"] for value in per_class.values()) / len(LABELS)
     corrections = {"all": _corrections(all_rows), "error_only": _corrections(error_rows)}
-    error_gleu = corrections["error_only"]["gleu_plus"]
+    all_gleu = corrections["all"]["gleu_plus"]
     return {
         "count": len(records),
         "classification": {
@@ -163,7 +165,7 @@ def score(records: list[dict], predictions: list[dict]) -> dict:
             "per_class": per_class,
         },
         "corrections": corrections,
-        "combined_score": None if error_gleu is None else 0.5 * classification_macro_f1 + 0.5 * error_gleu,
+        "combined_score": 0.5 * classification_macro_f1 + 0.5 * all_gleu,
         "combined_score_metadata": dict(COMBINED_SCORE_METADATA),
         "invalid_prediction_rate": invalid / len(records),
     }

@@ -104,7 +104,7 @@ class ExperimentMetricsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "empty dataset"):
             experiment_report([], [])
 
-    def test_combined_score_uses_all_class_macro_and_error_only_gleu(self):
+    def test_combined_score_includes_clean_correction_quality(self):
         records = [
             {"id": label, "source": "a wrong sentence with words", "label": label,
              "target": "a right sentence with words" if label else "a wrong sentence with words"}
@@ -112,25 +112,30 @@ class ExperimentMetricsTests(unittest.TestCase):
         ]
         predictions = [{"id": row["id"], "label": row["label"], "target": row["target"]}
                        for row in records]
-        predictions[0]["target"] = "clean overcorrection should not affect error-only gleu"
+        predictions[0]["target"] = "clean overcorrection must affect the leaderboard proxy"
         report = experiment_report(records, predictions)
-        self.assertEqual(report["combined_score"], 1.0)
+        self.assertLess(report["combined_score"], 1.0)
+        self.assertEqual(report["corrections"]["error_only"]["gleu_plus"], 1.0)
+        self.assertAlmostEqual(report["combined_score"],
+                               (report["classification"]["macro_f1"] +
+                                report["corrections"]["all"]["gleu_plus"]) / 2)
         self.assertEqual(report["clean_preservation"]["overcorrection_rate"], 1.0)
         self.assertFalse(report["combined_score_metadata"]["official"])
         self.assertEqual(report["combined_score_metadata"]["formula"],
-                         "0.5 * classification.macro_f1 + 0.5 * corrections.error_only.gleu_plus")
+                         "0.5 * classification.macro_f1 + 0.5 * corrections.all.gleu_plus")
         predictions[1]["label"] = None
         report = score(records, predictions)
         self.assertAlmostEqual(report["combined_score"],
-                               0.5 * report["classification"]["macro_f1"] + 0.5)
+                               (report["classification"]["macro_f1"] +
+                                report["corrections"]["all"]["gleu_plus"]) / 2)
 
-    def test_combined_score_is_null_without_gold_errors(self):
+    def test_combined_score_is_defined_for_all_clean_gold(self):
         records = [{"id": "clean", "source": "keep this entire sentence unchanged", "label": 0,
                     "target": "keep this entire sentence unchanged"}]
         report = score(records, [{"id": "clean", "label": 0, "target": records[0]["source"]}])
         self.assertEqual(report["corrections"]["all"]["gleu_plus"], 1.0)
         self.assertIsNone(report["corrections"]["error_only"]["gleu_plus"])
-        self.assertIsNone(report["combined_score"])
+        self.assertAlmostEqual(report["combined_score"], 0.6)
 
 
     def test_strict_alignment_and_target_validation_are_retained(self):
