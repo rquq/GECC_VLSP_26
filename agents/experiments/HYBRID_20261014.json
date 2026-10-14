@@ -1,5 +1,5 @@
 {
-  "status": "prepared_unsubmitted",
+  "status": "reported_official_user_screenshot",
   "classifier": {
     "name": "sail/Sailor-7B-Chat",
     "revision": "19066fae0a8a3ba029c190d8e3dacccf4d1234b8",
@@ -18,7 +18,7 @@
     "gleu_plus": 0.7373,
     "combined": 0.5423
   },
-  "assumption": "Independent official classification and correction evaluation; no official hybrid result yet",
+  "assumption": "Original independent-field arithmetic prediction matched user-reported public0.5423; authenticated submission details unavailable.",
   "sources": {
     "runs/audit-kano-20261013/results.json": "21813d07fa03f47d9f4adf9af5a00a6c3feedeb6387da780d88875209650f878",
     "runs/13_10_2026/results.json": "65b0df39ab97f58518da2dae78cc82026f1d3b87de3df97f9c15968b8fe9ee8d"
@@ -32,5 +32,39 @@
     "macro_f1": 0.4341325941325941,
     "all_gleu_plus": 0.6291697887410947,
     "combined_score": 0.5316511914368445
+  },
+  "reported_public_result": {
+    "folder": "best-known-hybrid",
+    "classifier": "Sailor-7B",
+    "corrector": "Qwen-7B",
+    "status": "reported_official_user_screenshot",
+    "source": "User-provided PNG visually inspected in the submission folder; no authenticated per-submission scorer details",
+    "screenshot": {
+      "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014/best-known-hybrid/{C37D3FAE-FE19-48D5-A330-C51479E51925}.png",
+      "sha256": "1b8907237f959a554497b8a1a2bb65d7819113c382ce1fa976b04754a38ac74e"
+    },
+    "entries_counter": 5,
+    "displayed_last_entry_date": "2026-10-13",
+    "entries_counter_is_not_verified_submission_id": true,
+    "displayed": {
+      "combined": 0.5423,
+      "gleu_plus": 0.7373,
+      "exact_match": 0.5214,
+      "rouge_l": 0.8357,
+      "macro_f1": 0.3473,
+      "micro_f1": 0.5485
+    },
+    "archive": {
+      "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014/best-known-hybrid/results.zip",
+      "sha256": "25018fe6a73654066146a40565ee0d5c6db3d72bea9a28193f42ab2ab0c513cb",
+      "bytes": 25791
+    },
+    "public_predicted_label_counts": {
+      "0": 206,
+      "1": 61,
+      "2": 75,
+      "3": 49,
+      "4": 52
+    }
   }
 }

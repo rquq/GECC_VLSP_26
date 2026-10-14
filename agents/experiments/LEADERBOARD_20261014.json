@@ -55,5 +55,10 @@
     "error_only_gleu_plus": 0.21858770154200563,
     "combined_v2": 0.6121728754951139,
     "combined_v1": 0.40688183189556926
+  },
+  "subsequent_folder_screenshots": {
+    "evidence": "agents/experiments/PUBLIC_RESULTS_20261014.json",
+    "best_supported_combined": 0.5423,
+    "original_entry3_preserved": true
   }
 }

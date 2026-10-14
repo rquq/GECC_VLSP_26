@@ -134,3 +134,8 @@ Following the historical epoch review, the user explicitly requested pushing six
 ## Authorized local smaller-model screening — 2026-10-14
 
 LOCAL_SMALL_MODELS_20261014.md/.json records nine unique architectures,13 screening configurations,12 completed fits, one aborted divergence and two primary selected refits and three exploratory secondary refits. Source commits, immutable model revisions, data hashes, budgets, measured metrics, failures/recoveries and saved-checkpoint verification are retained. Prior training was not rerun to reconstruct history. Combined reporting now matches all-row official scope while retaining error-only diagnostics. LEADERBOARD_20261014.json records the user-supplied third KANO score/drop. HYBRID_20261014.json records the eligible component-preserving Sailor7B/Qwen7B archive and conditional expected0.5423; it and five native candidate archives are unsubmitted. No corpus/synthesis promotion or notebook toggles.
+
+
+## User public-result PNG follow-up — 2026-10-14
+
+PUBLIC_RESULTS_20261014.md/.json imports the six PNGs placed in candidate folders, preserving screenshot/ZIP hashes and all historical results. Sailor/Qwen0.5423 matches the hybrid prediction and is best supported among these results; native classifier Macro scores decline. ViT5 trades lower GLEU for higher exact match. Five candidate associations are consistent, while Bami/ViT5 attribution is unresolved because the PNG repeats Bami/Qwen correction scores despite174 differing verified outputs. No old/new training was rerun. Active records now link this evidence; prior unsubmitted statements above describe the earlier preparation snapshot.

@@ -1,0 +1,285 @@
+{
+  "schema": "vgec-public-score-screenshots-v1",
+  "recorded_date": "2026-10-14",
+  "source_commit": "802e7c82ceeb7665f4a377cd252f229c54def180",
+  "user": "KANO",
+  "source": "Six user PNGs in six candidate folders",
+  "association": "Intended candidate inferred from user placement; original submission IDs/uploaded server artifacts unavailable",
+  "screenshot_count": 6,
+  "consistent_candidate_associations": 5,
+  "unresolved_candidate_associations": 1,
+  "records": [
+    {
+      "folder": "best-known-hybrid",
+      "classifier": "Sailor-7B",
+      "corrector": "Qwen-7B",
+      "status": "reported_official_user_screenshot",
+      "source": "User-provided PNG visually inspected in the submission folder; no authenticated per-submission scorer details",
+      "screenshot": {
+        "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014/best-known-hybrid/{C37D3FAE-FE19-48D5-A330-C51479E51925}.png",
+        "sha256": "1b8907237f959a554497b8a1a2bb65d7819113c382ce1fa976b04754a38ac74e"
+      },
+      "entries_counter": 5,
+      "displayed_last_entry_date": "2026-10-13",
+      "entries_counter_is_not_verified_submission_id": true,
+      "displayed": {
+        "combined": 0.5423,
+        "gleu_plus": 0.7373,
+        "exact_match": 0.5214,
+        "rouge_l": 0.8357,
+        "macro_f1": 0.3473,
+        "micro_f1": 0.5485
+      },
+      "archive": {
+        "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014/best-known-hybrid/results.zip",
+        "sha256": "25018fe6a73654066146a40565ee0d5c6db3d72bea9a28193f42ab2ab0c513cb",
+        "bytes": 25791
+      },
+      "public_predicted_label_counts": {
+        "0": 206,
+        "1": 61,
+        "2": 75,
+        "3": 49,
+        "4": 52
+      }
+    },
+    {
+      "folder": "candidate-phobert-large-qwen-corrector",
+      "classifier": "PhoBERT-large",
+      "corrector": "Qwen-7B",
+      "status": "reported_official_user_screenshot",
+      "source": "User-provided PNG visually inspected in the submission folder; no authenticated per-submission scorer details",
+      "screenshot": {
+        "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014/candidate-phobert-large-qwen-corrector/{1D448710-BB8E-4C5B-AD1C-0000B9F16D38}.png",
+        "sha256": "f87e82531e325087bab556444e7cf6ba484439d3931071e969cf778ffce45cd8"
+      },
+      "entries_counter": 6,
+      "displayed_last_entry_date": "2026-10-14",
+      "entries_counter_is_not_verified_submission_id": true,
+      "displayed": {
+        "combined": 0.5219,
+        "gleu_plus": 0.7373,
+        "exact_match": 0.5214,
+        "rouge_l": 0.8357,
+        "macro_f1": 0.3065,
+        "micro_f1": 0.6208
+      },
+      "archive": {
+        "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014/candidate-phobert-large-qwen-corrector/results.zip",
+        "sha256": "cf1f3bb91fb2c41a522ba4e37ba3b301ad5cc436dfac8bc381117708ece4266f",
+        "bytes": 25681
+      },
+      "public_predicted_label_counts": {
+        "0": 256,
+        "1": 51,
+        "2": 8,
+        "3": 72,
+        "4": 56
+      }
+    },
+    {
+      "folder": "candidate-qwen05-flat-qwen-corrector",
+      "classifier": "Qwen-0.5B",
+      "corrector": "Qwen-7B",
+      "status": "reported_official_user_screenshot",
+      "source": "User-provided PNG visually inspected in the submission folder; no authenticated per-submission scorer details",
+      "screenshot": {
+        "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014/candidate-qwen05-flat-qwen-corrector/{984E3F39-7B4B-4743-B7DD-C8184E643D2C}.png",
+        "sha256": "571dbbf6de7f05124d5e5b78bce1dd60a128f125bc55daa62f2fe3b0d8733744"
+      },
+      "entries_counter": 7,
+      "displayed_last_entry_date": "2026-10-14",
+      "entries_counter_is_not_verified_submission_id": true,
+      "displayed": {
+        "combined": 0.5191,
+        "gleu_plus": 0.7373,
+        "exact_match": 0.5214,
+        "rouge_l": 0.8357,
+        "macro_f1": 0.301,
+        "micro_f1": 0.6027
+      },
+      "archive": {
+        "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014/candidate-qwen05-flat-qwen-corrector/results.zip",
+        "sha256": "bb0d934367b16ef705968726ac73112da5e12cb0ee61274ab10f1d9621835b66",
+        "bytes": 25684
+      },
+      "public_predicted_label_counts": {
+        "0": 271,
+        "1": 44,
+        "2": 12,
+        "3": 72,
+        "4": 44
+      }
+    },
+    {
+      "folder": "candidate-qwen05-flat-vit5-corrector",
+      "classifier": "Qwen-0.5B",
+      "corrector": "ViT5-base-edit5",
+      "status": "reported_official_user_screenshot",
+      "source": "User-provided PNG visually inspected in the submission folder; no authenticated per-submission scorer details",
+      "screenshot": {
+        "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014/candidate-qwen05-flat-vit5-corrector/{7DF6AAC6-3D11-48BA-81B8-E5421570ECC6}.png",
+        "sha256": "1f2ffe8b557ab28e212e6d3672d2e62aae0c0296c504896411288e8365253c54"
+      },
+      "entries_counter": 8,
+      "displayed_last_entry_date": "2026-10-14",
+      "entries_counter_is_not_verified_submission_id": true,
+      "displayed": {
+        "combined": 0.5145,
+        "gleu_plus": 0.7279,
+        "exact_match": 0.544,
+        "rouge_l": 0.8231,
+        "macro_f1": 0.301,
+        "micro_f1": 0.6027
+      },
+      "archive": {
+        "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014/candidate-qwen05-flat-vit5-corrector/results.zip",
+        "sha256": "8883744455287a8d5fca215b64b9330271bc70e02b9155ce0ddc05540f9fdc38",
+        "bytes": 24444
+      },
+      "public_predicted_label_counts": {
+        "0": 271,
+        "1": 44,
+        "2": 12,
+        "3": 72,
+        "4": 44
+      }
+    },
+    {
+      "folder": "candidate-classifier-qwen-corrector",
+      "classifier": "BamiBERT",
+      "corrector": "Qwen-7B",
+      "status": "reported_official_user_screenshot",
+      "source": "User-provided PNG visually inspected in the submission folder; no authenticated per-submission scorer details",
+      "screenshot": {
+        "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014/candidate-classifier-qwen-corrector/{4D953F79-32D6-4109-9B9E-31F68191258C}.png",
+        "sha256": "18696e779e027ab6560d7bceb6afb840e29163489fc0a97dd58fbc89a89dbee1"
+      },
+      "entries_counter": 9,
+      "displayed_last_entry_date": "2026-10-14",
+      "entries_counter_is_not_verified_submission_id": true,
+      "displayed": {
+        "combined": 0.4983,
+        "gleu_plus": 0.7373,
+        "exact_match": 0.5214,
+        "rouge_l": 0.8357,
+        "macro_f1": 0.2593,
+        "micro_f1": 0.5508
+      },
+      "archive": {
+        "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014/candidate-classifier-qwen-corrector/results.zip",
+        "sha256": "459183cc3414205e92018b0ab2712e0ef242b82ecc204a02e078784458d1a3a6",
+        "bytes": 25684
+      },
+      "public_predicted_label_counts": {
+        "0": 257,
+        "1": 54,
+        "2": 1,
+        "3": 62,
+        "4": 69
+      }
+    },
+    {
+      "folder": "candidate-small-both",
+      "classifier": "BamiBERT",
+      "corrector": "ViT5-base-edit5",
+      "status": "screenshot_read_candidate_attribution_unresolved",
+      "source": "User-provided PNG visually inspected in the submission folder; no authenticated per-submission scorer details",
+      "screenshot": {
+        "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014/candidate-small-both/{238329AC-4AA9-4D9D-957B-13AC79AC9F22}.png",
+        "sha256": "11d64db894e026d49e674799d7b115b19a257bebbfe3bfd1d55e0c7e81cdfd14"
+      },
+      "entries_counter": 10,
+      "displayed_last_entry_date": "2026-10-14",
+      "entries_counter_is_not_verified_submission_id": true,
+      "displayed": {
+        "combined": 0.4983,
+        "gleu_plus": 0.7373,
+        "exact_match": 0.5214,
+        "rouge_l": 0.8357,
+        "macro_f1": 0.2593,
+        "micro_f1": 0.5508
+      },
+      "archive": {
+        "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014/candidate-small-both/results.zip",
+        "sha256": "93fb761e38c44c5321b0af72619443ab5f263bca7404867b6de2f35d5d9ef387",
+        "bytes": 24439
+      },
+      "public_predicted_label_counts": {
+        "0": 257,
+        "1": 54,
+        "2": 1,
+        "3": 62,
+        "4": 69
+      }
+    }
+  ],
+  "best_supported_candidate": "best-known-hybrid",
+  "best_supported_combined": 0.5423,
+  "previous_qwen_both": {
+    "combined": 0.5282,
+    "macro_f1": 0.3191,
+    "gleu_plus": 0.7373,
+    "source": "Historical user entry3 screenshot; preserve its earlier exact-match value0.5144"
+  },
+  "gain_vs_previous_qwen_both": 0.0141,
+  "gain_vs_entry2_sailor_both": 0.0074,
+  "artifact_checks": {
+    "all_six_archive_hashes_unchanged": true,
+    "crc_schema_typed_ids_verified": true,
+    "rows_each": 443,
+    "qwen_corrections_identical_across_four_archives": true,
+    "vit5_corrections_identical_across_two_archives": true,
+    "qwen_vs_vit5_changed_corrections": 174,
+    "bami_labels_identical_across_two_archives": true,
+    "displayed_combined_matches_average_with_rounding": true
+  },
+  "corrector_comparison": {
+    "scope": "Same Qwen0.5 labels and test IDs in the counter7/counter8 folder artifacts",
+    "qwen": {
+      "gleu_plus": 0.7373,
+      "exact_match": 0.5214,
+      "rouge_l": 0.8357
+    },
+    "vit5": {
+      "gleu_plus": 0.7279,
+      "exact_match": 0.544,
+      "rouge_l": 0.8231
+    },
+    "interpretation": "Qwen has higher GLEU+/ROUGE, ViT5 higher exact match; two correction metrics disagree, so avoid claiming every correction metric is worse."
+  },
+  "anomalies": [
+    {
+      "folder": "candidate-small-both",
+      "status": "unresolved",
+      "observed": "Entry counter10 PNG repeats all six scores from counter9 Bami/Qwen PNG, despite a distinct verified Bami/ViT5 ZIP.",
+      "verified": "Bami labels exactly match both archives; Bami/ViT5 correction fields exactly match the scored Qwen0.5/ViT5 archive and differ from Qwen on174 rows.",
+      "arithmetic_inference_not_official": {
+        "assumption": "Same test/scorer and independent classification/correction fields; PNGs belong to the intended archives",
+        "combined": 0.4936,
+        "gleu_plus": 0.7279,
+        "exact_match": 0.544,
+        "rouge_l": 0.8231,
+        "macro_f1": 0.2593,
+        "micro_f1": 0.5508
+      },
+      "possible_explanations": [
+        "PNG captured before scoring/leaderboard refresh",
+        "Wrong archive uploaded or copied screenshot",
+        "A different submission remained selected",
+        "Unobserved evaluator behavior"
+      ],
+      "required_evidence": "Individual submission result/status and uploaded archive checksum; folder PNG alone cannot resolve attribution."
+    }
+  ],
+  "conclusions": [
+    "Sailor7B/Qwen7B has best supported combined score0.5423 among supplied screenshots; hybrid gain is observed, not merely predicted.",
+    "Smaller classifiers have lower Macro-F1 even where Micro-F1 improves. PhoBERT public0.6208 accuracy versus Sailor0.5485 does not compensate for Macro0.3065 versus0.3473 in official ranking.",
+    "Native phrase prediction counts are1 Bami,8 PhoBERT,12 Qwen0.5 versus75 Sailor across443 inputs. This supports investigating subtype underprediction, but public gold labels/recall are unavailable.",
+    "The exposed81 holdout ranks Qwen7B Macro above Sailor; supplied public scores rank Sailor above Qwen. Local selection is unreliable for this public distribution.",
+    "Sailor classification/Qwen correction is best supported among these results; this audit records observations without changing production recipes or data."
+  ],
+  "training_rerun": false,
+  "production_recipe_changed": false,
+  "data_changed": false
+}

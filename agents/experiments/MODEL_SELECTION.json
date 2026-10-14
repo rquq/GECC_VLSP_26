@@ -595,8 +595,15 @@
     "unique_architectures": 9,
     "completed_fits": 17,
     "production_replacement_promoted": false,
-    "official_score": null,
+    "official_score": 0.5423,
     "ready_hybrid": "agents/experiments/HYBRID_20261014.json",
-    "conclusion": "No native finalist exceeds saved Qwen7B local Macro-F1; ViT5-base offers nearly matched standalone-error overlap at much lower cost; public candidates unscored."
+    "conclusion": "Sailor/Qwen hybrid matches predicted0.5423. Native classifiers have lower public Macro-F1; ViT5 has lower GLEU but higher exact match. Bami/ViT5 PNG attribution unresolved.",
+    "public_results_evidence": "agents/experiments/PUBLIC_RESULTS_20261014.json",
+    "best_reported_public_combined": 0.5423,
+    "best_reported_components": [
+      "sail/Sailor-7B-Chat classifier",
+      "Qwen/Qwen2.5-7B-Instruct corrector"
+    ],
+    "official_score_source": "User folder PNG, not authenticated per-submission result"
   }
 }

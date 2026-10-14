@@ -1941,7 +1941,7 @@
       "status": "completed_new_training",
       "historical_training_rerun": false,
       "evidence": "agents/experiments/LOCAL_SMALL_MODELS_20261014.json",
-      "evidence_sha256": "de1d3ece6b4554fc56259ef9c09dcc4ad028dd59a840890f165af10592548be3",
+      "evidence_sha256": "4257f8d8b35fe05fa2e22ce340c9775c86fa893a1622f917dcb2ab022cb919ba",
       "unique_architectures": 9,
       "configuration_attempts": 13,
       "completed_screens": 12,
@@ -2042,7 +2042,18 @@
       "small_pair_combined_v2": 0.5111726394350997,
       "small_classifier_qwen_corrector_combined_v2": 0.521945915702157,
       "official_score": null,
-      "private_artifacts": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014"
+      "private_artifacts": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014",
+      "public_followup": "agents/experiments/PUBLIC_RESULTS_20261014.json"
+    },
+    {
+      "id": "public-screenshots:20261014",
+      "status": "five_consistent_folder_associations_one_unresolved",
+      "evidence": "agents/experiments/PUBLIC_RESULTS_20261014.json",
+      "evidence_sha256": "eaa668d169b425df7e0e1297e7203dc0c15cea9f6edf18e9969093b2ae6562f1",
+      "best_reported_combined": 0.5423,
+      "screenshot_count": 6,
+      "training_rerun": false,
+      "production_recipe_changed": false
     }
   ]
 }
