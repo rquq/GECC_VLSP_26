@@ -1,0 +1,24 @@
+{
+  "name": "hy-qwen-sailor-reviewed-roundtrip",
+  "seed": 42,
+  "run": {"device": "cuda", "output_root": "runs", "max_wall_minutes": 360, "max_calls": 1344},
+  "data": {
+    "archive": "VGEC26-sailor-qwen-lora-full-training-20261014.zip",
+    "sha256": {
+      "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+      "classification": "6fbcb68cf531e53ab880914386a3809703cff3e7ef3f17829a92a1f514486dc9",
+      "correction": "d3aa54495f188a07740aa6e04763f53d24c8a7296f1b015520b3744e018a15cf"
+    },
+    "counts": {"classification": 585, "correction": 495}
+  },
+  "models": {
+    "translator": {"name": "tencent/Hy-MT2-7B", "revision": "9b0eb4e8f001def3e5ff6469a0ac96fdb39ec223", "parameters": 7504568320, "license": "Apache-2.0"},
+    "author": {"name": "Qwen/Qwen2.5-7B-Instruct", "revision": "a09a35458c702b33eeacc393d103063234e8bc28", "parameters": 7615616512, "license": "Apache-2.0"},
+    "reviewer": {"name": "sail/Sailor-7B-Chat", "revision": "19066fae0a8a3ba029c190d8e3dacccf4d1234b8", "parameters": 7721324544, "license": "Apache-2.0"}
+  },
+  "parents": {"limit": 96, "pivots": ["English", "Chinese"], "proposals_per_reference": 2},
+  "quality": {"minimum_confidence": 0.9, "max_edit_fraction": 0.35, "max_parent_errors": 4, "max_reference_errors": 2, "max_sentence_chars": 600},
+  "error_caps": {"1": 24, "2": 64, "3": 64, "4": 48},
+  "generation": {"max_input_tokens": 1536, "max_new_tokens": 384, "temperature": 0.65, "top_p": 0.9},
+  "translation": {"max_input_tokens": 768, "max_new_tokens": 256, "temperature": 0.3, "top_p": 0.9}
+}

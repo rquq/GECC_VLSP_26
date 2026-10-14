@@ -159,3 +159,8 @@ SAILOR_QWEN_LORA_20261014.md/.json records the user-requested Sailor7B classific
 ## Translation model recommendation and native size audit — 2026-10-14
 
 TRANSLATION_MODELS_20261014.md/.json recommends Apache-2.0 Hy-MT2-7B and its1.8B sibling for a pilot. Native meta audits verify7,504,568,320 and1,791,080,448 unique parameters with tied embeddings. The initial stored-tensor8.029B exclusion was corrected. No model weights, generation, training or active recipe change occurred; corpus quality and downstream improvement remain unmeasured.
+
+
+## Separate Kaggle augmentation preparation — 2026-10-14
+
+AUGMENTATION_20261014.md/.json records the user-requested kaggle-augment branch, preserving the585/495/all81 baseline and training branch030cb13. Hy7B round trips, Qwen7B minimal proposals and independent blind Sailor7B review run sequentially, bounded by96 parents,200 accepted errors plus matched controls and1344 calls/360 active minutes. Strict append-only bundles, durable failure budgets, atomic export/resume and reused toggle-free notebook are implemented. Real tiny CPU/CUDA inference and scripted data mechanics pass; native metadata/actual input checks pass with simulated dual-T4 placement. Four fresh-review Important findings were reproduced and fixed; follow-up confirmed no remaining Important/Critical issue.172 regression and17 focused augmentation tests pass. Full-size Kaggle generation/quality/downstream scores remain pending; no real new corpus samples or historical training reruns.

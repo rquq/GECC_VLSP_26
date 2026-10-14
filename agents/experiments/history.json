@@ -2087,6 +2087,14 @@
       "status": "recommendation_native_metadata_audit_completed_no_generation",
       "record": "agents/experiments/TRANSLATION_MODELS_20261014.json",
       "training_executed": false
+    },
+    {
+      "id": "kaggle-augmentation-preparation-20261014",
+      "status": "implemented_locally_verified_full_size_kaggle_generation_pending",
+      "branch": "kaggle-augment",
+      "evidence": "agents/experiments/AUGMENTATION_20261014.json",
+      "training_rerun": false,
+      "real_corpus_generation": false
     }
   ]
 }

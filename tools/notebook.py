@@ -20,7 +20,7 @@ def training_python(project):
 def kaggle_credentials():
     from kaggle_secrets import UserSecretsClient
     secrets = UserSecretsClient()
-    for name in ("WANDB_API_KEY", "HF_TOKEN"):
+    for name in ("HF_TOKEN",):
         if not os.environ.get(name):
             try:
                 value = secrets.get_secret(name)
@@ -31,12 +31,12 @@ def kaggle_credentials():
 
 
 def setup_kaggle(project):
-    """Install training pins outside the kernel while preserving CUDA PyTorch."""
+    """Install augmentation pins outside the kernel, preserving CUDA PyTorch."""
     from importlib.metadata import version
     import tempfile
 
     installed_torch = version("torch")
-    environment = Path(tempfile.mkdtemp(prefix="gecc-training-env-"))
+    environment = Path(tempfile.mkdtemp(prefix="gecc-augmentation-env-"))
     subprocess.run([sys.executable, "-m", "venv", "--without-pip", "--system-site-packages",
                     str(environment)], check=True)
     python = str(environment / "bin/python")
@@ -46,12 +46,12 @@ def setup_kaggle(project):
                     "-r", str(Path(project) / "requirements-kaggle.txt"),
                     "--constraint", str(constraints)], cwd=project, check=True)
     subprocess.run([python, "-c",
-                    "import numpy, scipy, sklearn, torch, transformers, peft, accelerate, bitsandbytes, lmformatenforcer, wandb; "
-                    "from transformers import AutoModelForCausalLM; from sklearn.metrics import roc_curve; "
+                    "import torch, transformers, accelerate, safetensors, tokenizers; "
+                    "from transformers import AutoModelForCausalLM, HunYuanDenseV1ForCausalLM; "
                     f"assert torch.__version__ == {installed_torch!r}; "
-                    "print('Training imports passed; torch', torch.__version__, 'CUDA', torch.version.cuda)"], check=True)
+                    "print('Augmentation imports passed; torch', torch.__version__, 'CUDA', torch.version.cuda)"], check=True)
     kaggle_credentials()
-    print("Training environment ready; no kernel restart needed.")
+    print("Augmentation environment ready; no kernel restart needed.")
     return python
 
 
@@ -63,18 +63,18 @@ def redact(text):
 
 
 def launch(project, python):
-    """Run the committed recipe; interrupts stop the entire trainer process group."""
+    """Run the committed recipe; interrupts stop the augmentation process group."""
     project = Path(project)
     run_dir = None
     log_path = None
-    with subprocess.Popen([python, "-u", "-m", "tools.run_experiment"], cwd=project,
+    with subprocess.Popen([python, "-u", "-m", "tools.run_augmentation"], cwd=project,
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                           text=True, bufsize=1, start_new_session=True) as process:
         try:
             for line in process.stdout:
                 if line.startswith("VGEC_RUN_DIR:"):
                     run_dir = Path(line.partition(":")[2].strip())
-                    log_path = run_dir.parent / "console.log"
+                    log_path = run_dir / "console.log"
                 line = redact(line)
                 print(line, end="", flush=True)
                 if log_path:
@@ -94,9 +94,16 @@ def launch(project, python):
     if returncode:
         raise subprocess.CalledProcessError(returncode, process.args)
     if run_dir is None or not (run_dir / "pipeline_manifest.json").is_file():
-        raise RuntimeError("No completed pipeline produced; inspect the training log")
+        raise RuntimeError("No completed pipeline produced; inspect the run log")
     from IPython.display import FileLink, display
     manifest = json.loads((run_dir / "pipeline_manifest.json").read_text())
+    if manifest.get("format") == "vgec-augmented-final-v1":
+        archive = Path(manifest["archive"]["path"])
+        if not archive.is_file(): raise RuntimeError("Augmentation ended without its dataset ZIP")
+        print(json.dumps({key: manifest[key] for key in ("status", "accepted_error_pairs", "new_rows_per_stage")}, indent=2))
+        print(json.dumps({stage: entry["total_rows"] for stage, entry in manifest["files"].items()}, indent=2))
+        display(FileLink(str(archive)))
+        return run_dir
     metrics = json.loads((run_dir / "classification/metrics.json").read_text())["classification"]
     report = {"classification": ({key: metrics[key] for key in ("macro_f1", "micro_f1")} if metrics else None),
               "evaluation_status": "evaluated" if metrics else "unavailable_full_training"}

@@ -31,21 +31,21 @@
 
 Files: augmentation/data.py, augmentation/review.py, model/data.py, agents/tests/test_augmentation.py.
 Interfaces: select_parents(inputs,recipe), validate_pair(pair,policy), select_pairs(pairs,baselines,policy), export_dataset(inputs,pairs,output,recipe,run_identity), load_augmented(raw,fraction,seed).
-- [ ] Write rejection/baseline/cap/source-contract tests and observe failure.
-- [ ] Implement seed selection, independent evidence gates and strict append-only bundle export/load.
-- [ ] Verify targeted tests and ZIP/data roundtrips.
+- [x] Write rejection/baseline/cap/source-contract tests and observe failure.
+- [x] Implement seed selection, independent evidence gates and strict append-only bundle export/load.
+- [x] Verify targeted tests and ZIP/data roundtrips.
 
 ### Task2: Bounded inference and journal
 
 Files: augmentation/inference.py, augmentation/journal.py, augmentation/pipeline.py, tools/run_augmentation.py, configs/augmentation.json, agents/tests/test_augmentation_runtime.py.
 Interfaces: NativeEngine(settings,device), Journal(output,recipe,identity).call(role,key,prompt,sampling), run_pipeline(inputs,recipe,caller,output,identity).
-- [ ] Write placement/caching/tamper/budget/role-switch tests and observe failure.
-- [ ] Implement native audits/explicit maps, role-aware chat prompts, durable journaling and sequential stages.
-- [ ] Verify real tiny CPU/CUDA inference and a complete scripted no-download corpus pipeline.
+- [x] Write placement/caching/tamper/budget/role-switch tests and observe failure.
+- [x] Implement native audits/explicit maps, role-aware chat prompts, durable journaling and sequential stages.
+- [x] Verify real tiny CPU/CUDA inference and a complete scripted no-download corpus pipeline.
 
 ### Task3: Launcher, documentation and delivery
 
 Files: tools/notebook.py, notebooks/kaggle_two_phase.ipynb, notebooks/local_two_phase.ipynb, requirements-kaggle.txt, README.md, AGENTS.md, agents/experiments/CURRENT.md/history records.
-- [ ] Test augmentation ZIP presentation and branch/default entrypoint; implement simple launcher reuse.
-- [ ] Record exact recipes/hashes/budget/tests/status and production training branch preservation.
-- [ ] Run regression suite, focused runtime checks, fresh review/fixes; commit and push kaggle-augment.
+- [x] Test augmentation ZIP presentation and branch/default entrypoint; implement simple launcher reuse.
+- [x] Record exact recipes/hashes/budget/tests/status and production training branch preservation.
+- [x] Run regression suite, focused runtime checks, fresh review/fixes; commit and push kaggle-augment.
