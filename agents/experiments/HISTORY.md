@@ -191,3 +191,8 @@ Recovery implementation8cd7de0 passes202 repository tests,47 augmentation tests 
 ## Augmentation held after local cross-check — 2026-10-15
 
 The user rejected further Kaggle risk without local review results. LOCAL_AUGMENTATION_SCREEN_20261015.md/.json records actual inference with four saved native checkpoints in122.9 seconds,179 rows/model. On51 candidates, Bami/Qwen0.5 subtype agreements are4/7; ViT5/BARTpho exact proposed references are10/2. Both classifier agreement and both corrector exact reference hold for0/51. Their exposed-original error diagnostics are weak too, so disagreement does not adjudicate labels. No new rows or training/Kaggle run occurred. The next-run recommendation was withdrawn; require positive local quality evidence and a small grouped data comparison before another Kaggle recommendation. Preserve the best-supported hybrid and all original artifacts.
+
+
+## Retention-first recovery proposal —2026-10-15
+
+The user requested review and a better written plan, not execution. RETENTION_RECOVERY_PLAN_20261015.md/.json records a proposed immutable401-row master,393-original classifier view after8 user exclusions,11 note-target corrector exclusions,32 complete-source/80 source-abbreviated recovery cases,192 retained code-synthetic baseline rows, qualified≤8B local teacher candidates and explicit class0 exposure/grouped local comparison gates. It distinguishes preserving a row from inventing a target, and grammatical test errors from unverified hidden-label errors. No model download, generation, dataset promotion, training or Kaggle run occurred.
