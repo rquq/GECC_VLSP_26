@@ -1,5 +1,7 @@
 # Validation-only export and augmentation rules — 2026-10-14
 
+**Superseded interpretation:** the user clarified they wanted these rows included in a new training dataset. FULL_TRAINING_20261014.md/.json records the corrected585/495-row training export. This earlier validation-only artifact remains preserved for history.
+
 Completed the user-requested separate export of the existing **local** validation split from the organizer training corpus. This is not an official separately supplied development set or the443-row public test.
 
 Private folder: `/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/validation-only-20261014`. `validation.json` contains all81 original raw rows in the exact existing order, preserving IDs, Input/Output, extra fields and null targets. Counts: clean40, sentence20, phrase7, function7, punctuation7. No filtering, repairs, relabeling or synthetic rows. JSON SHA256: `a025c9323e6167689c12924d9ba08b837d77dc59fea6e467e7a4eb6436b76402`; bytes: 24565. Private ZIP: `/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/validation-only-20261014/VGEC26-validation-only-20261014.zip`, 7824 bytes; SHA256 `08cc278e25cda39f262a31fc2d0a84c08c5727e2a6e16eb6921d9e6f1ef13a94`. Members: validation.json, validation_manifest.json, README.md.

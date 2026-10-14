@@ -92,5 +92,6 @@
   "training_executed": false,
   "production_recipe_changed": false,
   "reproduce": "USE_TF=0 USE_FLAX=0 PYTHONPATH=. ../.venv/bin/python -m tools.export_validation --output /path/to/a/new/private/directory",
-  "local_holdout_policy": "These81 rows come from organizer training data. Training exclusion is our current evaluation protocol, not an additional official rule; a final all-training fit would retire this holdout as independent validation. Public/private test inputs remain inference-only."
+  "local_holdout_policy": "These81 rows come from organizer training data. Training exclusion is our current evaluation protocol, not an additional official rule; a final all-training fit would retire this holdout as independent validation. Public/private test inputs remain inference-only.",
+  "superseded_request_interpretation": "The user clarified training inclusion; see agents/experiments/FULL_TRAINING_20261014.json. Historical validation-only export remains intact."
 }

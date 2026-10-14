@@ -49,3 +49,8 @@ Visually inspected all six user PNGs, matched folder artifacts to prior SHA256, 
 ## Validation-only export — 2026-10-14
 
 The actual81-row export preserves every raw field/order and normalized record; matches classifier/corrector validation; has zero training-ID overlap; and preserves all three source-file hashes. ZIP CRC and three root members verified. Export and archive stay ignored. NLLB native metadata-only parameter count615073792 is recorded without weight download or inference. No training/generation or unrelated suite rerun. Evidence: VALIDATION_EXPORT_20261014.json.
+
+
+## Full-training raw export — 2026-10-14
+
+Actual checks verified baseline-row preservation, each of81 original raw rows in both stage files, unique typed IDs, normalized load roundtrips,585/495 totals, source SHA256 and ZIP CRC/member bytes. The22 flagged added corrector rows remain included, with no inferred replacements. Dataset/ZIP stay ignored. This verifies the requested dataset export, not Kaggle consumption or target quality. Evidence: FULL_TRAINING_20261014.json.

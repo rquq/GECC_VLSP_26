@@ -2059,9 +2059,19 @@
       "id": "validation-export:20261014",
       "status": "completed_export_and_rule_review",
       "evidence": "agents/experiments/VALIDATION_EXPORT_20261014.json",
-      "evidence_sha256": "b8be8f36f8bab9575926f61c18d6b22767c737e9414b43d828c9b4a893d70678",
+      "evidence_sha256": "679562569f912dacfc411afd9bd0e874fb3591b295e3e7956d226ba1bde0db13",
       "count": 81,
       "synthetic_generation_executed": false,
+      "training_rerun": false
+    },
+    {
+      "id": "full-training-export:20261014",
+      "status": "completed_raw_training_export",
+      "evidence": "agents/experiments/FULL_TRAINING_20261014.json",
+      "evidence_sha256": "2b7d3949a08123449b0268fb9b8de6ce7e488977fe0fb81ebdfe380e8d21bf9e",
+      "classification_rows": 585,
+      "correction_rows": 495,
+      "former_validation_added_to_each": 81,
       "training_rerun": false
     }
   ]

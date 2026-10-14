@@ -144,3 +144,8 @@ PUBLIC_RESULTS_20261014.md/.json imports the six PNGs placed in candidate folder
 ## Validation export and back-translation eligibility — 2026-10-14
 
 VALIDATION_EXPORT_20261014.md/.json records the requested private81-row validation-only JSON/ZIP, exact original/bundle/order/ID/hash checks and rule review. Broad synthetic-generation permission supports round-trip translation in principle under per-generator8B/license/disclosure constraints; method permission is inferred, not explicitly named. Sol6.1 size eligibility is unverified, so it is excluded as augmentation teacher. NLLB metadata audit counts615073792 parameters; no weights, generation or training. Validation stays evaluation-only; future augmentation uses training families exclusively.
+
+
+## Corrected training-dataset interpretation — 2026-10-14
+
+The user clarified they wanted all81 validation rows included in the new training dataset. FULL_TRAINING_20261014.md/.json records the corrected classifier585/corrector495 raw arrays and ZIP, with exact81-row membership in both. The validation-only export was the wrong interpretation and remains historical. Baseline data/runs are preserved; old81 are not independent validation for the new dataset.22 added corrector targets are retained and flagged. No new augmentation/training or Kaggle recipe change occurred.
