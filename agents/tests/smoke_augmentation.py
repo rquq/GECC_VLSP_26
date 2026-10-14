@@ -16,6 +16,7 @@ from augmentation.pipeline import run_pipeline
 from augmentation.journal import Journal
 from augmentation.inference import NativeEngine
 from augmentation.worker import ProcessEngine
+from augmentation.recovery import run_recovery
 from agents.tests.smoke_pipeline import fixture
 
 _RETAINED_MODELS = []
@@ -65,6 +66,7 @@ def main():
     data=fixture(root,'cpu',final_lora=True)
     paths={'original':data/'VGEC 2026_v1.json','classification':data/'VGEC_classifier.json','correction':data/'VGEC_balanced.json'}
     recipe=json.loads((ROOT/'configs/augmentation.json').read_text())
+    recipe.pop('recovery', None)  # This fixture exercises the historical full-generation protocol.
     recipe['data']['counts']={role:len(json.loads(path.read_text())['train']) for role,path in paths.items() if role!='original'}
     recipe['data']['sha256']={role:hashlib.sha256(path.read_bytes()).hexdigest() for role,path in paths.items()}
     recipe['parents']['limit']=4
@@ -92,7 +94,7 @@ def main():
         destination=root/('native-'+role); shutil.copytree(root/'base',destination)
         roles[role]={'name':str(destination),'revision':'fixture','parameters':count,'license':'Apache-2.0'}
     native_recipe={**recipe,'models':roles,'run':{**recipe['run'],'device':args.device}}
-    native_recipe['generation']['max_new_tokens']=8
+    native_recipe['generation']['max_new_tokens']=128
     native_recipe['translation']['max_new_tokens']=8
     workers = []
     def factory(settings, device):
@@ -101,15 +103,33 @@ def main():
     with Journal(root/'native',native_recipe,{'fixture':True},factory) as journal:
         generated=journal.call('author','native-author','label0 item1 token .',False)
         assert generated['status']=='completed' and isinstance(json.loads(generated['text']),dict)
-        journal.call('reviewer','native-review','label1 item2 token .',False)
+        constrained = journal.call('reviewer','native-review','label1 item2 token .',False,
+            response_schema={'type':'object','properties':{'corrected_sentence':{'type':'string','enum':['token']}},
+                             'required':['corrected_sentence'],'additionalProperties':False})
+        assert constrained['status'] == 'completed', constrained
+        assert json.loads(constrained['text']) == {'corrected_sentence':'token'}
     with Journal(root/'native',native_recipe,{'fixture':True},factory) as journal:
         assert journal.call('author','native-author','label0 item1 token .',False)==generated
     assert len(workers) == 2 and all(not engine.process.is_alive() for engine in workers)
     assert workers[0].audit['worker_pid'] != workers[1].audit['worker_pid']
+    # The real tiny generator cannot perform grammar review. The recovery path
+    # must therefore stop at the check and never publish candidate training data.
+    saved = json.loads((root/'scripted/dataset/accepted_pairs.json').read_text())
+    for p in saved: p['models'] = roles
+    control = {'kind':'clean','parent':saved[0]['parent_clean'],'reference':saved[0]['parent_clean'],
+               'expected_meaning':True,'origin_ids':[saved[0]['parent_id']]}
+    with Journal(root/'native-recovery-journal',native_recipe,{'fixture_recovery':True},factory) as journal:
+        with patch('augmentation.recovery.pilot_cases', return_value=[control]):
+            recovered = run_recovery(paths,native_recipe,journal,root/'native-recovery',
+                                     {'fixture':True},saved,{'scope':'Toy recovery only'})
+    assert recovered['status'] == 'reviewer_check_failed'
+    assert not (root/'native-recovery/dataset').exists()
+    assert len(workers) == 3 and all(not w.process.is_alive() for w in workers)
     write_json(root/'verification.json',{'status':'passed','scope':'Toy/no-download mechanics only; no real corpus augmentation or score claim',
                'device':args.device,'scripted_accepted_pairs':result['accepted_error_pairs'],'native_parameters':count,
-               'native_journal_resume_verified':True,'isolated_worker_pids':[w.audit['worker_pid'] for w in workers],
-               'all_workers_exited':True,'forced_hooks_and_retained_model_fixture':args.device=='cuda','run':str(root)})
+               'native_journal_resume_verified':True,'native_constrained_decoding_verified':True,'isolated_worker_pids':[w.audit['worker_pid'] for w in workers],
+               'all_workers_exited':True,'native_recovery_failed_closed':True,
+               'forced_hooks_and_retained_model_fixture':args.device=='cuda','run':str(root)})
     print(json.dumps(json.loads((root/'verification.json').read_text()),indent=2))
 
 

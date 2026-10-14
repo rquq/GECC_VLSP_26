@@ -41,7 +41,7 @@ def apply_patch(reference, patch):
     return reference.replace(clean, error, 1)
 
 
-def validate_pair(pair, recipe):
+def validate_pair(pair, recipe, *, require_reviews=True):
     """Return reasons, never coerce labels/flags or infer missing review evidence."""
     reasons = []
     try:
@@ -90,9 +90,23 @@ def validate_pair(pair, recipe):
         if pair['pivot'] not in recipe['parents']['pivots']:
             reasons.append('unknown_pivot')
         calls = pair['calls']
-        if any(not isinstance(calls.get(key), str) or not calls[key] for key in ('forward', 'backward', 'author', 'clean_review', 'error_review')):
+        required_calls = ('forward', 'backward', 'author') + (('clean_review', 'error_review') if require_reviews else ())
+        if any(not isinstance(calls.get(key), str) or not calls[key] for key in required_calls):
             reasons.append('missing_call_provenance')
+        if not require_reviews:
+            return sorted(set(reasons))
         clean, review = pair['clean_review'], pair['error_review']
+        if recipe.get('recovery'):
+            if isinstance(review.get('evidence'), str) and words(review['evidence']) == words(source):
+                reasons.append('reviewer_evidence_copies_source')
+            try:
+                span, replacement = review['source_span'], review['replacement']
+                correction = apply_patch(source, {'clean_span': span, 'error_span': replacement})
+                if (correction != review['correction'] or
+                        max(len(span), len(replacement)) / len(source) > quality['max_edit_fraction']):
+                    reasons.append('reviewer_patch_invalid')
+            except (KeyError, TypeError, ValueError, ZeroDivisionError):
+                reasons.append('reviewer_patch_invalid')
         if (not _valid_label(clean.get('parent_label')) or clean['parent_label'] != 0
                 or not _valid_label(clean.get('translation_label')) or clean['translation_label'] != 0
                 or clean.get('meaning_preserved') is not True or clean.get('names_and_numbers_preserved') is not True

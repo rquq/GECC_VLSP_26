@@ -1,5 +1,9 @@
 # Working on the constrained Kaggle pipeline
 
+The local NF4 reviewer check failed after20 fresh calls; no new rows are approved. Native FP16 behavior is pending. Keep the early stop and do not describe recovery inputs as a successful augmented dataset.
+
+The 2026-10-15 default is recovery from the completed source run, using the private `VGEC26-augmentation-recovery-20261015.zip`. Read `experiments/AUGMENTATION_RECOVERY_20261015.md`/.json. It keeps the585/495 baselines, filters249 proposals to51 mechanically eligible candidates, and loads only Qwen3-4B-Instruct-2507 for native FP16 review. The old translation/author checkpoints are provenance, not active inference phases. Keep the notebook a launcher, run the small reviewer check before processing candidates, and fail closed with a diagnostic. A reviewer-selected short span edit must reconstruct the reference exactly; do not salvage prose, write corpus replacements with Codex, relabel disputed types, or weaken acceptance to fill quotas. Bound reviewer inference to256 calls/90 active minutes. The former full-generation protocol below is historical; the current recipe is authoritative.
+
 On `kaggle-augment`, experiments are requested in chat and expressed as committed changes to `configs/augmentation.json`. The default launcher runs only `tools.run_augmentation`; production training remains on `kaggle-linux`. Keep both notebooks as launchers; do not add experiment toggles or duplicate pipeline logic inside cells. Keep research diagnostics outside the default notebook path.
 
 Keep notebook cells short: source checkout, shared environment setup, then launch. Dependency installation and result handling belong in `tools/notebook.py`. Transport settings are fixed; experiment changes are chat-requested commits.

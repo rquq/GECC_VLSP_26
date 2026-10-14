@@ -1,6 +1,7 @@
 """Validate the committed bounded augmentation recipe before any model load."""
 import json
 import math
+import re
 from pathlib import Path
 
 
@@ -12,6 +13,12 @@ def validate_recipe(recipe):
         raise ValueError('Augmentation device must be cuda or cpu')
     for key, cap in [('max_calls', 1536), ('max_wall_minutes', 360)]:
         if type(run[key]) is not int or not 0 < run[key] <= cap: raise ValueError(f'Invalid bounded {key}')
+    if recipe.get('recovery'):
+        if run['max_calls'] > 256 or run['max_wall_minutes'] > 90:
+            raise ValueError('Recovery is bounded to256 reviewer calls/90 minutes')
+        if any(not isinstance(recipe['recovery'].get(k), str) or not re.fullmatch('[0-9a-f]{64}', recipe['recovery'][k])
+               for k in ('sha256', 'archive_sha256')):
+            raise ValueError('Recovery requires pinned payload and archive digests')
     parents = recipe['parents']
     if type(parents['limit']) is not int or not 0 < parents['limit'] <= 96:
         raise ValueError('At most96 original parents are allowed')

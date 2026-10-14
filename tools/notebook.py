@@ -46,7 +46,7 @@ def setup_kaggle(project):
                     "-r", str(Path(project) / "requirements-kaggle.txt"),
                     "--constraint", str(constraints)], cwd=project, check=True)
     subprocess.run([python, "-c",
-                    "import torch, transformers, accelerate, safetensors, tokenizers; "
+                    "import torch, transformers, accelerate, safetensors, tokenizers, lmformatenforcer; "
                     "from transformers import AutoModelForCausalLM, HunYuanDenseV1ForCausalLM; "
                     f"assert torch.__version__ == {installed_torch!r}; "
                     "print('Augmentation imports passed; torch', torch.__version__, 'CUDA', torch.version.cuda)"], check=True)
@@ -97,6 +97,10 @@ def launch(project, python):
         raise RuntimeError("No completed pipeline produced; inspect the run log")
     from IPython.display import FileLink, display
     manifest = json.loads((run_dir / "pipeline_manifest.json").read_text())
+    if manifest.get("status") == "reviewer_check_failed":
+        print("Reviewer check failed early. No training dataset was produced; inspect the diagnostic below.")
+        display(FileLink(str(run_dir / "reviewer_check.json")))
+        return run_dir
     if manifest.get("format") == "vgec-augmented-final-v1":
         archive = Path(manifest["archive"]["path"])
         if not archive.is_file(): raise RuntimeError("Augmentation ended without its dataset ZIP")

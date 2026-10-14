@@ -64,7 +64,7 @@ class NativeEngine:
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
         self.cache = tempfile.TemporaryDirectory(prefix='gecc-augmentation-model-')
-        self.model = self.tokenizer = None
+        self.model = self.tokenizer = self.constraint_tokens = None
         try:
             self.audit = native_audit(settings, device, self.cache.name)
             self.tokenizer = AutoTokenizer.from_pretrained(settings['name'], revision=settings['revision'], cache_dir=self.cache.name)
@@ -102,13 +102,18 @@ class NativeEngine:
         generation = {'max_new_tokens': options['max_new_tokens'], 'do_sample': sampling,
                       'pad_token_id': self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else self.tokenizer.eos_token_id,
                       'use_cache': True, 'max_time': options.get('max_time', 180)}
+        if options.get('response_schema') is not None:
+            from .constraints import tokenizer_data, prefix_filter
+            if self.constraint_tokens is None:
+                self.constraint_tokens = tokenizer_data(self.tokenizer)
+            generation['prefix_allowed_tokens_fn'] = prefix_filter(self.constraint_tokens, options['response_schema'])
         if sampling: generation.update(temperature=options['temperature'], top_p=options['top_p'])
         with torch.inference_mode(): outputs = self.model.generate(**batch, **generation)
         return self.tokenizer.decode(outputs[0][batch.input_ids.shape[1]:], skip_special_tokens=True).strip()
 
     def close(self):
         import torch
-        self.model = self.tokenizer = None
+        self.model = self.tokenizer = self.constraint_tokens = None
         gc.collect()
         if torch.cuda.is_available(): torch.cuda.empty_cache()
         if getattr(self, 'cache', None): self.cache.cleanup()

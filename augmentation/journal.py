@@ -53,9 +53,11 @@ class Journal:
         if self.attempts >= self.recipe['run']['max_calls'] or self.elapsed() >= self.recipe['run']['max_wall_minutes'] * 60:
             raise BudgetExhausted('Committed inference call/time budget exhausted')
 
-    def call(self, role, key, prompt, sampling=False):
+    def call(self, role, key, prompt, sampling=False, *, response_schema=None):
         if role not in self.recipe['models'] or not isinstance(prompt, str): raise ValueError('Invalid inference role/prompt')
         options = dict(self.recipe['translation' if role == 'translator' else 'generation'])
+        if response_schema is not None:
+            options['response_schema'] = response_schema
         identity = digest({'role': role, 'key': key, 'prompt': prompt, 'sampling': sampling,
                            'options': options, 'model': self.recipe['models'][role], 'seed': self.recipe['seed']})
         previous = self.entries.get((role, key))

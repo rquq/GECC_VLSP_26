@@ -32,7 +32,8 @@ def pair(parent=10000, suffix='x'):
             'models': c['models'], 'calls': {'forward': 'f', 'backward': 'b', 'author': 'a', 'clean_review': 'c', 'error_review': 'e'},
             'clean_review': {'parent_label': 0, 'translation_label': 0, 'meaning_preserved': True,
                              'names_and_numbers_preserved': True, 'confidence': .95, 'evidence': 'Fixture evidence of equivalent clean references.'},
-            'error_review': {'source_label': 3, 'mechanism': 'redundant copula', 'correction': clean, 'single_error': True,
+            'error_review': {'source_label': 3, 'mechanism': 'redundant copula', 'correction': clean,
+                             'source_span': 'là là', 'replacement': 'là', 'single_error': True,
                              'required_edit': True, 'meaning_preserved': True, 'other_error_types': [],
                              'confidence': .95, 'evidence': 'Fixture evidence of adjacent duplicated function marker.'}}
 
@@ -104,6 +105,7 @@ class ReviewFormatRetryTests(unittest.TestCase):
 
     def test_retry_budget_allows_one_review_retry_per_candidate(self):
         c = recipe()
+        c.pop('recovery', None)  # Historical full-generation recipe, not review-only recovery.
         c['run']['max_calls'] = 1536
 
         self.assertEqual(validate_recipe(c)['run']['max_calls'], 1536)
