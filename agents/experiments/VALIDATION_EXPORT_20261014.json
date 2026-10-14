@@ -1,0 +1,96 @@
+{
+  "schema": "vgec-validation-export-review-v1",
+  "date": "2026-10-14",
+  "status": "completed",
+  "source_commit": "7049040d36d938efedd5a3fe00708e0c8e1c3e8d",
+  "exporter_sha256": "c7bf822e4a333679b688090925952ffdec0f84bfb07f95f7f434227a39491227",
+  "request": "Separate dataset containing all current local validation rows; review round-trip translation and GPT6.1 Sol augmentation eligibility",
+  "artifact_directory": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/validation-only-20261014",
+  "row_count": 81,
+  "class_counts": {
+    "0": 40,
+    "1": 20,
+    "2": 7,
+    "3": 7,
+    "4": 7
+  },
+  "file": {
+    "filename": "validation.json",
+    "sha256": "a025c9323e6167689c12924d9ba08b837d77dc59fea6e467e7a4eb6436b76402",
+    "bytes": 24565
+  },
+  "archive": {
+    "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/validation-only-20261014/VGEC26-validation-only-20261014.zip",
+    "sha256": "08cc278e25cda39f262a31fc2d0a84c08c5727e2a6e16eb6921d9e6f1ef13a94",
+    "bytes": 7824
+  },
+  "source_files": {
+    "VGEC 2026_v1.json": {
+      "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/kaggle-qwen-ready-20261013/VGEC 2026_v1.json",
+      "sha256": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728"
+    },
+    "VGEC_classifier.json": {
+      "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/kaggle-qwen-ready-20261013/VGEC_classifier.json",
+      "sha256": "6ed5b8a75f6692c816dd180923007d4aca7fe46184e78c75359a82eeeab19530"
+    },
+    "VGEC_balanced.json": {
+      "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/kaggle-qwen-ready-20261013/VGEC_balanced.json",
+      "sha256": "5675cc7dbcc81d7b018af471905aa827c032cc1445efb226d810d1604a9ad7b0"
+    }
+  },
+  "agreement": {
+    "path": "/home/quq/machineLearning/competitions/VLSP26_4/test/VLSP2026-ViGEC-UserAgreement.docx",
+    "sha256": "472886741cd0d897df33f19d20ddba789ae7194dad967fd3165601502f78f08e",
+    "review": "Research modifications allowed; noncommercial use; original/edited resources must not be redistributed; summaries may be published without reconstructing corpus."
+  },
+  "verification": {
+    "original_raw_fields_and_order_unchanged": true,
+    "normalized_load_exactly_matches_existing_holdout": true,
+    "validation_identical_in_classifier_and_corrector": true,
+    "no_training_id_overlap": true,
+    "zip_crc_and_members_verified": true,
+    "data_ignored_by_git": true,
+    "original_dataset_files_unchanged": true
+  },
+  "eligibility_review": {
+    "competition": "https://aihub.ml/competitions/1038#learn_the_details-overview",
+    "round_trip_translation": "Allowed in principle under broad synthetic-generation permission, inferred rather than an explicitly named method; every generator/translator must meet8B cap and license/documentation rules",
+    "directions": "Vietnamese→pivot language→Vietnamese, training-only parent families",
+    "sol": {
+      "model": "gpt-6.1-sol",
+      "official_model_page": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+      "official_reasoning_page": "https://developers.openai.com/api/docs/guides/reasoning",
+      "parameter_count": "Not disclosed on the official model page reviewed",
+      "cap_eligibility": "unverified; exclude from translating/authoring/relabeling constrained-track training data",
+      "reasoning_effort": "xhigh controls reasoning effort, not evidence of parameter size",
+      "permitted_assistance_scope": "Code, reproducible checks and analysis of existing evidence; no uncounted teacher wording or replacement labels"
+    },
+    "translation_candidate": {
+      "model": "facebook/nllb-200-distilled-600M",
+      "revision": "f8d333a098d19b4fd9a8b18f94170487ad3f821d",
+      "native_parameters": 615073792,
+      "license": "CC-BY-NC-4.0",
+      "scope": "Metadata-only architecture count with meta tensors; no weights, translation or training",
+      "model_card": "https://huggingface.co/facebook/nllb-200-distilled-600M"
+    },
+    "second_candidate": {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+      "native_parameters": 7615616512,
+      "model_card": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct",
+      "status": "Existing native architecture audit; not newly used for translation"
+    }
+  },
+  "augmentation_pilot_guidance": [
+    "Use complete, reviewed clean/correct training seeds only; keep81 validation parents/families excluded.",
+    "Round trips may remove errors or change type; do not inherit original error labels automatically.",
+    "Review fluent meaning-preserving return text, then use eligible local model/human evidence for one taxonomy error and matched clean control.",
+    "Record parent family, model revision/count/license, directions, prompts, settings, output digests and review status; group descendants and quarantine ambiguous outputs."
+  ],
+  "synthetic_generation_executed": false,
+  "model_weights_downloaded": false,
+  "training_executed": false,
+  "production_recipe_changed": false,
+  "reproduce": "USE_TF=0 USE_FLAX=0 PYTHONPATH=. ../.venv/bin/python -m tools.export_validation --output /path/to/a/new/private/directory",
+  "local_holdout_policy": "These81 rows come from organizer training data. Training exclusion is our current evaluation protocol, not an additional official rule; a final all-training fit would retire this holdout as independent validation. Public/private test inputs remain inference-only."
+}

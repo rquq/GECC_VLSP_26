@@ -2054,6 +2054,15 @@
       "screenshot_count": 6,
       "training_rerun": false,
       "production_recipe_changed": false
+    },
+    {
+      "id": "validation-export:20261014",
+      "status": "completed_export_and_rule_review",
+      "evidence": "agents/experiments/VALIDATION_EXPORT_20261014.json",
+      "evidence_sha256": "b8be8f36f8bab9575926f61c18d6b22767c737e9414b43d828c9b4a893d70678",
+      "count": 81,
+      "synthetic_generation_executed": false,
+      "training_rerun": false
     }
   ]
 }

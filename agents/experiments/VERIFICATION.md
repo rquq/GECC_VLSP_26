@@ -44,3 +44,8 @@ All147 unit/contract tests passed in27.473s after the final code changes (`runs/
 ## Folder screenshot audit — 2026-10-14
 
 Visually inspected all six user PNGs, matched folder artifacts to prior SHA256, rechecked all six root-only ZIPs/CRC/schema/443 typed IDs, and checked displayed combined averages within rounding tolerance. Four Qwen correction fields match exactly; two ViT5 fields match exactly; Qwen versus ViT5 differ on174 rows. Bami labels match across its two archives. Five PNG associations are internally consistent; candidate-small-both remains unresolved because it repeats Bami/Qwen scores despite the distinct ViT5 correction fields. Screenshots are user-reported official scores, not authenticated per-submission verification. No training, pipeline/dataset modifications or test-suite rerun for this documentation-only audit.
+
+
+## Validation-only export — 2026-10-14
+
+The actual81-row export preserves every raw field/order and normalized record; matches classifier/corrector validation; has zero training-ID overlap; and preserves all three source-file hashes. ZIP CRC and three root members verified. Export and archive stay ignored. NLLB native metadata-only parameter count615073792 is recorded without weight download or inference. No training/generation or unrelated suite rerun. Evidence: VALIDATION_EXPORT_20261014.json.

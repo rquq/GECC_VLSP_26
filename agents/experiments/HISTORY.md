@@ -139,3 +139,8 @@ LOCAL_SMALL_MODELS_20261014.md/.json records nine unique architectures,13 screen
 ## User public-result PNG follow-up — 2026-10-14
 
 PUBLIC_RESULTS_20261014.md/.json imports the six PNGs placed in candidate folders, preserving screenshot/ZIP hashes and all historical results. Sailor/Qwen0.5423 matches the hybrid prediction and is best supported among these results; native classifier Macro scores decline. ViT5 trades lower GLEU for higher exact match. Five candidate associations are consistent, while Bami/ViT5 attribution is unresolved because the PNG repeats Bami/Qwen correction scores despite174 differing verified outputs. No old/new training was rerun. Active records now link this evidence; prior unsubmitted statements above describe the earlier preparation snapshot.
+
+
+## Validation export and back-translation eligibility — 2026-10-14
+
+VALIDATION_EXPORT_20261014.md/.json records the requested private81-row validation-only JSON/ZIP, exact original/bundle/order/ID/hash checks and rule review. Broad synthetic-generation permission supports round-trip translation in principle under per-generator8B/license/disclosure constraints; method permission is inferred, not explicitly named. Sol6.1 size eligibility is unverified, so it is excluded as augmentation teacher. NLLB metadata audit counts615073792 parameters; no weights, generation or training. Validation stays evaluation-only; future augmentation uses training families exclusively.
