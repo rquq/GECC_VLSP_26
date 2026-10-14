@@ -1935,6 +1935,114 @@
       },
       "corrector_record": "agents/experiments/QWEN_RUN_20261013.json",
       "training_rerun": false
+    },
+    {
+      "id": "local-screen:20261014",
+      "status": "completed_new_training",
+      "historical_training_rerun": false,
+      "evidence": "agents/experiments/LOCAL_SMALL_MODELS_20261014.json",
+      "evidence_sha256": "de1d3ece6b4554fc56259ef9c09dcc4ad028dd59a840890f165af10592548be3",
+      "unique_architectures": 9,
+      "configuration_attempts": 13,
+      "completed_screens": 12,
+      "final_refit_count": 5,
+      "classification": {
+        "macro_f1": 0.41472204266321916,
+        "micro_f1": 0.6419753086419753,
+        "confusion_matrix": [
+          [
+            38,
+            2,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            9,
+            8,
+            0,
+            3,
+            0,
+            0
+          ],
+          [
+            2,
+            0,
+            0,
+            2,
+            3,
+            0
+          ],
+          [
+            2,
+            3,
+            0,
+            1,
+            1,
+            0
+          ],
+          [
+            0,
+            1,
+            0,
+            1,
+            5,
+            0
+          ]
+        ],
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "prediction_columns": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          "invalid"
+        ],
+        "per_class": {
+          "0": {
+            "precision": 0.7450980392156863,
+            "recall": 0.95,
+            "f1": 0.8351648351648352,
+            "support": 40
+          },
+          "1": {
+            "precision": 0.5714285714285714,
+            "recall": 0.4,
+            "f1": 0.47058823529411764,
+            "support": 20
+          },
+          "2": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 7
+          },
+          "3": {
+            "precision": 0.14285714285714285,
+            "recall": 0.14285714285714285,
+            "f1": 0.14285714285714285,
+            "support": 7
+          },
+          "4": {
+            "precision": 0.5555555555555556,
+            "recall": 0.7142857142857143,
+            "f1": 0.625,
+            "support": 7
+          }
+        }
+      },
+      "small_pair_combined_v2": 0.5111726394350997,
+      "small_classifier_qwen_corrector_combined_v2": 0.521945915702157,
+      "official_score": null,
+      "private_artifacts": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/local-small-models-20261014"
     }
   ]
 }

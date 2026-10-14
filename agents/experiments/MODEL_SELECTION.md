@@ -58,3 +58,8 @@ Promotion criteria fixed before viewing Bami holdout results: Macro-F1 greater t
 Final outcomes: see LOCAL_REVIEW_RESULTS.md and LOCAL_REVIEW_RESULTS.json. The production recipe is now corrector-only with a portable saved Sailor classifier and the reviewed 414-row correction bundle. No new classifier score gain is claimed.
 
 A native Sailor second opinion used five remaining calls on the existing reference completions, with no new sentences or training. It also did not support promotion. The total teacher budget consumed was 128 calls and approximately 1,039 seconds. The host-RAM mmap failure was recovered by streaming identical tensors into smaller loading shards; exact tensor equality was tested. Details are in LOCAL_REVIEW_RESULTS.md.
+
+
+## Subsequent measured screen — 2026-10-14
+
+The user authorized fresh smaller-model fine-tuning after the third KANO entry. PhoBERT-base/large, BamiBERT, XLM-R-base, ViSoBERT, Qwen-0.5B, BARTpho, ViT5-base and ViT5-large were actually tested. Twelve screen fits and five final refits completed; one numerical-divergence fit was stopped. Exact counts, immutable revisions, licenses, source commits and validation scope are in LOCAL_SMALL_MODELS_20261014.md/.json. Earlier deferred/proposed statuses above are historical. None of the final smaller classifiers beats saved Qwen-7B Macro-F1 on the exposed holdout; ViT5-base nearly matches Qwen overlap on19 standalone error references but fixes fewer sentences exactly. No production replacement or new synthetic data is promoted. HYBRID_20261014.json records the eligible prepared Sailor7B/Qwen7B component combination, with expected0.5423 subject to independent field scoring and no official result yet.

@@ -588,5 +588,15 @@
     "recommendation": "retain Sailor in prepared one-fit handoff; Qwen is a later controlled corrector challenger; SeaLLMs is excluded as teacher for other LLMs under its linked license",
     "license_restriction": "Section 5(b) prohibits using Materials or outputs to improve other large language models except SeaLLMs or derivatives",
     "artifact": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/audit-seallms-20261013"
+  },
+  "subsequent_screen_20261014": {
+    "status": "completed",
+    "evidence": "agents/experiments/LOCAL_SMALL_MODELS_20261014.json",
+    "unique_architectures": 9,
+    "completed_fits": 17,
+    "production_replacement_promoted": false,
+    "official_score": null,
+    "ready_hybrid": "agents/experiments/HYBRID_20261014.json",
+    "conclusion": "No native finalist exceeds saved Qwen7B local Macro-F1; ViT5-base offers nearly matched standalone-error overlap at much lower cost; public candidates unscored."
   }
 }
