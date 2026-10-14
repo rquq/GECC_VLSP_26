@@ -44,6 +44,8 @@ def load_config(path, expected_task=None):
     world_size = config["run"].get("world_size", 1)
     if type(world_size) is not int or world_size not in (1, 2):
         raise ValueError("run.world_size must be 1 or 2")
+    if config["model"].get("device_map") == "balanced" and world_size != 1:
+        raise ValueError("Balanced placement uses one process across two GPUs; world_size must be 1")
     batch = config["training"]["args"]["per_device_train_batch_size"]
     effective = config["training"]["effective_batch_size"]
     if type(batch) is not int or type(effective) is not int or batch <= 0 or effective < batch or effective % batch:
@@ -134,3 +136,19 @@ def selection_key(metrics, metric_paths):
             raise ValueError(f"Selection metric {path!r} must be a finite number or null")
         values.append(value)
     return tuple(values)
+
+
+def unscored_final_report():
+    """Explicitly unavailable scores for a fit with no independent validation."""
+    from .metrics import COMBINED_SCORE_METADATA
+    return {"count": 0, "evaluation_status": "unavailable_full_training",
+            "classification": None, "corrections": {}, "clean_preservation": {},
+            "combined_score": None, "combined_score_metadata": dict(COMBINED_SCORE_METADATA)}
+
+
+def promote_trainable_parameters(model):
+    """AMP scaling requires FP32 trainable tensors, including PEFT saved heads."""
+    import torch
+    for parameter in model.parameters():
+        if parameter.requires_grad and parameter.dtype in (torch.float16, torch.bfloat16):
+            parameter.data = parameter.data.float()

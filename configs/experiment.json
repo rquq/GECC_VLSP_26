@@ -1,15 +1,15 @@
 {
-  "name": "qwen25-7b-reviewed-both",
+  "name": "sailor7b-qwen25-7b-lora-full-training",
   "mode": "both",
   "classification_config": "configs/baseline.json",
   "correction_config": "configs/correction.json",
   "classifier_run": null,
   "initial_adapter": null,
-  "data_archive": "VGEC26-qwen-reviewed-v4.zip",
+  "data_archive": "VGEC26-sailor-qwen-lora-full-training-20261014.zip",
   "submission_filename": "public_test.json",
   "data_sha256": {
     "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
-    "classification": "6ed5b8a75f6692c816dd180923007d4aca7fe46184e78c75359a82eeeab19530",
-    "correction": "5675cc7dbcc81d7b018af471905aa827c032cc1445efb226d810d1604a9ad7b0"
+    "classification": "6fbcb68cf531e53ab880914386a3809703cff3e7ef3f17829a92a1f514486dc9",
+    "correction": "d3aa54495f188a07740aa6e04763f53d24c8a7296f1b015520b3744e018a15cf"
   }
 }

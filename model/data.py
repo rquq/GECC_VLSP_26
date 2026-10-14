@@ -151,6 +151,9 @@ def load_training_split(path: str | Path, validation_fraction: float, seed: int)
     if type(seed) is not int or seed != 42:
         raise ValueError("Training seed must be 42")
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    if isinstance(raw, dict) and raw.get("format") == "vgec-final-training-v1":
+        from .final_data import load_final
+        return load_final(raw, validation_fraction, seed)
     if isinstance(raw, list):
         train, validation = split_records(_records_from_raw(raw), validation_fraction, seed)
         return train, validation, {"format": "raw", "original_rows": len(raw)}
@@ -283,6 +286,10 @@ def load_classifier_split(original_path, bundle_path, validation_fraction, seed)
     bundles retain their recorded substring policy for reproducibility. Other
     annotations remain supervision; no original may be repaired or relabeled.
     """
+    bundle_raw = json.loads(Path(bundle_path).read_text(encoding="utf-8"))
+    if isinstance(bundle_raw, dict) and bundle_raw.get("format") == "vgec-final-training-v1":
+        from .final_data import load_final_classifier
+        return load_final_classifier(original_path, bundle_raw, validation_fraction, seed)
     original_raw = json.loads(Path(original_path).read_text(encoding="utf-8"))
     originals, validation = split_records(_records_from_raw(original_raw), validation_fraction, seed)
     train, heldout, info = load_training_split(bundle_path, validation_fraction, seed)

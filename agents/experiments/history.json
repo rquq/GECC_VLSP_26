@@ -2073,6 +2073,14 @@
       "correction_rows": 495,
       "former_validation_added_to_each": 81,
       "training_rerun": false
+    },
+    {
+      "id": "sailor-qwen-standard-lora-full-training-20261014",
+      "status": "prepared_locally_verified_full_size_kaggle_pending",
+      "record": "agents/experiments/SAILOR_QWEN_LORA_20261014.json",
+      "dataset_archive_sha256": "a0890a985bfe2809d4366d98975e6238aa55c4ddd7cd56abc86bd989ef55ffa3",
+      "source_parent_commit": "8e5eaae05da842a9d7ec9ee4855fc3aa210924f5",
+      "full_size_training_completed": false
     }
   ]
 }

@@ -24,6 +24,8 @@ def classifier_fixture(root, *, hints=True):
     checkpoint.mkdir(parents=True)
     config = json.loads((PROJECT / "configs/baseline.json").read_text())
     config["run"].update(device="cuda", world_size=2)
+    config["data"]["validation_fraction"] = .2
+    config["model"]["device_map"] = "single"
     config["model"].update(name="local/base", revision="pinned")
     lora = {**config["lora"], "task_type": "SEQ_CLS", "revision": "pinned",
             "base_model_name_or_path": "local/base"}

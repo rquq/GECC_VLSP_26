@@ -128,7 +128,7 @@ def validate_classifier_run(classifier_run, classification=None, *, require_hint
             or adapter.get("task_type") != "SEQ_CLS" or "score" not in (adapter.get("modules_to_save") or [])
             or adapter.get("base_model_name_or_path") != model.get("name")
             or adapter.get("revision") != model.get("revision")):
-        raise ValueError("Reused classifier must be a compatible five-class QLoRA adapter with its score head and pinned base revision")
+        raise ValueError("Reused classifier must be a compatible five-class LoRA/QLoRA adapter with its score head and pinned base revision")
     configured_model = config.get("model", {})
     model_fields_match = ({key: value for key, value in model.items() if key != "compute_dtype"}
                           == {key: value for key, value in configured_model.items() if key != "compute_dtype"})
@@ -159,7 +159,9 @@ def validate_classifier_run(classifier_run, classification=None, *, require_hint
     if not any("lora_" in key for key in keys):
         raise ValueError("Saved classifier adapter weights do not contain LoRA tensors")
     manifest = _json(classifier_run / "run_manifest.json")
-    if (manifest.get("task") != "classification" or not manifest.get("saved_classifier_reloaded_for_evaluation")
+    if (manifest.get("task") != "classification" or not (manifest.get("saved_classifier_reloaded_for_evaluation") or
+                    manifest.get("final_fit") and manifest.get("validation_count") == 0 and
+                    manifest.get("saved_classifier_reload_verified"))
             or not manifest.get("classifier_data_sha256")):
         raise ValueError("Reused classifier must be a completed mixed-data classifier run with saved-adapter evaluation")
     if (manifest.get("seed") != config["run"]["seed"]

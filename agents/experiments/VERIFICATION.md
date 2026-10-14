@@ -54,3 +54,8 @@ The actual81-row export preserves every raw field/order and normalized record; m
 ## Full-training raw export — 2026-10-14
 
 Actual checks verified baseline-row preservation, each of81 original raw rows in both stage files, unique typed IDs, normalized load roundtrips,585/495 totals, source SHA256 and ZIP CRC/member bytes. The22 flagged added corrector rows remain included, with no inferred replacements. Dataset/ZIP stay ignored. This verifies the requested dataset export, not Kaggle consumption or target quality. Evidence: FULL_TRAINING_20261014.json.
+
+
+## Standard LoRA final-training preparation — 2026-10-14
+
+155 tests passed in31.734s; focused coverage validates exact full-training membership, no holdout/resplit, source tampering, native balanced classifier score placement and FP32 trainable/FP16 frozen tensors. Real CPU and RTX4060 CUDA tiny pipelines both fit nonquantized adapters, reload final checkpoints and export valid two-row typed-ID submissions; independent validation and combined scores remain unavailable. Full native Sailor/Qwen parameter audits are7,139,016,704 and7,655,986,688 including adapter/head allowance. Complete585/495 pipeline preflight and explicit two-GPU memory estimates passed with simulated15GiB free availability per T4. Notebook cells parse and have no saved output or new switches. Actual full-size training and physical dual-T4 execution are pending. All failed attempts and recovery are indexed in SAILOR_QWEN_LORA_20261014.json; detailed logs are in runs/lora-readiness-20261014/.

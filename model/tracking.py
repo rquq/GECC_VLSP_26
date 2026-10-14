@@ -63,7 +63,7 @@ def _number(value):
 
 def result_metrics(report):
     """Only outcomes belong in W&B; full reports and configurations stay local."""
-    classification = report.get("classification", report)
+    classification = report.get("classification", report) or {}
     metrics = {key: classification[key] for key in ("macro_f1", "micro_f1")
                if _number(classification.get(key))}
     for subset, prefix in (("all", ""), ("error_only", "error_")):
@@ -190,7 +190,7 @@ class TrackingRun:
         if values:
             self.run.log(values)
         self.message(prefix + ": " + " ".join(f"{key}={value:.6g}" for key, value in metrics.items()))
-        classification = report.get("classification", report)
+        classification = report.get("classification", report) or {}
         if prefix == "final" and "per_class" in classification:
             self.run.log({"final/per_class": self.sdk.Table(
                 columns=["label", "precision", "recall", "f1", "support"],

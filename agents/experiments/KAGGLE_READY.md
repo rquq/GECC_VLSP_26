@@ -1,4 +1,6 @@
-# Kaggle upload and six-epoch Qwen run — 2026-10-13
+Current active recipe: **SAILOR_QWEN_LORA_20261014.md/.json**. This document preserves the prior Qwen/Qwen QLoRA readiness snapshot and its completed run.
+
+# Historical Qwen preparation: Kaggle upload and six-epoch Qwen run — 2026-10-13
 
 **Outcome imported on 2026-10-14:** both full-size Qwen stages completed in the supplied 13_10_2026 run. Public export then failed at the inference memory guard; saved-checkpoint recovery and the fix are documented in QWEN_RUN_20261013.md/.json. The text below records the original preparation, not the latest run status.
 

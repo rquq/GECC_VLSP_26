@@ -321,7 +321,9 @@ def main():
         raise RuntimeError(
             "This committed experiment requires CUDA; select Kaggle GPU T4 x2"
         )
-    world_size = min(torch.cuda.device_count(), 2)
+    recipe = json.loads(Path(args.recipe).read_text())
+    stage = load_config(PROJECT_ROOT / recipe["classification_config"], "classification")
+    world_size = stage["run"].get("world_size", 1)
     kaggle = Path("/kaggle/working").is_dir()
     input_root = (
         Path(args.input_root)

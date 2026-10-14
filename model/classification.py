@@ -1,4 +1,4 @@
-"""Sailor QLoRA soft hierarchical classification baseline."""
+"""LoRA/QLoRA soft hierarchical classification with a saved score head."""
 from __future__ import annotations
 
 import argparse
@@ -74,11 +74,18 @@ def _texts(records, preprocessing):
     return [row["source"] for row in records]
 
 
-def placement_preflight(settings, device="cuda"):
+def placement_preflight(settings, device="cuda", *, training=True):
     """Resolve rank-local placement and supported precision without loading weights."""
     import torch
 
     device = torch.device(device)
+    if settings.get("device_map", "single") == "balanced":
+        if settings.get("load_in_4bit"):
+            raise ValueError("Balanced classifier placement supports nonquantized LoRA")
+        from .correction import placement_preflight as decoder_placement
+        placement = decoder_placement(settings, device.type, task="classification", training=training)
+        return {**placement, "device": "cuda:0",
+                "compute_dtype": placement["compute_dtype"].removeprefix("torch.")}
     quantized = settings["load_in_4bit"]
     if device.type == "cpu":
         if quantized:
@@ -161,6 +168,8 @@ def _load_base(settings, tokenizer, placement):
                 bnb_4bit_use_double_quant=settings["use_double_quant"],
                 llm_int8_skip_modules=["score"]),
             device_map={"": torch.device(placement["device"]).index})
+    if placement.get("mode") == "balanced":
+        kwargs.update(device_map=placement["device_map"], low_cpu_mem_usage=True)
     model = AutoModelForSequenceClassification.from_pretrained(settings["name"], **kwargs)
     model.config.classifier_embeddings_resized = len(tokenizer) > model.get_input_embeddings().num_embeddings
     if model.config.classifier_embeddings_resized:
@@ -170,7 +179,7 @@ def _load_base(settings, tokenizer, placement):
     # QLoRA preparation casts some weights to FP32; model.dtype alone would then
     # misidentify the Trainer's mixed-precision forward context on reload.
     model.config.classifier_compute_dtype = placement["compute_dtype"]
-    if not placement["quantized"]:
+    if not placement["quantized"] and placement.get("mode") != "balanced":
         model.to(placement["device"])
     return model
 
@@ -229,7 +238,7 @@ def classify(checkpoint, records, device="cuda", batch_size=8):
     _require_hierarchy(saved)
     if preprocessing["labels"] != list(LABELS) or saved["labels"] != list(LABELS):
         raise ValueError("Saved classifier label mapping must be 0..4")
-    placement = placement_preflight(saved["model"], device)
+    placement = placement_preflight(saved["model"], device, training=False)
     print(json.dumps({"classifier_placement": placement}), flush=True)
     tokenizer = _load_tokenizer(checkpoint)
     _configure_padding(tokenizer)
@@ -313,8 +322,13 @@ def _hierarchical_trainer_class():
             labels = inputs["labels"]
             features = {key: value for key, value in inputs.items() if key != "labels"}
             output = model(**features)
-            loss = _weighted_hierarchical_loss(output.logits, labels, self.loss_weights,
+            head_device = output.logits.device
+            labels = labels.to(head_device)
+            if torch.is_tensor(num_items_in_batch):
+                num_items_in_batch = num_items_in_batch.to(head_device)
+            loss = _weighted_hierarchical_loss(output.logits, labels, self.loss_weights.to(head_device),
                                                num_items_in_batch)
+            loss = loss.to(self.args.device)
             if not torch.isfinite(loss).all().item():
                 raise RuntimeError("Nonfinite classifier training loss")
             return (loss, output) if return_outputs else loss
@@ -378,6 +392,10 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     lora = {**config["lora"], "task_type": TaskType.SEQ_CLS, "modules_to_save": ["score"],
             "revision": settings["revision"]}
     model = get_peft_model(model, LoraConfig(**lora))
+    from .runtime import promote_trainable_parameters
+    promote_trainable_parameters(model)
+    if gradient_checkpointing:
+        model.enable_input_require_grads()
     if world_size == 1:
         # Avoid implicit DataParallel for explicitly single-process runs.
         model.is_parallelizable = True
@@ -728,7 +746,9 @@ def main(*, tracking):
             backend="nccl" if device == "cuda" else "gloo", timeout=timedelta(seconds=86400))
     path = resolve_data(config, args.data)
     fraction = config["data"]["validation_fraction"]
-    original_train, validation = split_records(load_records(path), fraction, seed)
+    final_fit = fraction == 0
+    original_train, validation = ((load_records(path), []) if final_fit else
+                                  split_records(load_records(path), fraction, seed))
     mixed_config = copy.deepcopy(config)
     mixed_config["data"].update(path=config["data"].get("augmentation_path"),
                                 filename=config["data"]["augmentation_filename"])
@@ -737,6 +757,8 @@ def main(*, tracking):
     preprocessing = _preprocessing(config)
     enabled = config.get("oof", {}).get("enabled", False) and not args.skip_hints
     plans = []
+    if final_fit and enabled:
+        raise ValueError("Final fits have no validation or OOF hints")
     if enabled:
         correction_path, correction_train, correction_validation, provenance = _correction_split(
             config, path, original_train, validation, args.correction_data)
@@ -764,11 +786,13 @@ def main(*, tracking):
         write_json(output / "preprocessing.json", preprocessing)
     barrier()
     config["_tracking_group"] = os.environ.get("WANDB_RUN_GROUP") or output.name
-    stats = _fit(config, train, validation, checkpoint, output, device, seed, preprocessing, tracking=tracking)
+    stats = _fit(config, train, None if final_fit else validation, checkpoint, output, device, seed, preprocessing, tracking=tracking)
     batch_size = config["training"]["args"].get("per_device_eval_batch_size", 8)
     if rank == 0:
-        predictions = classify(checkpoint, validation, device, batch_size)
-        metrics = {"count": len(validation), "classification": _classification_metrics(validation, predictions),
+        reloaded_predictions = classify(checkpoint, train[:1] if final_fit else validation, device, batch_size)
+        predictions = [] if final_fit else reloaded_predictions
+        metrics = {"count": len(validation), "evaluation_status": "unavailable_full_training" if final_fit else "evaluated",
+                   "classification": None if final_fit else _classification_metrics(validation, predictions),
                    "training": stats}
         write_json(output / "predictions.json", comparison_rows(validation, predictions))
         write_json(output / "metrics.json", metrics)
@@ -784,7 +808,8 @@ def main(*, tracking):
             "quarantined_original_train_count": len(classifier_info["provenance"]["quarantined_ids"]),
             "synthetic_train_count": len(classifier_info["provenance"]["selected_synthetic_ids"]),
             "model": config["model"], "resolved_model_revision": config["model"]["revision"],
-            "preprocessing": preprocessing, "saved_classifier_reloaded_for_evaluation": True,
+            "preprocessing": preprocessing, "saved_classifier_reloaded_for_evaluation": not final_fit,
+            "saved_classifier_reload_verified": True, "final_fit": final_fit,
             "train_count": len(train), "validation_count": len(validation),
             "hints_enabled": bool(enabled), **stats,
             "versions": {name: importlib.metadata.version(name) for name in ("torch", "transformers", "accelerate", "peft", "bitsandbytes")},
@@ -845,7 +870,7 @@ def main(*, tracking):
     if rank == 0:
         write_json(output / "run_manifest.json", manifest)
         print(json.dumps({"output_dir": str(output), "classifier_path": str(checkpoint),
-                          "macro_f1": metrics["classification"]["macro_f1"], "hints_enabled": bool(enabled)}), flush=True)
+                          "macro_f1": (metrics["classification"] or {}).get("macro_f1"), "hints_enabled": bool(enabled)}), flush=True)
     barrier()
     if world_size > 1:
         torch.distributed.destroy_process_group()

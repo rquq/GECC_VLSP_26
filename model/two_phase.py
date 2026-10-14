@@ -55,7 +55,8 @@ def preflight(classification, correction=None, original=None, bundle=None, *, mo
         from .classification import _connected_folds, _correction_split
         from .data import load_classifier_split, load_records, split_records
         seed, fraction = classification["run"]["seed"], classification["data"]["validation_fraction"]
-        original_train, validation = split_records(load_records(original), fraction, seed)
+        original_train, validation = ((load_records(original), []) if fraction == 0 else
+                                      split_records(load_records(original), fraction, seed))
         mixed_config = copy.deepcopy(classification)
         mixed_config["data"].update(path=classification["data"].get("augmentation_path"),
                                     filename=classification["data"]["augmentation_filename"])
@@ -66,6 +67,8 @@ def preflight(classification, correction=None, original=None, bundle=None, *, mo
             raise ValueError("Fresh two-stage runs require oof.enabled=true for leakage-safe correction hints")
         report.update(seed=seed, classification_train=len(classifier_train), validation=len(validation),
                       original_data=str(original), classification_data=str(mixed_path), hints_enabled=bool(oof))
+        if fraction == 0 and oof:
+            raise ValueError("Final fits cannot use OOF hints")
         if oof:
             resolved, train, holdout, provenance = _correction_split(
                 classification, Path(original), original_train, validation, bundle)

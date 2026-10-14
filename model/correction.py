@@ -1,4 +1,4 @@
-"""Train Sailor QLoRA with optional leakage-safe OOF conditioning, then reload it."""
+"""Train response-only LoRA/QLoRA correction and reload the saved adapter."""
 from __future__ import annotations
 
 import argparse
@@ -374,11 +374,13 @@ def _dtype(settings, device):
     return getattr(torch, value)
 
 
-def placement_preflight(settings, device="cuda", *, local_rank=None, training=True):
-    """Build an explicit Qwen layer map and budget weights before loading them."""
+def placement_preflight(settings, device="cuda", *, local_rank=None, training=True, task="correction"):
+    """Budget native decoder weights and build an explicit two-GPU layer map."""
     import torch
     from accelerate import init_empty_weights
-    from transformers import AutoConfig, AutoModelForCausalLM
+    from transformers import AutoConfig, AutoModelForCausalLM, AutoModelForSequenceClassification
+    factory = AutoModelForSequenceClassification if task == "classification" else AutoModelForCausalLM
+    head_name = "score" if task == "classification" else "lm_head"
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
     local_rank = int(os.environ.get("LOCAL_RANK", "0")) if local_rank is None else local_rank
     quantized = settings.get("load_in_4bit", False)
@@ -403,9 +405,12 @@ def placement_preflight(settings, device="cuda", *, local_rank=None, training=Tr
         raise ValueError("Use an unquantized base checkpoint and quantize it during loading")
     # Resolve lazy model imports before the meta-device context: importing
     # torch attention/Dynamo inside torch.device("meta") can recurse during init.
-    AutoModelForCausalLM._model_mapping[type(config)]
+    factory._model_mapping[type(config)]
     with init_empty_weights(include_buffers=True):
-        skeleton = AutoModelForCausalLM.from_config(config, torch_dtype=dtype)
+        if task == "classification":
+            config.num_labels = 5
+        skeleton = factory.from_config(config, torch_dtype=dtype)
+    head = getattr(skeleton, head_name)
 
     def weight_bytes(module):
         if not quantized:
@@ -414,21 +419,22 @@ def placement_preflight(settings, device="cuda", *, local_rank=None, training=Tr
         total = 0
         for name, parameter in module.named_parameters():
             parent = module.get_submodule(name.rsplit(".", 1)[0]) if "." in name else module
-            packed = isinstance(parent, torch.nn.Linear) and parent is not skeleton.lm_head and name.endswith("weight")
+            packed = isinstance(parent, torch.nn.Linear) and parent is not head and name.endswith("weight")
             total += math.ceil(parameter.numel() * (0.625 if packed else 4))
         return total
     if mode == "single":
         mapping = {"": f"cuda:{local_rank}" if device == "cuda" else "cpu"}
     else:
-        if config.model_type not in ("qwen2", "qwen3") or config.tie_word_embeddings:
-            raise ValueError("Balanced placement requires an untied Qwen decoder architecture")
+        eligible = ("llama", "qwen2", "qwen3") if task == "classification" else ("qwen2", "qwen3")
+        if config.model_type not in eligible or (task == "correction" and config.tie_word_embeddings):
+            raise ValueError("Balanced placement requires a supported decoder architecture with a separate head")
         layer_sizes = [weight_bytes(layer) for layer in skeleton.model.layers]
         embedding = weight_bytes(skeleton.model.embed_tokens)
-        ending = weight_bytes(skeleton.model.norm) + weight_bytes(skeleton.lm_head)
+        ending = weight_bytes(skeleton.model.norm) + weight_bytes(head)
         split = min(range(1, len(layer_sizes)),
                     key=lambda index: abs(embedding + sum(layer_sizes[:index]) - ending - sum(layer_sizes[index:])))
         mapping = {"model.embed_tokens": "cuda:0", "model.rotary_emb": "cuda:0",
-                   "model.norm": "cuda:1", "lm_head": "cuda:1"}
+                   "model.norm": "cuda:1", head_name: "cuda:1"}
         mapping.update({f"model.layers.{index}": f"cuda:{int(index >= split)}" for index in range(len(layer_sizes))})
     weights = {}
     for name, parameter in skeleton.named_parameters():
@@ -437,7 +443,7 @@ def placement_preflight(settings, device="cuda", *, local_rank=None, training=Tr
             raise ValueError(f"Explicit device map does not cover {name}")
         destination = mapping[max(prefixes, key=len)]
         parent = skeleton.get_submodule(name.rsplit(".", 1)[0]) if "." in name else skeleton
-        packed = quantized and isinstance(parent, torch.nn.Linear) and parent is not skeleton.lm_head and name.endswith("weight")
+        packed = quantized and isinstance(parent, torch.nn.Linear) and parent is not head and name.endswith("weight")
         size = math.ceil(parameter.numel() * (0.625 if packed else 4)) if quantized else parameter.numel() * parameter.element_size()
         weights[destination] = weights.get(destination, 0) + size
     del skeleton
@@ -605,8 +611,11 @@ def main(*, tracking):
     # Limits are diagnostics only, after validating the entire connected pipeline.
     train = balanced_limit(train, config["data"].get("train_limit"), seed)
     validation = balanced_limit(validation, config["data"].get("validation_limit"), seed + 1)
-    if not train or not validation:
-        raise ValueError("Correction training and validation must be nonempty")
+    final_fit = provenance.get("format") == "vgec-final-training-v1"
+    if not train or (not validation and not final_fit):
+        raise ValueError("Correction training and validation must be nonempty except verified final fits")
+    if final_fit and (validation or inference["hint_mode"] != "none"):
+        raise ValueError("Final fits require no validation and no hints")
     training, settings = config["training"], config["model"]
     if tuple(config["evaluation"]["selection_metrics"]) != SELECTION_METRICS:
         raise ValueError("Correction selects error-only GLEU+, then error-only exact, then clean preservation")
@@ -665,7 +674,7 @@ def main(*, tracking):
         write_json(path / "loading.json", settings)
         write_json(path / "inference.json", inference)
 
-    if rank == 0:
+    if rank == 0 and not final_fit:
         baseline_predictions = predict(model)
         baseline_metrics = experiment_report(validation, baseline_predictions)
         write_json(output / "baseline_predictions.json", comparison_rows(validation, baseline_predictions))
@@ -679,6 +688,8 @@ def main(*, tracking):
             gradient_checkpointing_kwargs=training_args.gradient_checkpointing_kwargs)
     model = (PeftModel.from_pretrained(model, initial["path"], is_trainable=True, autocast_adapter_dtype=True)
              if initial else get_peft_model(model, lora, autocast_adapter_dtype=True))
+    from .runtime import promote_trainable_parameters
+    promote_trainable_parameters(model)
     model.is_parallelizable = settings["device_map"] == "balanced"
     model.model_parallel = settings["device_map"] == "balanced"
     if training_args.gradient_checkpointing:
@@ -712,6 +723,15 @@ def main(*, tracking):
             if any(not math.isfinite(row["loss"]) for row in state.log_history if "loss" in row):
                 raise RuntimeError("Nonfinite correction training loss")
             barrier()
+            if final_fit:
+                best.update(epoch=state.epoch)
+                if rank == 0:
+                    history.append({"epoch": state.epoch, "optimizer_steps": state.global_step,
+                                    "evaluation_status": "unavailable_full_training"})
+                    write_json(output / "epoch_history.json", history)
+                barrier()
+                model.train()
+                return control
             if rank == 0:
                 current = trainer.accelerator.unwrap_model(model)
                 predictions = predict(current)
@@ -752,6 +772,9 @@ def main(*, tracking):
     if training_args.fp16:
         trainer.accelerator.scaler = torch.amp.GradScaler("cuda", init_scale=training["fp16_initial_scale"])
     result = trainer.train()
+    if final_fit and rank == 0:
+        save_adapter(trainer.accelerator.unwrap_model(model), adapter_path)
+    barrier()
     if not math.isfinite(result.training_loss) or best["epoch"] is None:
         raise RuntimeError("Correction did not complete a finite evaluated training epoch")
     if rank == 0:
@@ -785,8 +808,16 @@ def main(*, tracking):
     gc.collect()
     if device == "cuda":
         torch.cuda.empty_cache()
-    predictions = correct(reloaded, reloaded_tokenizer, validation, selected_hints, saved_inference)
-    metrics = experiment_report(validation, predictions)
+    if final_fit:
+        # Probe saved-adapter generation on a training input, discard its result:
+        # this establishes reload mechanics, never an independent score.
+        correct(reloaded, reloaded_tokenizer, train[:1],
+                [train_hints[_id_key(train[0]["id"])]], saved_inference)
+        from .runtime import unscored_final_report
+        predictions, metrics = [], unscored_final_report()
+    else:
+        predictions = correct(reloaded, reloaded_tokenizer, validation, selected_hints, saved_inference)
+        metrics = experiment_report(validation, predictions)
     write_json(output / "predictions.json", comparison_rows(validation, predictions))
     write_json(output / "metrics.json", metrics)
     tracking.model(adapter_path, "corrector", metadata={"best_epoch": best["epoch"],
@@ -815,11 +846,13 @@ def main(*, tracking):
         "effective_batch_size": training["effective_batch_size"], "gradient_accumulation_steps": accumulation,
         "fp16_initial_scale": training["fp16_initial_scale"] if training_args.fp16 else None,
         "train_max_tokens": max(len(row["input_ids"]) for row in encoded),
-        "validation_max_tokens": max(validation_lengths), "optimizer_steps": result.global_step,
+        "validation_max_tokens": max(validation_lengths, default=None), "optimizer_steps": result.global_step,
         "training_loss": result.training_loss, "best_epoch": best["epoch"],
-        "selection_metrics": list(SELECTION_METRICS),
-        "selection_rule": "highest error-only GLEU+, then error-only exact, then clean preservation; ties keep earlier epoch",
-        "saved_adapter_reloaded_for_evaluation": True, "peak_allocated_vram_bytes": peak_memory,
+        "selection_metrics": [] if final_fit else list(SELECTION_METRICS),
+        "selection_rule": ("fixed final epoch; no independent validation" if final_fit else
+                           "highest error-only GLEU+, then error-only exact, then clean preservation; ties keep earlier epoch"),
+        "final_fit": final_fit, "saved_adapter_reload_verified": True,
+        "saved_adapter_reloaded_for_evaluation": not final_fit, "peak_allocated_vram_bytes": peak_memory,
         "versions": {name: importlib.metadata.version(name) for name in ("torch", "transformers", "peft", "accelerate", "bitsandbytes")},
         "devices": [torch.cuda.get_device_name(i) for i in range(world_size if settings["device_map"] == "single" else 2)] if device == "cuda" else ["cpu"] * world_size,
     }
@@ -827,7 +860,7 @@ def main(*, tracking):
     tracking.log({"training_loss": result.training_loss}, "training")
     tracking.complete("corrector", metrics, best_epoch=best["epoch"])
     print(json.dumps({"output_dir": str(output), "adapter_path": str(adapter_path),
-                      "best_epoch": best["epoch"], "error_gleu_plus": metrics["corrections"]["error_only"]["gleu_plus"],
+                      "best_epoch": best["epoch"], "error_gleu_plus": metrics.get("corrections", {}).get("error_only", {}).get("gleu_plus"),
                       "combined_score": metrics["combined_score"],
                       "combined_score_metadata": metrics["combined_score_metadata"]}), flush=True)
     barrier()

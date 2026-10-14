@@ -149,3 +149,8 @@ VALIDATION_EXPORT_20261014.md/.json records the requested private81-row validati
 ## Corrected training-dataset interpretation — 2026-10-14
 
 The user clarified they wanted all81 validation rows included in the new training dataset. FULL_TRAINING_20261014.md/.json records the corrected classifier585/corrector495 raw arrays and ZIP, with exact81-row membership in both. The validation-only export was the wrong interpretation and remains historical. Baseline data/runs are preserved; old81 are not independent validation for the new dataset.22 added corrector targets are retained and flagged. No new augmentation/training or Kaggle recipe change occurred.
+
+
+## Standard LoRA full-training preparation — 2026-10-14
+
+SAILOR_QWEN_LORA_20261014.md/.json records the user-requested Sailor7B classification / Qwen7B correction LoRA recipe, FP16 frozen bases and FP32 trainable adapters/head, fixed5/6 epochs and full585/495 populations including all81 former holdout rows. New source-validated final-training schema/ZIP, one-process dual-T4 layer splitting, AMP head recovery and null-score notebook handling are implemented. Real CPU/CUDA tiny fits/reloads/ZIPs and native architecture/memory simulations pass. Full-size Kaggle training and public scores remain pending;22 added target flags are retained, not inferred repairs. No historical training was rerun.

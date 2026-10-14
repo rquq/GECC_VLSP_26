@@ -98,7 +98,8 @@ def launch(project, python):
     from IPython.display import FileLink, display
     manifest = json.loads((run_dir / "pipeline_manifest.json").read_text())
     metrics = json.loads((run_dir / "classification/metrics.json").read_text())["classification"]
-    report = {"classification": {key: metrics[key] for key in ("macro_f1", "micro_f1")}}
+    report = {"classification": ({key: metrics[key] for key in ("macro_f1", "micro_f1")} if metrics else None),
+              "evaluation_status": "evaluated" if metrics else "unavailable_full_training"}
     if manifest["mode"] == "task1":
         print(json.dumps(report, indent=2))
         display(FileLink(str(run_dir / "classification/metrics.json")))

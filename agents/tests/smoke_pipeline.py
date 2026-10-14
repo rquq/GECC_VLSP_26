@@ -20,7 +20,7 @@ from tools.build_dataset import build
 from tools.run_experiment import prepare_run
 
 
-def fixture(root, device):
+def fixture(root, device, final_lora=False):
     import torch
     from tokenizers import Tokenizer
     from tokenizers.models import WordLevel
@@ -63,23 +63,27 @@ def fixture(root, device):
     model = Qwen2ForCausalLM(Qwen2Config(vocab_size=len(tokenizer), hidden_size=32, intermediate_size=64,
                              num_hidden_layers=1, num_attention_heads=2, num_key_value_heads=2,
                              max_position_embeddings=512, pad_token_id=0, eos_token_id=2, tie_word_embeddings=False))
-    # A stable protocol fixture: quote > a > EOS. Schema recovery must still
-    # enforce the key, punctuation, nonempty value, closing brace, and EOS.
-    # This avoids expecting an untrained random model to learn JSON in one epoch.
+    # A deterministic native-model protocol fixture: one complete JSON token,
+    # then EOS. Its embedding changes sign after that answer so FP16/NF4
+    # rounding cannot turn the random base into an endless string generator.
     with torch.no_grad():
         model.model.embed_tokens.weight.zero_()
         model.model.embed_tokens.weight[:, 0] = 1
+        for answer in answers:
+            model.model.embed_tokens.weight[vocabulary[answer], 0] = -1
         model.model.norm.weight.zero_()
         model.model.norm.weight[0] = 1
         model.lm_head.weight.zero_()
-        model.lm_head.weight[vocabulary['"'], 0] = 4
-        model.lm_head.weight[vocabulary['a'], 0] = 3
-        model.lm_head.weight[2, 0] = 2
+        model.lm_head.weight[vocabulary[answers[0]], 0] = 5
+        model.lm_head.weight[2, 0] = -4
     model.save_pretrained(base)
     for task, filename in (("classification", "baseline.json"), ("correction", "correction.json")):
         config = json.loads((PROJECT / "configs" / filename).read_text())
-        config["model"].update(name=str(base), revision="fixture", load_in_4bit=device == "cuda",
+        config["model"].update(name=str(base), revision="fixture", load_in_4bit=device == "cuda" and not final_lora, device_map="single",
                                compute_dtype="float16" if device == "cuda" else "float32", attn_implementation="eager")
+        config["data"]["validation_fraction"] = 0 if final_lora else .2
+        if not final_lora:
+            config["model"].update(quant_type="nf4", use_double_quant=True)
         config["lora"].update(r=2, lora_alpha=4, target_modules=["q_proj", "v_proj"])
         config["training"].update(max_length=128, effective_batch_size=4)
         config["training"]["args"].update(num_train_epochs=1, optim="adamw_torch", learning_rate=1e-3,
@@ -90,6 +94,10 @@ def fixture(root, device):
         else:
             config["generation"]["max_new_tokens"] = 8
         write_json(root / f"{task}.json", config)
+    if final_lora:
+        from tools.package_final_training import final_bundle
+        for stage, filename in [("classification", "VGEC_classifier.json"), ("correction", "VGEC_balanced.json")]:
+            write_json(data / filename, final_bundle(data / filename, stage))
     recipe = json.loads((PROJECT / "configs/experiment.json").read_text())
     recipe.update(name="tiny-pipeline", classification_config=str(root / "classification.json"),
                   correction_config=str(root / "correction.json"),mode="both",classifier_run=None)
@@ -104,10 +112,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
     parser.add_argument("--world-size", type=int, choices=(1, 2), default=1)
+    parser.add_argument("--final-lora", action="store_true", help="Exercise full training without quantization or validation")
     args = parser.parse_args()
     root = resolve_output({"run": {"name": f"smoke-{args.device}-{args.world_size}", "output_root": "runs"}})
     root.mkdir(mode=0o700)
-    data = fixture(root, args.device)
+    data = fixture(root, args.device, args.final_lora)
     work, command = prepare_run(root / "experiment.json", data, root / "outputs",
                                 device=args.device, world_size=args.world_size)
     env = {**os.environ, "OMP_NUM_THREADS": "1", "USE_TF": "0", "USE_FLAX": "0"}
@@ -127,6 +136,15 @@ def main():
     assert (run / "classification/oof_metrics.json").is_file() == expected_folds
     assert (run / "classification/hints.json").is_file() == expected_folds
     assert (run / "correction/metrics.json").is_file()
+    if args.final_lora:
+        for stage, flag in [("classification", "saved_classifier_reload_verified"), ("correction", "saved_adapter_reload_verified")]:
+            stage_manifest = json.loads((run / stage / "run_manifest.json").read_text())
+            assert stage_manifest["final_fit"] and stage_manifest[flag]
+            assert not stage_manifest["model"]["load_in_4bit"]
+            assert json.loads((run / stage / "validation.json").read_text()) == []
+            assert json.loads((run / stage / "metrics.json").read_text())["classification"] is None
+            assert len(json.loads((run / stage / "train.json").read_text())) >= 25
+        assert manifest["combined_score"] is None
     inference = json.loads((run / "correction/adapter/inference.json").read_text())
     assert inference["hint_mode"] == json.loads((root / "correction.json").read_text())["inference"]["hint_mode"]
     print(json.dumps({"status": "passed", "device": args.device, "world_size": args.world_size,

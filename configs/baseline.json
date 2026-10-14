@@ -1,10 +1,10 @@
 {
   "task": "classification",
   "run": {
-    "name": "qwen2.5-7b-baseline-seed42",
+    "name": "sailor7b-lora-full-training",
     "output_root": "runs",
     "device": "cuda",
-    "world_size": 2,
+    "world_size": 1,
     "seed": 42
   },
   "tracking": {
@@ -21,18 +21,17 @@
     "correction_path": null,
     "correction_filename": "VGEC_balanced.json",
     "input_root": "/kaggle/input",
-    "validation_fraction": 0.2,
+    "validation_fraction": 0,
     "augmentation_path": null,
     "augmentation_filename": "VGEC_classifier.json"
   },
   "model": {
-    "name": "Qwen/Qwen2.5-7B-Instruct",
-    "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
-    "load_in_4bit": true,
-    "compute_dtype": "bfloat16",
-    "quant_type": "nf4",
-    "use_double_quant": true,
-    "attn_implementation": "sdpa"
+    "name": "sail/Sailor-7B-Chat",
+    "revision": "19066fae0a8a3ba029c190d8e3dacccf4d1234b8",
+    "load_in_4bit": false,
+    "compute_dtype": "float16",
+    "attn_implementation": "sdpa",
+    "device_map": "balanced"
   },
   "lora": {
     "r": 16,
@@ -69,7 +68,7 @@
       "gradient_checkpointing_kwargs": {
         "use_reentrant": false
       },
-      "optim": "paged_adamw_8bit",
+      "optim": "adamw_torch",
       "logging_steps": 10,
       "dataloader_num_workers": 0,
       "lr_scheduler_type": "cosine",
