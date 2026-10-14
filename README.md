@@ -1,12 +1,12 @@
-# Private Kaggle augmentation recovery
+# Augmentation on hold — local evidence first
 
-Branch `kaggle-augment` now **reviews the saved generation run**. It reuses 148 translated references and 249 Qwen proposals, rejects 198 mechanically invalid proposals before inference, and reviews the remaining 51. It does not repeat translation, authoring, classifier training, or corrector training.
+Branch `kaggle-augment` preserves an implementation to **review the saved generation run after local qualification**. It reuses 148 translated references and 249 Qwen proposals, rejects 198 mechanically invalid proposals before inference, and reviews the remaining 51. It does not repeat translation, authoring, classifier training, or corrector training.
 
-Upload **`VGEC26-augmentation-recovery-20261015.zip`** as a private Kaggle dataset and attach it to the existing notebook. The upload's enclosing folder name can vary. Use Internet and GPU T4 ×2, retain the repository-read `GITHUB_TOKEN` secret, and choose Save Version → Save & Run All. The launcher fetches `kaggle-augment` and runs the committed recipe. There are no notebook experiment toggles. The previous zero-yield augmented ZIP is not the recovery input.
+**Do not launch another Kaggle run yet.** The local Qwen3 check failed; a subsequent four-checkpoint local cross-check found zero candidates with both classifier subtype agreement and both correctors matching the proposed reference. None is approved. Read `agents/experiments/LOCAL_AUGMENTATION_SCREEN_20261015.md`/.json. The user does not need to upload anything now. The private recovery ZIP remains preserved for a future qualified pipeline; it is not training data. Notebook experiments remain committed choices with no toggles.
 
 The recovery ZIP contains the unchanged original/585-row classifier/495-row corrector baselines and a pinned private packet of saved generation evidence. It is **an input package, not newly augmented training data**. Both stages retain all 81 former local validation rows, which no longer provide independent validation. Official public/private test inputs are not needed or read.
 
-**Current evidence:** the bounded local NF4 reviewer check failed a known sentence-structure correction. No new training rows are approved. The next Kaggle job is a native FP16 reviewer diagnostic first; it reviews candidates only if that check passes. Do not start retraining from the recovery input or the older baseline-only output.
+**Current evidence:** the bounded local NF4 reviewer check failed a known sentence-structure correction. No new training rows are approved. An untested native FP16 diagnostic is not justified as the next action. Positive local review-quality evidence and a meaningful small comparison are prerequisites for recommending a Kaggle run. Do not start retraining from the recovery input or the older baseline-only output.
 
 ## What runs
 
