@@ -1,6 +1,6 @@
 # Separate Kaggle augmentation preparation — 2026-10-14
 
-Status: implemented and locally verified; full-size Kaggle generation and downstream score results pending. This record belongs to its implementation commit; each run records the exact clean checkout SHA. Source baseline030cb13; planning commitaa97831. Branch kaggle-augment preserves training branch kaggle-linux at030cb1398ab1ce3bb2f9d2b5f449897746d1a034 and all prior data/runs.
+Status: implemented and locally verified; full-size Kaggle generation and downstream score results pending. Implementation commit26e3627; each run records the exact clean checkout SHA. The clean committed CLI preflight also passes with simulated dual-T4 hardware and actual canonical inputs/native metadata. Source baseline030cb13; planning commitaa97831. Branch kaggle-augment preserves training branch kaggle-linux at030cb1398ab1ce3bb2f9d2b5f449897746d1a034 and all prior data/runs.
 
 The user asks for a dedicated augmentation branch on the approved full-training dataset and delegates pipeline/budget choices. The existing notebook launcher now launches tools.run_augmentation and links the dataset ZIP. No notebook recipe switches, default training, folds or hints. Exact model revisions, native counts, input hashes and budgets are in AUGMENTATION_20261014.json and configs/augmentation.json.
 

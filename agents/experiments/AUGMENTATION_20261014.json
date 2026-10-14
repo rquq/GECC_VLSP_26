@@ -8,7 +8,7 @@
     "name": "kaggle-linux",
     "commit": "030cb1398ab1ce3bb2f9d2b5f449897746d1a034"
   },
-  "source_commit": "The implementation commit containing this record; runtime records exact clean checkout SHA",
+  "source_commit": "26e36274fda5a1fcc81f46b852d85ab0b57ddd2e",
   "base_commit": "030cb1398ab1ce3bb2f9d2b5f449897746d1a034",
   "planning_commit": "aa97831",
   "config": {
@@ -162,7 +162,13 @@
       "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-readiness-final-20261014/vgec-augment-cpu-smoke-final.log",
       "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-readiness-final-20261014/vgec-augment-cuda-smoke-final.log",
       "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-readiness-final-20261014/vgec-augment-suite-final.log"
-    ]
+    ],
+    "committed_cli_preflight": {
+      "status": "passed",
+      "source_commit": "26e36274fda5a1fcc81f46b852d85ab0b57ddd2e",
+      "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-readiness-final-20261014/committed-cli-26e3627",
+      "scope": "Actual clean committed entrypoint and canonical inputs; real pinned native metadata; simulated dual-T4 hardware; no weights or generation"
+    }
   },
   "review": {
     "fresh_read_only_reviewer": "augmentation_review",

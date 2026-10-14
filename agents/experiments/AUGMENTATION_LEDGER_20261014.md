@@ -13,3 +13,5 @@ Fresh reviewer: three initial Important findings, all reproduced before fixes: f
 Follow-up: one additional Important hard-termination elapsed-time gap. Active wall checkpoints now charge interrupted time conservatively, including offline time after hard termination. No-close loading/generation and graceful-close tests pass. Reviewer confirms no remaining Important/Critical findings.
 Final verification:172 regression tests (27.529s),17 focused augmentation tests in Transformers5.6, actual tiny CPU/CUDA generation and ZIP/loader mechanics. Evidence: runs/augmentation-readiness-final-20261014. Full-size Kaggle generation and score gains remain pending.
 Ruling: Stop adding tests once checks and review fixes pass; preserve model/data uncertainty explicitly. Code/aggregate docs only in Git; corpus-bearing artifacts remain ignored.
+
+Delivery: implementation26e3627 committed; clean committed CLI preflight passes for actual baseline/pinned architectures with simulated dual-T4 hardware. This aggregate record update precedes publication of kaggle-augment. Exact remote delivery is verified after push; no production Kaggle execution is claimed.
