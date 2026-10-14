@@ -2090,20 +2090,44 @@
     },
     {
       "id": "kaggle-augmentation-preparation-20261014",
-      "status": "implemented_locally_verified_full_size_kaggle_generation_pending",
+      "status": "full_size_generation_completed_zero_accepted_pairs",
       "branch": "kaggle-augment",
       "evidence": "agents/experiments/AUGMENTATION_20261014.json",
       "training_rerun": false,
-      "real_corpus_generation": false
+      "real_corpus_generation": true,
+      "full_size_run_record": "agents/experiments/AUGMENTATION_RUN_20261014.json",
+      "accepted_error_pairs": 0,
+      "new_rows_per_stage": 0
     },
     {
       "id": "augmentation-phase-memory-fix-20261014",
-      "status": "implemented_and_locally_verified_kaggle_rerun_pending",
+      "status": "full_size_rerun_completed_memory_fix_confirmed_zero_augmentation",
       "branch": "kaggle-augment",
       "evidence": "agents/experiments/AUGMENTATION_MEMORY_FIX_20261014.json",
       "reported_translations": 148,
       "real_local_corpus_generation": false,
-      "training_rerun": false
+      "training_rerun": false,
+      "full_size_run_record": "agents/experiments/AUGMENTATION_RUN_20261014.json",
+      "run_source_commit": "15d2694093e9b6e758bf8cd36d11a009c3c8ca6d",
+      "oom": false,
+      "accepted_error_pairs": 0
+    },
+    {
+      "id": "augmentation-full-size-run-review-format-20261014",
+      "status": "completed_zero_accepted_augmentation_followup_retry_code_prepared",
+      "branch": "kaggle-augment",
+      "evidence": "agents/experiments/AUGMENTATION_RUN_20261014.json",
+      "run_source_commit": "15d2694093e9b6e758bf8cd36d11a009c3c8ca6d",
+      "followup_code_commit": "969f22c99c7a3f6f51d90b2d1434217c85ad586e",
+      "calls": 1071,
+      "selected_parents": 96,
+      "translated_references": 148,
+      "authored_candidates": 249,
+      "structured_review_outputs": 0,
+      "accepted_pairs": 0,
+      "new_rows_per_stage": 0,
+      "training_rerun": false,
+      "score": null
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "schema": "vgec-kaggle-augmentation-preparation-v1",
   "date": "2026-10-14",
-  "status": "implemented_locally_verified_full_size_kaggle_generation_pending",
+  "status": "full_size_run_completed_zero_accepted_pairs_followup_retry_prepared",
   "request": "Separate augmentation-only Kaggle branch built on the full-training dataset including former validation; reuse launcher; pipeline/budget delegated",
   "branch": "kaggle-augment",
   "preserved_training_branch": {
@@ -151,8 +151,8 @@
     },
     "native_metadata_and_input_audit": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-readiness-final-20261014/native-preflight.json",
     "eligible_parents": 96,
-    "full_size_weights_loaded": false,
-    "physical_dual_T4_execution": false,
+    "full_size_weights_loaded": true,
+    "physical_dual_T4_execution": true,
     "placement_scope": "Real native architectures, simulated two15GiB-free GPUs",
     "notebook_cell_syntax_and_empty_outputs": "passed",
     "baseline_archive_unchanged": true,
@@ -168,6 +168,20 @@
       "source_commit": "26e36274fda5a1fcc81f46b852d85ab0b57ddd2e",
       "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-readiness-final-20261014/committed-cli-26e3627",
       "scope": "Actual clean committed entrypoint and canonical inputs; real pinned native metadata; simulated dual-T4 hardware; no weights or generation"
+    },
+    "full_size_run": {
+      "record": "agents/experiments/AUGMENTATION_RUN_20261014.json",
+      "path": "runs/augment/augmentation-runs/hy-qwen-sailor-reviewed-roundtrip-20261014T094859674639Z",
+      "source_commit": "15d2694093e9b6e758bf8cd36d11a009c3c8ca6d",
+      "models_loaded_native_fp16": true,
+      "gpu_count": 2,
+      "selected_parents": 96,
+      "translated_references": 148,
+      "authored_candidates": 249,
+      "structured_reviewer_outputs": 0,
+      "accepted_error_pairs": 0,
+      "new_rows_per_stage": 0,
+      "archive_sha256": "0cf8045889e17ce51691a75c72a668af342c339fc7a1cc3de96d4e6be79c7196"
     }
   },
   "review": {
@@ -187,12 +201,19 @@
   "results": {
     "new_corpus_samples": 0,
     "downstream_training": false,
-    "score_gain": null
+    "score_gain": null,
+    "full_size_run_completed": true,
+    "accepted_error_pairs": 0,
+    "new_rows_per_stage": 0
   },
   "evidence_directory": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-readiness-final-20261014",
   "followup": {
     "record": "agents/experiments/AUGMENTATION_MEMORY_FIX_20261014.json",
     "user_reported_translated_references": 148,
-    "dataset_generation": "failed at Qwen startup memory precheck; separate FP16 worker fix locally verified; full-size rerun pending"
+    "dataset_generation": "full-size dual-GPU FP16 run completed without OOM; 148 references and 249 authored candidates; Sailor returned zero parseable JSON review objects; accepted pairs and added rows were zero",
+    "full_size_run_record": "agents/experiments/AUGMENTATION_RUN_20261014.json",
+    "run_source_commit": "15d2694093e9b6e758bf8cd36d11a009c3c8ca6d",
+    "retry_code_commit": "969f22c99c7a3f6f51d90b2d1434217c85ad586e",
+    "retry_config_sha256": "50d2cd963876f214d2d7be10dccae0813d88215b41abd70b35d2ae6eeeae6d90"
   }
 }
