@@ -15,7 +15,25 @@ from model.data import load_training_split
 from augmentation.pipeline import run_pipeline
 from augmentation.journal import Journal
 from augmentation.inference import NativeEngine
+from augmentation.worker import ProcessEngine
 from agents.tests.smoke_pipeline import fixture
+
+_RETAINED_MODELS = []
+
+
+class RetainingSingleGpuFixtureEngine(NativeEngine):
+    """Test only: simulate live hook/model references on the single laptop GPU."""
+    def __init__(self, settings, device):
+        def placement(model, device):
+            return {'parameters': sum(p.numel() for p in model.parameters()), 'device_map': {'': 'cuda:0'},
+                    'memory_budget': {}, 'tied_embeddings': model.get_input_embeddings().weight is model.get_output_embeddings().weight}
+        with patch('augmentation.inference.layer_placement', side_effect=placement): super().__init__(settings, device)
+        from accelerate import dispatch_model
+        self.model = dispatch_model(self.model, {'': 'cuda:0'}, force_hooks=True)
+
+    def close(self):
+        if self.model is not None: _RETAINED_MODELS.append(self.model)
+        super().close()
 
 
 class ScriptedCaller:
@@ -76,21 +94,22 @@ def main():
     native_recipe={**recipe,'models':roles,'run':{**recipe['run'],'device':args.device}}
     native_recipe['generation']['max_new_tokens']=8
     native_recipe['translation']['max_new_tokens']=8
-    def single_placement(model,device):
-        return {'parameters':sum(p.numel() for p in model.parameters()),'device_map':{'':'cuda:0'},
-                'memory_budget':{},'tied_embeddings':model.get_input_embeddings().weight is model.get_output_embeddings().weight}
-    from contextlib import nullcontext
-    placement=patch('augmentation.inference.layer_placement',side_effect=single_placement) if args.device=='cuda' else nullcontext()
-    with placement:
-        with Journal(root/'native',native_recipe,{'fixture':True},NativeEngine) as journal:
-            generated=journal.call('author','native-author','label0 item1 token .',False)
-            assert generated['status']=='completed' and isinstance(json.loads(generated['text']),dict)
-            journal.call('reviewer','native-review','label1 item2 token .',False)
-        with Journal(root/'native',native_recipe,{'fixture':True},NativeEngine) as journal:
-            assert journal.call('author','native-author','label0 item1 token .',False)==generated
+    workers = []
+    def factory(settings, device):
+        engine = ProcessEngine(settings, device, RetainingSingleGpuFixtureEngine if device == 'cuda' else NativeEngine)
+        workers.append(engine); return engine
+    with Journal(root/'native',native_recipe,{'fixture':True},factory) as journal:
+        generated=journal.call('author','native-author','label0 item1 token .',False)
+        assert generated['status']=='completed' and isinstance(json.loads(generated['text']),dict)
+        journal.call('reviewer','native-review','label1 item2 token .',False)
+    with Journal(root/'native',native_recipe,{'fixture':True},factory) as journal:
+        assert journal.call('author','native-author','label0 item1 token .',False)==generated
+    assert len(workers) == 2 and all(not engine.process.is_alive() for engine in workers)
+    assert workers[0].audit['worker_pid'] != workers[1].audit['worker_pid']
     write_json(root/'verification.json',{'status':'passed','scope':'Toy/no-download mechanics only; no real corpus augmentation or score claim',
                'device':args.device,'scripted_accepted_pairs':result['accepted_error_pairs'],'native_parameters':count,
-               'native_journal_resume_verified':True,'run':str(root)})
+               'native_journal_resume_verified':True,'isolated_worker_pids':[w.audit['worker_pid'] for w in workers],
+               'all_workers_exited':True,'forced_hooks_and_retained_model_fixture':args.device=='cuda','run':str(root)})
     print(json.dumps(json.loads((root/'verification.json').read_text()),indent=2))
 
 

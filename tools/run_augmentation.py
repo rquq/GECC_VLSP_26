@@ -11,7 +11,8 @@ from tools.run_experiment import resolve_inputs
 from tools.experiment_log import record
 from augmentation.config import load_recipe
 from augmentation.data import baselines
-from augmentation.inference import NativeEngine, native_audit
+from augmentation.inference import native_audit
+from augmentation.worker import ProcessEngine
 from augmentation.journal import Journal
 from augmentation.pipeline import run_pipeline
 
@@ -74,7 +75,7 @@ def main():
     if (work / 'pipeline_manifest.json').is_file():
         result = json.loads((work / 'pipeline_manifest.json').read_text())
         if result.get('status') in ('completed','completed_no_accepted_augmentation'):
-            with Journal(work, recipe, identity, NativeEngine): pass
+            with Journal(work, recipe, identity, ProcessEngine): pass
             for entry in result['files'].values():
                 if hashlib.sha256(Path(entry['path']).read_bytes()).hexdigest() != entry['sha256']:
                     raise ValueError('Completed dataset file changed')
@@ -84,7 +85,7 @@ def main():
             return
     record(work, 'started', experiment=recipe['name'], commit=source['commit'], seed=42)
     try:
-        with Journal(work, recipe, identity, NativeEngine) as caller:
+        with Journal(work, recipe, identity, ProcessEngine) as caller:
             result = run_pipeline(inputs, recipe, caller, work, source)
         record(work, 'completed', experiment=recipe['name'], accepted_error_pairs=result['accepted_error_pairs'],
                augmentation_rows=result['new_rows_per_stage'], archive_sha256=result['archive']['sha256'])

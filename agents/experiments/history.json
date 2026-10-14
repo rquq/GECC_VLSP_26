@@ -2095,6 +2095,15 @@
       "evidence": "agents/experiments/AUGMENTATION_20261014.json",
       "training_rerun": false,
       "real_corpus_generation": false
+    },
+    {
+      "id": "augmentation-phase-memory-fix-20261014",
+      "status": "implemented_and_locally_verified_kaggle_rerun_pending",
+      "branch": "kaggle-augment",
+      "evidence": "agents/experiments/AUGMENTATION_MEMORY_FIX_20261014.json",
+      "reported_translations": 148,
+      "real_local_corpus_generation": false,
+      "training_rerun": false
     }
   ]
 }

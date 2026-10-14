@@ -21,6 +21,43 @@ class FakeEngine:
     def close(self): type(self).closed += 1
 
 
+class WorkerFixture:
+    def __init__(self, settings, device): self.audit = {'parameters': 1, 'quantized': False}
+    def generate(self, prompt, *args):
+        if prompt == 'reject': raise ValueError('fixture input limit')
+        if prompt == 'fail': raise RuntimeError('fixture generation failure')
+        return prompt
+    def close(self): pass
+
+
+class ProcessIsolationTests(unittest.TestCase):
+    def test_close_exits_worker_and_next_model_uses_another_process(self):
+        from augmentation.worker import ProcessEngine
+        import os
+        first = ProcessEngine({}, 'cpu', WorkerFixture)
+        pid = first.audit['worker_pid']
+        self.assertNotEqual(pid, os.getpid())
+        self.assertEqual(first.generate('fixture', False, {}, 42), 'fixture')
+        first.close(); self.assertFalse(first.process.is_alive())
+        second = ProcessEngine({}, 'cpu', WorkerFixture)
+        self.addCleanup(second.close)
+        self.assertNotEqual(second.audit['worker_pid'], pid)
+        self.assertEqual(second.generate('next', False, {}, 42), 'next')
+
+    def test_worker_preserves_input_and_runtime_errors(self):
+        from augmentation.worker import ProcessEngine
+        engine = ProcessEngine({}, 'cpu', WorkerFixture); self.addCleanup(engine.close)
+        with self.assertRaises(ValueError): engine.generate('reject', False, {}, 42)
+        with self.assertRaises(RuntimeError): engine.generate('fail', False, {}, 42)
+        self.assertEqual(engine.generate('after', False, {}, 42), 'after')
+
+    def test_unexpected_worker_exit_is_reported_as_runtime_failure(self):
+        from augmentation.worker import ProcessEngine
+        engine = ProcessEngine({}, 'cpu', WorkerFixture); self.addCleanup(engine.close)
+        engine.process.kill(); engine.process.join()
+        with self.assertRaises(RuntimeError): engine.generate('after exit', False, {}, 42)
+
+
 class JournalTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)

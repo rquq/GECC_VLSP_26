@@ -164,3 +164,8 @@ TRANSLATION_MODELS_20261014.md/.json recommends Apache-2.0 Hy-MT2-7B and its1.8B
 ## Separate Kaggle augmentation preparation — 2026-10-14
 
 AUGMENTATION_20261014.md/.json records the user-requested kaggle-augment branch, preserving the585/495/all81 baseline and training branch030cb13. Hy7B round trips, Qwen7B minimal proposals and independent blind Sailor7B review run sequentially, bounded by96 parents,200 accepted errors plus matched controls and1344 calls/360 active minutes. Strict append-only bundles, durable failure budgets, atomic export/resume and reused toggle-free notebook are implemented. Real tiny CPU/CUDA inference and scripted data mechanics pass; native metadata/actual input checks pass with simulated dual-T4 placement. Four fresh-review Important findings were reproduced and fixed; follow-up confirmed no remaining Important/Critical issue.172 regression and17 focused augmentation tests pass. Full-size Kaggle generation/quality/downstream scores remain pending; no real new corpus samples or historical training reruns.
+
+
+## Augmentation phase-memory failure and worker isolation — 2026-10-14
+
+AUGMENTATION_MEMORY_FIX_20261014.md/.json records the user Kaggle log:96 parents/148 translated references then Qwen startup memory precheck fails9.30GiB needed/7.36GiB free. Exact retained owner is unknown. Native FP16, recipe, hashes and prompts remain unchanged; each model now runs in its own spawned worker, with exit verified before next load.175 regression/20 focused tests and a real tiny CUDA worker test with deliberately retained references pass. Full-size Kaggle rerun remains pending; no accepted official augmentation or score gain is claimed.

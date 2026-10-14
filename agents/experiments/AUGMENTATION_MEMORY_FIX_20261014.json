@@ -1,0 +1,90 @@
+{
+  "schema": "vgec-augmentation-worker-memory-fix-v1",
+  "date": "2026-10-14",
+  "status": "implemented_and_locally_verified_kaggle_rerun_pending",
+  "branch": "kaggle-augment",
+  "base_source_commit": "05304d7e2aa7b2fa6533de1ffe3f1d22408290de",
+  "user_request": "Investigate pasted augmentation failure and retain maximum data generation quality; is2x15GB sufficient or must quantize?",
+  "reported_kaggle_run": "/kaggle/working/augmentation-runs/hy-qwen-sailor-reviewed-roundtrip-20261014T071611360328Z",
+  "reported_source_commit": null,
+  "source_commit_scope": "Pasted excerpt does not show runtime source SHA; base_source_commit is the published local source before this fix",
+  "reported_results": {
+    "parents": 96,
+    "novel_references": 148,
+    "translator_inference": "completed according to user log",
+    "author_started": false,
+    "accepted_augmented_pairs": 0,
+    "failure": "RuntimeError: cuda:0 needs estimated9.30GiB; free7.36GiB",
+    "failure_phase": "native Qwen audit before weight loading",
+    "elapsed_to_failure_seconds": 1232.5
+  },
+  "log": {
+    "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-phase-memory-20261014/user-kaggle.log",
+    "sha256": "347ab6a241787d0723fd85450386330a0ff8c7cb4bbdb6094c557bc8b016dd9b"
+  },
+  "diagnosis": {
+    "confirmed": "Single-process phase transition has insufficient reported free memory after completed translation; precheck fails before Qwen weights load",
+    "exact_retained_owner": "Unverified: log lacks allocated/reserved/per-process memory; local tiny in-process force-hook checks do not reproduce7GB retention",
+    "mitigation": "Each native model now lives in a persistent spawned child process. Parent journals strings/audits only, waits for worker exit before next role, retains memory snapshots and cleans temporary weight cache. Worker exit releases its CUDA context independently of Python hook/reference cleanup."
+  },
+  "preserved": {
+    "precision": "native FP16",
+    "quantization": false,
+    "model_revisions_and_sizes": true,
+    "prompts_sampling_and_seed": true,
+    "caps_and_budgets": true,
+    "baseline_585_495_all81": true,
+    "config_sha256": "60bd3be9a9f91fbb4a2062be53f25355014b7104c4457546e15d827b577316b3"
+  },
+  "verification": {
+    "regression_tests": 175,
+    "regression_seconds": 29.209,
+    "focused_tests_transformers56": 20,
+    "focused_seconds": 6.94,
+    "actual_cuda_tiny_worker_smoke": {
+      "status": "passed",
+      "scope": "Toy/no-download mechanics only; no real corpus augmentation or score claim",
+      "device": "cuda",
+      "scripted_accepted_pairs": 2,
+      "native_parameters": 18944,
+      "native_journal_resume_verified": true,
+      "isolated_worker_pids": [
+        88419,
+        88704
+      ],
+      "all_workers_exited": true,
+      "forced_hooks_and_retained_model_fixture": true,
+      "run": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-mechanics-cuda-20261014T084834088851Z"
+    },
+    "test_scope": "Actual tiny native inference in separate processes on one laptop GPU, forced Accelerate hooks and deliberately retained model object; both workers exit and cached resume avoids extra workers. Scripted corpus fixture only.",
+    "physical_dual_T4_rerun": false,
+    "full_size_author_review_and_zip": false,
+    "review": "Fresh read-only review: no Important/Critical issue; minor dead-worker send exception reproduced and normalized with a regression test",
+    "actual_cpu_tiny_worker_smoke": {
+      "status": "passed",
+      "scope": "Toy/no-download mechanics only; no real corpus augmentation or score claim",
+      "device": "cpu",
+      "scripted_accepted_pairs": 2,
+      "native_parameters": 18944,
+      "native_journal_resume_verified": true,
+      "isolated_worker_pids": [
+        89252,
+        89399
+      ],
+      "all_workers_exited": true,
+      "forced_hooks_and_retained_model_fixture": false,
+      "run": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-mechanics-cpu-20261014T085017009379Z"
+    },
+    "logs": [
+      "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-phase-memory-20261014/vgec-worker-cpu-smoke.log",
+      "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-phase-memory-20261014/vgec-worker-cuda-smoke.log",
+      "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-phase-memory-20261014/vgec-worker-focused-tests.log",
+      "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-phase-memory-20261014/vgec-worker-regression-tests.log"
+    ]
+  },
+  "evidence_directory": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-phase-memory-20261014",
+  "notes": [
+    "Prior148 references require saved translation/call journals for recovery; log alone cannot reconstruct corpus",
+    "Changed source still requires a fresh run under existing strict source-identity contract; no silent cross-commit cache import"
+  ]
+}

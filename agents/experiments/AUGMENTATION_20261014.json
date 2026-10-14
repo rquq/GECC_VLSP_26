@@ -189,5 +189,10 @@
     "downstream_training": false,
     "score_gain": null
   },
-  "evidence_directory": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-readiness-final-20261014"
+  "evidence_directory": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/augmentation-readiness-final-20261014",
+  "followup": {
+    "record": "agents/experiments/AUGMENTATION_MEMORY_FIX_20261014.json",
+    "user_reported_translated_references": 148,
+    "dataset_generation": "failed at Qwen startup memory precheck; separate FP16 worker fix locally verified; full-size rerun pending"
+  }
 }

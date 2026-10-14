@@ -15,3 +15,5 @@ Final verification:172 regression tests (27.529s),17 focused augmentation tests 
 Ruling: Stop adding tests once checks and review fixes pass; preserve model/data uncertainty explicitly. Code/aggregate docs only in Git; corpus-bearing artifacts remain ignored.
 
 Delivery: implementation26e3627 committed; clean committed CLI preflight passes for actual baseline/pinned architectures with simulated dual-T4 hardware. This aggregate record update precedes publication of kaggle-augment. Exact remote delivery is verified after push; no production Kaggle execution is claimed.
+
+Follow-up user Kaggle log:148 translations completed, Qwen memory precheck failed9.30GiB required/7.36GiB free. Retained allocation owner remains unverified. Spawned worker isolation now releases each model CUDA context before next phase while preserving FP16/pins/prompts/recipe and dataset prefixes.175 regression/20 focused tests, actual CPU/CUDA worker inference with deliberate retained model references, and fresh review pass. Full-size Kaggle rerun remains pending; see AUGMENTATION_MEMORY_FIX_20261014.md/.json.
