@@ -84,7 +84,8 @@
       "sampled": 0,
       "accepted_samples": 0,
       "elapsed_seconds": 168.27860110399342,
-      "calls": 5
+      "calls": 5,
+      "new_inference_calls": 5
     },
     {
       "path": "runs/augmentation-recovery-probe2-20261015",
@@ -101,7 +102,8 @@
       "sampled": 0,
       "accepted_samples": 0,
       "elapsed_seconds": 154.13797244499438,
-      "calls": 5
+      "calls": 5,
+      "new_inference_calls": 5
     },
     {
       "path": "runs/augmentation-recovery-probe3-20261015",
@@ -234,7 +236,7 @@
     "public_score": null
   },
   "verification": {
-    "status": "repository_and_focused_tests_and_cpu_smoke_passed_native_fp16_pending",
+    "status": "completed_for_documented_local_scope_native_fp16_pending",
     "focused": {
       "tests": 47,
       "environment": "Transformers5.6.0",
@@ -270,9 +272,43 @@
       "kaggle_code_cells": 4,
       "local_code_cells": 1,
       "new_experiment_toggles": 0
+    },
+    "committed_cli_preflight": {
+      "source_commit": "8cd7de03bb3ca2545ddcde10b253dbedaa64299b",
+      "source_dirty": false,
+      "exit_code": 0,
+      "environment": "Transformers5.6.0",
+      "device": "CPU meta placement, no weights loaded",
+      "reviewer_only": true,
+      "parameters": 4022468096,
+      "log": "runs/augmentation-recovery-committed-preflight-20261015.log",
+      "artifact": "runs/augmentation-recovery-committed-preflight-20261015/preflight.json",
+      "config": "runs/augmentation-recovery-preflight-config-20261015.json",
+      "deviation_from_kaggle": "Only run.device changed to cpu; Kaggle remains native FP16 on two GPUs."
+    },
+    "committed_cli_failure_fixture": {
+      "source_commit": "8cd7de03bb3ca2545ddcde10b253dbedaa64299b",
+      "source_dirty": false,
+      "exit_code": 0,
+      "device": "CPU",
+      "environment": "Transformers5.6.0",
+      "reviewer": "Native tiny18944-parameter fixture; not Qwen3 quality evidence",
+      "inputs": "Actual pinned private packet249 candidates/baselines585,495",
+      "mechanical_candidates": 51,
+      "calls": 2,
+      "worker_exitcode": 0,
+      "result_status": "reviewer_check_failed",
+      "dataset_produced": false,
+      "unexpected_failure_file": false,
+      "unchanged_resume_extra_calls": 0,
+      "logs": [
+        "runs/augmentation-recovery-committed-fixture-20261015.log",
+        "runs/augmentation-recovery-committed-fixture-resume-20261015.log"
+      ]
     }
   },
-  "total_new_local_reviewer_calls": 10,
+  "total_new_local_reviewer_calls": 20,
   "real_accepted_pairs": 0,
-  "new_training_rows": 0
+  "new_training_rows": 0,
+  "implementation_commit": "8cd7de03bb3ca2545ddcde10b253dbedaa64299b"
 }
