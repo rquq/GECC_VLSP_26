@@ -1,4 +1,10 @@
-# Augmentation on hold — local evidence first
+# Local retained and balanced dataset candidate
+
+The private package is built at `dataset/retained-balanced-20261015/VGEC26-retained-balanced-20261015.zip`. Both training views contain1360 rows:272 per class. Before explicit resampling, classifier945/corrector821 rows include320 new deterministic error pairs,32 UD-VTB train clean controls and all192 legacy pairs. All401 originals, including the eight previously excluded annotations, are retained unchanged for classification. Corrector excludes11 note targets and113 unresolved targets. Counts, licenses, hashes and limitations are recorded in `agents/experiments/RETAINED_BALANCED_20261015.md`/.json.
+
+This is a locally verified dataset candidate, with no model-score evidence. The existing notebook/default recipe and training branch remain preserved; uploading this ZIP does not automatically select it. No new Kaggle run has been started. Canonical and resampled arrays are both included, and the branch loaders understand the new format. Corpus-bearing artifacts stay private.
+
+## Preserved saved-generation recovery workflow
 
 Branch `kaggle-augment` preserves an implementation to **review the saved generation run after local qualification**. It reuses 148 translated references and 249 Qwen proposals, rejects 198 mechanically invalid proposals before inference, and reviews the remaining 51. It does not repeat translation, authoring, classifier training, or corrector training.
 

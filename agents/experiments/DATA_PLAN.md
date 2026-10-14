@@ -1,5 +1,7 @@
 # Data and score plan
 
+**Latest user authorization — 2026-10-15:** build a local retained/balanced dataset, and KEEP the eight previously excluded originals unchanged. `RETAINED_BALANCED_20261015.md`/.json records the completed private candidate: classifier945 canonical rows, corrector821; each balanced array1360 rows with272 per class. All401 classifier originals and192 legacy pairs per stage are retained;320 new reversible code errors and32 licensed UD-VTB train controls are added. Canonical counts are not resampled counts. The8 stay in classification/master; all11 note targets remain corrector-ineligible and are not oversampled.113 unresolved targets remain in the private queue. No new teacher, VGEC model training, target repairs or Kaggle launch. The earlier45–50% clean target/local-build hold is superseded for this request; the Kaggle evidence gate remains. Default configs/notebook and585/495 baseline stay preserved. The paragraphs below are historical snapshots where they conflict with this entry.
+
 The native-model review was approved and executed. LOCAL_REVIEW_RESULTS.md / .json record the failed synthetic pilot, negative Bami comparison and prepared five-repair corrector dataset. The production recipe is now corrector-only with the saved Sailor classifier. The earlier planning sequence below is historical; new work must use current evidence and receive authorization for any expanded budget.
 
 ## First comparison: cheap no-fold system

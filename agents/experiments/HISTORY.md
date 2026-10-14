@@ -1,5 +1,7 @@
 # Recovered experiment history
 
+2026-10-15 latest: RETAINED_BALANCED_20261015.md/.json — private retained/balanced candidate built and verified;320 new code pairs,32 external controls,8 originals restored unchanged, each training view1360/272 per class,213 tests. No new model/score/Kaggle run.113 unresolved corrector targets remain pending; prior model failures are not promoted.
+
 Recovery uses surviving run artifacts, archived agent notes, Git history, and maintenance records. No historical training was rerun. Private recovered notes can contain corpus text and remain ignored by Git.
 
 ## Surviving measured artifacts
