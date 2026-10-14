@@ -154,3 +154,8 @@ The user clarified they wanted all81 validation rows included in the new trainin
 ## Standard LoRA full-training preparation — 2026-10-14
 
 SAILOR_QWEN_LORA_20261014.md/.json records the user-requested Sailor7B classification / Qwen7B correction LoRA recipe, FP16 frozen bases and FP32 trainable adapters/head, fixed5/6 epochs and full585/495 populations including all81 former holdout rows. New source-validated final-training schema/ZIP, one-process dual-T4 layer splitting, AMP head recovery and null-score notebook handling are implemented. Real CPU/CUDA tiny fits/reloads/ZIPs and native architecture/memory simulations pass. Full-size Kaggle training and public scores remain pending;22 added target flags are retained, not inferred repairs. No historical training was rerun.
+
+
+## Translation model recommendation and native size audit — 2026-10-14
+
+TRANSLATION_MODELS_20261014.md/.json recommends Apache-2.0 Hy-MT2-7B and its1.8B sibling for a pilot. Native meta audits verify7,504,568,320 and1,791,080,448 unique parameters with tied embeddings. The initial stored-tensor8.029B exclusion was corrected. No model weights, generation, training or active recipe change occurred; corpus quality and downstream improvement remain unmeasured.

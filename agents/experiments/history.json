@@ -2081,6 +2081,12 @@
       "dataset_archive_sha256": "a0890a985bfe2809d4366d98975e6238aa55c4ddd7cd56abc86bd989ef55ffa3",
       "source_parent_commit": "8e5eaae05da842a9d7ec9ee4855fc3aa210924f5",
       "full_size_training_completed": false
+    },
+    {
+      "id": "translation-models-review-20261014",
+      "status": "recommendation_native_metadata_audit_completed_no_generation",
+      "record": "agents/experiments/TRANSLATION_MODELS_20261014.json",
+      "training_executed": false
     }
   ]
 }

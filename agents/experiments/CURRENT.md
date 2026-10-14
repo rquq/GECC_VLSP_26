@@ -46,3 +46,7 @@ Review preparation: 103 flagged original-training rows were checked for safe rec
 Historic evidence and failures: HISTORY.md and history.json index surviving metrics, recovered private archive notes, maintenance records and Git chronology. An artifact-backed metric is distinguished from an archived reported result or an implementation-only commit.
 
 The historical model review proposed PhoGPT, PhoBERT-large, BamiBERT, BARTpho, Sailor and a bounded Qwen teacher pilot. The user subsequently approved execution; the completed negative comparisons and prepared handoff are recorded above and in LOCAL_REVIEW_RESULTS.md. No unmeasured model replacement is active.
+
+## Translation augmentation recommendation (no production change)
+
+TRANSLATION_MODELS_20261014.md/.json recommends a Hy-MT2-7B quality pilot and1.8B fast local counterpart. Native parameter/license audit is complete; translation, synthetic data and quality comparisons are not. The current Sailor/Qwen LoRA recipe and its full-training ZIP remain unchanged.

@@ -1,0 +1,62 @@
+{
+  "schema": "vgec-translation-model-recommendation-v1",
+  "date": "2026-10-14",
+  "status": "recommendation_native_metadata_audit_completed_no_generation",
+  "request": "Suggest the best translation augmentation model with no more than8B parameters",
+  "source_commit": "f1f95d98386fd99284e3ea06151bdc521f60d696",
+  "primary": {
+    "model": "tencent/Hy-MT2-7B",
+    "revision": "9b0eb4e8f001def3e5ff6469a0ac96fdb39ec223",
+    "parameters": 7504568320,
+    "tied": true,
+    "scope": "Native meta initialization only; no model weights downloaded"
+  },
+  "local_fast_candidate": {
+    "model": "tencent/Hy-MT2-1.8B",
+    "revision": "9a341cd1b679d3efd23b46e847b01745a71ed792",
+    "parameters": 1791080448,
+    "tied": true,
+    "scope": "Native meta initialization only; no model weights downloaded"
+  },
+  "license": "Apache-2.0 verified in pinned publisher license for primary; current sibling license also Apache-2.0",
+  "primary_license": "https://huggingface.co/tencent/Hy-MT2-7B/blob/9b0eb4e8f001def3e5ff6469a0ac96fdb39ec223/LICENSE.txt",
+  "parameters_protocol": "Native Transformers5.6.0 AutoModelForCausalLM.from_config under Accelerate meta initialization; tie_weights; unique parameter.numel sum and pointer identity of embedding/head. No quantization or weight downloads.",
+  "count_correction": {
+    "initial_claim": "Prematurely excluded Hy-MT2-7B using the Hugging Face stored-tensor total8,029,540,352",
+    "corrected_native_unique": 7504568320,
+    "reason": "Configured tied embeddings/output head share524,972,032 parameters. Native model initialization verifies sharing. Untying raises count past8B and is ineligible."
+  },
+  "evidence": {
+    "directory": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/translation-model-review-20261014",
+    "native_configs_sha256": {
+      "Hy-MT2-1.8B-config.json": "e25b8c804bb8550e16f0ffe51c49e2279494f0c05ddcc2331adf87533c0f1ac2",
+      "Hy-MT2-7B-config.json": "534202c0c851cc3a5cfe2d445016abf6fbd256bb232bcb53aa1ba675a97ea35c"
+    },
+    "publisher_card": "https://huggingface.co/tencent/Hy-MT2-7B",
+    "research": "https://arxiv.org/html/2605.22064v1",
+    "rules": "https://aihub.ml/competitions/1038#learn_the_details-overview"
+  },
+  "quality_scope": "Publisher aggregate multilingual benchmarks and Vietnamese language support; no independent Vietnamese round-trip or downstream VGEC improvement measured.",
+  "local_inference": "Primary7B requires quantized inference or larger GPU. Recommend standard4-bit precision if native tying/count are preserved. Smaller1.8B can be piloted with FP16 and short inputs on8GB; actual peak memory unmeasured.",
+  "alternatives": [
+    {
+      "model": "google/translategemma-4b-it",
+      "role": "Challenger; advertised4B class, Gemma terms/gated access; not native-audited here. Synthetic-output training may invoke Model Derivatives terms."
+    },
+    {
+      "model": "facebook/nllb-200-3.3B",
+      "role": "Established encoder-decoder fallback; research/noncommercial CC-BY-NC-4.0; no new native/inference audit."
+    }
+  ],
+  "augmentation_plan": [
+    "Use reviewed complete clean training references as seeds; translate vi-en-vi; test an additional pivot only if pilot evidence warrants.",
+    "Review preservation of names,numbers,negation,meaning,fluency and exact-duplicate rate; quarantine uncertain returns.",
+    "Create matched clean controls and exactly one supported taxonomy error through an eligible generator or documented human review; do not inherit old error labels after translation.",
+    "Keep descendants with parents under grouped internal evaluation; former81 are training under the authorized final fit. Public/private tests remain inference-only.",
+    "Begin with50-100 training seeds and a controlled grouped internal comparison before corpus promotion. Record rejected examples, model revision/native count, prompts/settings/output hashes/review evidence."
+  ],
+  "generation_executed": false,
+  "model_weights_downloaded": false,
+  "training_executed": false,
+  "production_recipe_changed": false
+}
