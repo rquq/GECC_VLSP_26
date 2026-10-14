@@ -1,7 +1,7 @@
 {
   "schema": "vgec-kaggle-augmentation-preparation-v1",
   "date": "2026-10-14",
-  "status": "full_size_run_completed_zero_accepted_pairs_followup_retry_prepared",
+  "status": "two_full_size_runs_completed_zero_accepted_pairs",
   "request": "Separate augmentation-only Kaggle branch built on the full-training dataset including former validation; reuse launcher; pipeline/budget delegated",
   "branch": "kaggle-augment",
   "preserved_training_branch": {
@@ -214,6 +214,11 @@
     "full_size_run_record": "agents/experiments/AUGMENTATION_RUN_20261014.json",
     "run_source_commit": "15d2694093e9b6e758bf8cd36d11a009c3c8ca6d",
     "retry_code_commit": "969f22c99c7a3f6f51d90b2d1434217c85ad586e",
-    "retry_config_sha256": "50d2cd963876f214d2d7be10dccae0813d88215b41abd70b35d2ae6eeeae6d90"
+    "retry_config_sha256": "50d2cd963876f214d2d7be10dccae0813d88215b41abd70b35d2ae6eeeae6d90",
+    "completed_retry_record": "agents/experiments/AUGMENTATION_RETRY_20261014.json",
+    "completed_retry_run_path": "runs/augment/augmentation-runs/hy-qwen-sailor-reviewed-roundtrip-20261014T132131880892Z",
+    "completed_retry_source_commit": "018a9fbe9ea4ed9ad278cabaf643c069e3167ae4",
+    "completed_retry_accepted_error_pairs": 0,
+    "completed_retry_new_rows_per_stage": 0
   }
 }
