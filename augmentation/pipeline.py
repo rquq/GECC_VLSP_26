@@ -1,5 +1,6 @@
 """Translation, error authoring and independent blind review, in three model phases."""
 import json
+import math
 from pathlib import Path
 
 from model.data import _source_key
@@ -20,6 +21,50 @@ def parse_object(text):
     except (ValueError, TypeError): return None
 
 
+def review_schema_valid(kind, value):
+    if not isinstance(value, dict): return False
+    if kind == 'clean':
+        if any(type(value.get(key)) is not int for key in ('parent_label', 'translation_label')): return False
+        if any(type(value.get(key)) is not bool for key in ('meaning_preserved', 'names_and_numbers_preserved')): return False
+        evidence = value.get('evidence')
+    elif kind == 'error':
+        if type(value.get('source_label')) is not int: return False
+        if any(type(value.get(key)) is not bool for key in ('single_error', 'required_edit', 'meaning_preserved')): return False
+        if not isinstance(value.get('mechanism'), str) or not isinstance(value.get('correction'), str): return False
+        if not isinstance(value.get('other_error_types'), list) or any(not isinstance(item, str) for item in value['other_error_types']): return False
+        evidence = value.get('evidence')
+    else:
+        raise ValueError(f'Unknown reviewer schema: {kind}')
+    confidence = value.get('confidence')
+    return (type(confidence) in (int, float) and math.isfinite(confidence)
+            and isinstance(evidence, str))
+
+
+def request_review(caller, key, prompt, kind):
+    """Retry one non-JSON or malformed review response; never relax acceptance gates."""
+    if kind == 'clean':
+        required = ('parent_label and translation_label: integers; meaning_preserved and '
+                    'names_and_numbers_preserved: booleans; confidence: number from 0 to 1; evidence: string')
+    elif kind == 'error':
+        required = ('source_label: integer; mechanism and correction: strings; single_error, required_edit and '
+                    'meaning_preserved: booleans; other_error_types: array of strings; confidence: number from 0 to 1; evidence: string')
+    else:
+        raise ValueError(f'Unknown reviewer schema: {kind}')
+
+    call = caller.call('reviewer', key, prompt, False)
+    review = parse_object(call['text'])
+    call_ids = [call['id']]
+    if review_schema_valid(kind, review): return review, call_ids
+
+    retry_prompt = (prompt + '\n\nYour previous response was not valid machine-readable output. Re-evaluate the same request. '
+                    'Return exactly one JSON object and nothing else: no preface, analysis, or Markdown fence. '
+                    'Use double-quoted JSON keys and valid JSON values. Required field types: ' + required + '.')
+    retry = caller.call('reviewer', key + ':format_retry', retry_prompt, False)
+    parsed_retry = parse_object(retry['text'])
+    call_ids.append(retry['id'])
+    return (parsed_retry if review_schema_valid(kind, parsed_retry) else {}), call_ids
+
+
 def run_pipeline(inputs, recipe, caller, output, identity):
     output = Path(output); output.mkdir(parents=True, exist_ok=True)
     raw, _ = baselines(inputs, recipe)
@@ -30,6 +75,7 @@ def run_pipeline(inputs, recipe, caller, output, identity):
     variants, proposals, completed, rejected = [], [], [], []
     seen = set(baseline_text)
     exhausted = False
+    review_format_retries = 0
     try:
         print(f'Augmentation: translating {len(parents)} parents through {len(recipe["parents"]["pivots"])} pivots', flush=True)
         for parent in parents:
@@ -81,19 +127,25 @@ def run_pipeline(inputs, recipe, caller, output, identity):
             key = proposal['key']
             if key not in clean_reviews:
                 prompt = (TAXONOMY + '\nIndependently label both sentences. Check whether they express the same facts, including negation, numbers and named entities. '
-                          'Return JSON: parent_label, translation_label, meaning_preserved, names_and_numbers_preserved, confidence (0..1), evidence. '
+                          'Return exactly one valid JSON object and nothing else, with fields parent_label, translation_label, meaning_preserved, names_and_numbers_preserved, confidence (0..1), evidence. '
                           'Reject awkward or grammatically ambiguous sentences; do not assume either is correct.\nSentence A:\n' + proposal['parent_clean'] + '\nSentence B:\n' + proposal['reference'])
-                call = caller.call('reviewer', key + ':clean_review', prompt, False)
-                clean_reviews[key] = (parse_object(call['text']) or {}, call['id'])
-            clean, clean_id = clean_reviews[key]
+                clean, clean_calls = request_review(caller, key + ':clean_review', prompt, 'clean')
+                clean_reviews[key] = (clean, clean_calls)
+                review_format_retries += len(clean_calls) - 1
+            clean, clean_calls = clean_reviews[key]
             prompt = (TAXONOMY + '\nBlindly identify the single error type and minimally correct the sentence. '
                       'No author label, mechanism or desired correction is provided. Select one exact English mechanism name independently from this inventory; do not translate its name: '
                       + json.dumps(MECHANISMS, ensure_ascii=False) + '. Return JSON: source_label, mechanism, correction (complete sentence), single_error, required_edit, '
                       'meaning_preserved, other_error_types (array), confidence (0..1), evidence explaining the required grammatical edit. '
                       'If uncertain or only stylistic, report that accurately.\nSentence:\n' + proposal['source'])
-            call = caller.call('reviewer', digest([key, proposal['label'], proposal['mechanism']]) + ':error_review', prompt, False)
-            completed.append({**proposal, 'clean_review': clean, 'error_review': parse_object(call['text']) or {},
-                              'calls': {**proposal['calls'], 'clean_review': clean_id, 'error_review': call['id']}})
+            error_review, error_calls = request_review(
+                caller, digest([key, proposal['label'], proposal['mechanism']]) + ':error_review', prompt, 'error')
+            review_format_retries += len(error_calls) - 1
+            review_call_ids = {'clean_review': clean_calls[-1], 'error_review': error_calls[-1]}
+            if len(clean_calls) > 1: review_call_ids['clean_review_initial'] = clean_calls[0]
+            if len(error_calls) > 1: review_call_ids['error_review_initial'] = error_calls[0]
+            completed.append({**proposal, 'clean_review': clean, 'error_review': error_review,
+                              'calls': {**proposal['calls'], **review_call_ids}})
     except BudgetExhausted:
         exhausted = True
         print('Augmentation budget reached; exporting only fully reviewed candidates', flush=True)
@@ -103,8 +155,10 @@ def run_pipeline(inputs, recipe, caller, output, identity):
     write_json(output / 'phase_rejections.json', rejected)
     result = export_dataset(inputs, completed, output / 'dataset', recipe, identity)
     result.update(budget_exhausted=exhausted, selected_parents=len(parents), translated_references=len(variants),
-                  authored_candidates=len(proposals), fully_reviewed_candidates=len(completed), phase_rejections=len(rejected))
+                  authored_candidates=len(proposals), fully_reviewed_candidates=len(completed), phase_rejections=len(rejected),
+                  review_format_retries=review_format_retries)
     write_json(output / 'pipeline_manifest.json', result)
     print(json.dumps({'status': result['status'], 'accepted_error_pairs': result['accepted_error_pairs'],
-                      'new_rows_per_stage': result['new_rows_per_stage'], 'budget_exhausted': exhausted}), flush=True)
+                      'new_rows_per_stage': result['new_rows_per_stage'], 'review_format_retries': review_format_retries,
+                      'budget_exhausted': exhausted}), flush=True)
     return result

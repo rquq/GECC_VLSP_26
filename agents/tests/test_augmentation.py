@@ -9,6 +9,8 @@ from unittest.mock import patch
 
 from augmentation.review import validate_pair, select_pairs, pair_rows
 from augmentation.data import select_parents, export_dataset, load_augmented
+from augmentation.pipeline import request_review
+from augmentation.config import validate_recipe
 from model.data import _records_from_raw, load_training_split
 from agents.tests.test_balanced_data import bundle
 from tools.package_final_training import final_bundle
@@ -64,6 +66,47 @@ class ReviewTests(unittest.TestCase):
         rows = pair_rows(accepted)
         self.assertEqual(sum(r['Output']['Error_Type_Id'] == 0 for r in rows), len(accepted))
         self.assertEqual(len(_records_from_raw(rows)), len(rows))
+
+
+class ReviewFormatRetryTests(unittest.TestCase):
+    class Caller:
+        def __init__(self, outputs):
+            self.outputs = iter(outputs)
+            self.requests = []
+
+        def call(self, role, key, prompt, sampling):
+            self.requests.append((role, key, prompt, sampling))
+            return {'id': key + '-call', 'text': next(self.outputs)}
+
+    def test_retries_non_json_once_and_returns_the_structured_review(self):
+        expected = {'parent_label': 0, 'translation_label': 0, 'meaning_preserved': True,
+                    'names_and_numbers_preserved': True, 'confidence': 0.95,
+                    'evidence': 'No fact or entity changed.'}
+        caller = self.Caller(['The two sentences appear equivalent.', json.dumps(expected)])
+
+        review, call_ids = request_review(caller, 'variant:clean_review', 'Review these sentences.', 'clean')
+
+        self.assertEqual(review, expected)
+        self.assertEqual(len(caller.requests), 2)
+        self.assertEqual([request[1] for request in caller.requests],
+                         ['variant:clean_review', 'variant:clean_review:format_retry'])
+        self.assertEqual(call_ids, ['variant:clean_review-call', 'variant:clean_review:format_retry-call'])
+        self.assertIn('Return exactly one JSON object', caller.requests[1][2])
+
+    def test_unstructured_retry_stays_empty_after_one_attempt(self):
+        caller = self.Caller(['A prose-only response.', 'Still not JSON.'])
+
+        review, call_ids = request_review(caller, 'variant:error_review', 'Review this error.', 'error')
+
+        self.assertEqual(review, {})
+        self.assertEqual(len(caller.requests), 2)
+        self.assertEqual(len(call_ids), 2)
+
+    def test_retry_budget_allows_one_review_retry_per_candidate(self):
+        c = recipe()
+        c['run']['max_calls'] = 1536
+
+        self.assertEqual(validate_recipe(c)['run']['max_calls'], 1536)
 
 
 class FullDatasetTests(unittest.TestCase):

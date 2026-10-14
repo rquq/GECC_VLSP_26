@@ -1,7 +1,7 @@
 {
   "name": "hy-qwen-sailor-reviewed-roundtrip",
   "seed": 42,
-  "run": {"device": "cuda", "output_root": "runs", "max_wall_minutes": 360, "max_calls": 1344},
+  "run": {"device": "cuda", "output_root": "runs", "max_wall_minutes": 360, "max_calls": 1536},
   "data": {
     "archive": "VGEC26-sailor-qwen-lora-full-training-20261014.zip",
     "sha256": {

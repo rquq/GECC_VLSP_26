@@ -10,7 +10,7 @@ def validate_recipe(recipe):
     run = recipe['run']
     if run['device'] not in ('cuda', 'cpu'):
         raise ValueError('Augmentation device must be cuda or cpu')
-    for key, cap in [('max_calls', 1344), ('max_wall_minutes', 360)]:
+    for key, cap in [('max_calls', 1536), ('max_wall_minutes', 360)]:
         if type(run[key]) is not int or not 0 < run[key] <= cap: raise ValueError(f'Invalid bounded {key}')
     parents = recipe['parents']
     if type(parents['limit']) is not int or not 0 < parents['limit'] <= 96:
