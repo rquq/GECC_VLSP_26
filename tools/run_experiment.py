@@ -215,10 +215,24 @@ def prepare_run(recipe_path, input_root, output_root, *, world_size, device="cud
         "submission_filename",
         "data_sha256",
     }
-    if set(recipe) != expected or recipe["mode"] not in ("both", "task1", "task2"):
+    if set(recipe) - {"classifier_resume_sha256"} != expected or recipe["mode"] not in (
+        "both",
+        "task1",
+        "task2",
+    ):
         raise ValueError(
             "Recipe must contain exactly the documented fields; mode is both, task1, or task2"
         )
+    if "classifier_resume_sha256" in recipe:
+        digest = recipe["classifier_resume_sha256"]
+        if (
+            not isinstance(digest, str)
+            or len(digest) != 64
+            or any(c not in "0123456789abcdef" for c in digest)
+        ):
+            raise ValueError(
+                "classifier_resume_sha256 must pin a lowercase SHA256 digest"
+            )
     if recipe["mode"] == "task2" and not recipe["classifier_run"]:
         raise ValueError("task2 recipe requires a completed classifier_run")
     for key in ("data_archive", "submission_filename"):
@@ -274,6 +288,19 @@ def prepare_run(recipe_path, input_root, output_root, *, world_size, device="cud
         "--output-dir",
         str(work / "run"),
     ]
+    if recipe.get("classifier_resume_sha256"):
+        if recipe["classifier_run"] or recipe["mode"] == "task2":
+            raise ValueError(
+                "Partial classifier resume requires a fresh ensemble in both/task1 mode"
+            )
+        from model.classifier_resume import materialize
+
+        materialize(
+            input_root,
+            recipe["data_archive"],
+            recipe["classifier_resume_sha256"],
+            work / "run",
+        )
     if recipe["mode"] != "task1":
         command.extend(["--submission-data", str(inputs["submission"])])
     for field, flag in (

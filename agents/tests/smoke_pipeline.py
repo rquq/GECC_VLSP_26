@@ -195,7 +195,7 @@ def fixture(root, device, final_lora=False):
             ("correction", "VGEC_balanced.json"),
         ]:
             write_json(data / filename, final_bundle(data / filename, stage))
-    recipe = json.loads((PROJECT / "configs/experiment.json").read_text())
+    recipe = json.loads((PROJECT / "configs/validation_experiment.json").read_text())
     recipe.update(
         name="tiny-pipeline",
         classification_config=str(root / "classification.json"),

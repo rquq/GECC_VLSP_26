@@ -76,3 +76,7 @@ The native architecture plus each adapter/head is checked against8B separately: 
 Seed all training/inference RNGs before model initialization; set Python hash seed/CUBLAS workspace before child startup. Strict deterministic algorithms may fail on unsupported operations and do not imply cross-device/version identity. Run model stages in fresh processes, reap workers and check GPU memory release before the next load. Keep absolute placement/workspace checks. Never promise zero OOMs, silently quantize, or launch expensive retries.
 
 W&B root display name is `run`, grouped by a unique experiment ID, with live numeric metrics and30-second heartbeat through export/archive. Child names identify classifier-qwen7b/classifier-sailor7b/classifier-mistral7b/corrector. Corpus text, predictions, labels tied to text, prompts and raw rows must not enter tracking logs/artifacts. Credentials remain in Kaggle Secrets/environment.
+
+## Completed-member recovery — 2026-10-15
+
+Only reuse classifier checkpoints when pinned model/revision/precision, LoRA/training settings, split42, exact dataset hashes and training/validation arrays match. Moving upload paths is allowed; changing the population is not. Preserve original artifacts, bind copied adapter/head and metadata hashes, and keep resume data/checkpoint packages private. The user selected standard-LoRA Kaggle recovery after the Mistral tokenizer failure; no4-bit substitution is authorized. See KAGGLE_MISTRAL_RECOVERY_20261015.md/.json.

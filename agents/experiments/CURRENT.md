@@ -1,5 +1,8 @@
 # Current experiment — 2026-10-14
 
+**Mistral recovery — 2026-10-15:** the supplied Kaggle run completed Qwen and Sailor, then failed before Mistral training because production selected its slow tokenizer. Native fast-backend loading and early tokenizer preflight are fixed. The user explicitly chose standard-LoRA Kaggle continuation; no local full-size/QLoRA training. Default recipe now consumes PRIVATE VGEC26-soft-vote-resume-20261015.zip, preserving exact78-row validation data and both saved adapters. It skips validated Qwen/Sailor, trains Mistral then Qwen corrector and exports the soft-vote submission.196 tests plus native data/checkpoint and tiny end-to-end recovery checks passed. Read KAGGLE_MISTRAL_RECOVERY_20261015.md/.json. Older statements that no full-size stage has run are historical; continuation/new score remain pending.
+
+
 **System monitoring — 2026-10-15:** W&B native resource collection is enabled, sampling every15seconds in root and model runs. Process-tree CPU/RAM tracking follows the root run's child trainers; all visible GPUs are monitored, plus root/output filesystems, disk I/O and network activity. Actual offline SDK0.27.0 recording verified GPU utilization/VRAM/temperature/power, CPU/RAM, disk/network metrics.7 focused tests passed. Read `WANDB_SYSTEM_MONITORING_20261015.md`/.json; no model/data/notebook changes or training run. Applies to newly started processes, not retroactively to an existing Kaggle session.
 
 

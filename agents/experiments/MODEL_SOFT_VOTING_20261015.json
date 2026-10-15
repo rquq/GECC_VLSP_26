@@ -1,6 +1,6 @@
 {
   "date": "2026-10-15",
-  "status": "implemented_and_locally_verified_full_size_pending",
+  "status": "partial_kaggle_run_completed_qwen_sailor_failed_mistral_recovery_prepared",
   "source_commit": "095ff393ecf7aced005803000e7f619012495aca",
   "branch": "kaggle-linux",
   "user_decisions": [
@@ -239,5 +239,6 @@
     "Every member selects its epoch on the same development set",
     "Cannot guarantee absence of runtime OOM or nondeterministic unsupported operations",
     "Three independent bases sum21.406B classifier parameters; eligibility is per component, explicitly allowed by organizer"
-  ]
+  ],
+  "followup": "KAGGLE_MISTRAL_RECOVERY_20261015.md/.json"
 }

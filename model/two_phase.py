@@ -74,7 +74,17 @@ def _stage_placement(config, task):
             "effective_batch_size must be a positive multiple of microbatch * world_size"
         )
     if task == "classification":
-        from .classification import placement_preflight
+        from .classification import (
+            placement_preflight,
+            _load_tokenizer,
+            _configure_padding,
+        )
+
+        tokenizer = _load_tokenizer(
+            config["model"]["name"], revision=config["model"]["revision"]
+        )
+        _configure_padding(tokenizer)
+        del tokenizer
 
         return [
             placement_preflight(
@@ -104,6 +114,7 @@ def preflight(
     classifier_run=None,
     initial_adapter=None,
     check_placement=True,
+    resume_root=None,
 ):
     """Check data/reuse first, then placement for only the stages being trained."""
     if mode not in ("task1", "task2", "both"):
@@ -121,6 +132,7 @@ def preflight(
     if mode == "task1" and initial_adapter is not None:
         raise ValueError("--initial-adapter continues Task2; use task2 or both")
     report = {"mode": mode, "classifier_reused": not fresh_classifier}
+    resumed = {}
     if fresh_classifier:
         from .classification import (
             _connected_folds,
@@ -145,6 +157,11 @@ def preflight(
         original_train, validation = _organizer_partition(
             original, fraction, seed, classifier_info
         )
+        if resume_root is not None:
+            from .classifier_resume import plan
+
+            resumed = plan(resume_root, classification, original, mixed_path)
+            report["classifier_reused_members"] = list(resumed)
         oof = classification.get("oof", {}).get("enabled", False)
         if predicted_hints and not oof:
             raise ValueError(
@@ -238,6 +255,7 @@ def preflight(
                     {**classification, "model": entry["model"]}, "classification"
                 )
                 for entry in entries
+                if entry["name"] not in resumed
             }
         else:
             report["classification_replicas"] = _stage_placement(
@@ -471,19 +489,25 @@ def main(*, tracking):
         classifier_run=classifier_run,
         initial_adapter=initial_adapter,
         check_placement=args.preflight_only,
+        resume_root=args.output_dir,
     )
     if args.preflight_only:
         return
     output_config = corrector or classifier
-    output = stage_output(
-        {
-            "run": {
-                "name": f"sailor-7b-{args.mode}",
-                "output_root": output_config["run"]["output_root"],
-            }
-        },
-        args.output_dir,
-    )
+    from .classifier_resume import MANIFEST, resume_output
+
+    if args.output_dir and (Path(args.output_dir) / MANIFEST).is_file():
+        output = resume_output(args.output_dir)
+    else:
+        output = stage_output(
+            {
+                "run": {
+                    "name": f"sailor-7b-{args.mode}",
+                    "output_root": output_config["run"]["output_root"],
+                }
+            },
+            args.output_dir,
+        )
     input_roots = [
         source for source in (classifier_run, initial_adapter) if source is not None
     ]
@@ -526,6 +550,13 @@ def main(*, tracking):
     if corrector is not None:
         write_json(output / "correction_config.json", corrector)
     packaged_classifier = output / "classification"
+    from .classifier_resume import plan
+
+    resumed = (
+        plan(output, classifier, original, classifier["data"].get("augmentation_path"))
+        if classifier_run is None
+        else {}
+    )
     if classifier_run is None:
         entries = classifier.get("ensemble", {}).get(
             "members", [{"name": "single", "model": classifier["model"]}]
@@ -541,6 +572,27 @@ def main(*, tracking):
                 if len(entries) > 1
                 else packaged_classifier
             )
+            if name in resumed:
+                old_identity = target / "wandb_run.json"
+                identity = (
+                    json.loads(old_identity.read_text())
+                    if old_identity.is_file()
+                    else {}
+                )
+                tracking.use_model(target / "classifier", "classifier")
+                tracking.stage_result(
+                    {
+                        "stage": f"classifier-{name}",
+                        "run_id": identity.get("id"),
+                        "metrics": result_metrics(
+                            json.loads((target / "metrics.json").read_text())
+                        ),
+                    }
+                )
+                print(
+                    f"Reusing completed classifier-{name}; training skipped", flush=True
+                )
+                continue
             config_path = output / f"classification_{name}.json"
             write_json(config_path, member_config)
             command = stage_command("model.classification", member_config) + [
@@ -632,6 +684,7 @@ def main(*, tracking):
         "split_seed": split_seed(classifier),
         "seed": classifier["run"]["seed"],
         "classifier_reused": classifier_run is not None,
+        "classifier_reused_members": list(resumed),
         "classification_metrics": json.loads(
             (packaged_classifier / "metrics.json").read_text()
         ),

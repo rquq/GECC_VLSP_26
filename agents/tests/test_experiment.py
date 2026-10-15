@@ -22,7 +22,7 @@ class RecipeTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.inputs = self.root / "input"
         self.inputs.mkdir()
-        self.recipe = json.loads((PROJECT / "configs/experiment.json").read_text())
+        self.recipe = json.loads((PROJECT / "configs/validation_experiment.json").read_text())
         self.recipe.update(mode="both",classifier_run=None)
         rows = [{"ID": 1, "Input": "private source", "Output": {"Error_Type_Id": 0, "Fixed Sentence": None}}]
         self.files = {"VGEC 2026_v1.json": json.dumps(rows).encode(), "VGEC_classifier.json": b'{"fixture":"classifier"}',

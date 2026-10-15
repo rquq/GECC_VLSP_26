@@ -135,9 +135,11 @@ def _configure_padding(tokenizer):
 def _load_tokenizer(path, **kwargs):
     """Reload either legacy vocabularies or a complete saved tokenizer backend."""
     from transformers import AutoTokenizer
+    from transformers.models.auto.tokenization_auto import get_tokenizer_config
     directory = Path(path)
     metadata = directory / "tokenizer_config.json"
-    saved = json.loads(metadata.read_text()) if metadata.is_file() else {}
+    saved = (json.loads(metadata.read_text()) if metadata.is_file() else
+             get_tokenizer_config(path, **kwargs) if not directory.is_dir() else {})
     generic_fast = saved.get("tokenizer_class") in {"PreTrainedTokenizer", "PreTrainedTokenizerFast"}
     # Transformers 5 writes a list here; 4.x expects a mapping. These tokens
     # already have IDs in the backend, so register them without changing IDs.
@@ -151,7 +153,9 @@ def _load_tokenizer(path, **kwargs):
     backend_only = ((directory / "tokenizer.json").is_file() and
                     not (directory / "vocab.json").is_file() and
                     not (directory / "merges.txt").is_file())
-    tokenizer = AutoTokenizer.from_pretrained(path, use_fast=generic_fast or backend_only, **kwargs)
+    # Native Mistral v0.3 uses a versioned vocabulary unsupported by the slow Llama loader.
+    native_fast = saved.get("tokenizer_class") in {"LlamaTokenizer", "LlamaTokenizerFast"}
+    tokenizer = AutoTokenizer.from_pretrained(path, use_fast=generic_fast or backend_only or native_fast, **kwargs)
     # Decoder classifiers have no token-type input; generic tokenizer reloads
     # otherwise silently restore the encoder-style default input names.
     tokenizer.model_input_names = ["input_ids", "attention_mask"]

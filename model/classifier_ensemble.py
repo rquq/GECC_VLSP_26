@@ -94,12 +94,14 @@ def _member_population(root):
                 for name in ("train.json", "validation.json")
             ]
         )
+    from .classifier_resume import data_recipe
+
     for i in (1, 2):
         if (
             populations[i] != populations[0]
             or configs[i].get("lora") != configs[0].get("lora")
             or configs[i]["training"] != configs[0]["training"]
-            or configs[i]["data"] != configs[0]["data"]
+            or data_recipe(configs[i]) != data_recipe(configs[0])
             or any(
                 manifests[i].get(key) != manifests[0].get(key)
                 for key in (
