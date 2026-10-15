@@ -6,11 +6,14 @@ from augmentation.review import digest
 from model.data import _records_from_raw
 
 FORMAT = "vgec-retained-balanced-v1"
+FORMAT_V2 = "vgec-retained-balanced-v2"
 
 
-def seal(stage, original, baseline, unique, train, external, metadata):
+def seal(
+    stage, original, baseline, unique, train, external, metadata, format_version=FORMAT
+):
     payload = {
-        "format": FORMAT,
+        "format": format_version,
         "stage": stage,
         "seed": 42,
         "validation_fraction": 0,
@@ -28,7 +31,7 @@ def seal(stage, original, baseline, unique, train, external, metadata):
 
 def validate(raw):
     if (
-        raw.get("format") != FORMAT
+        raw.get("format") not in (FORMAT, FORMAT_V2)
         or raw.get("stage") not in ("classification", "correction")
         or raw.get("seed") != 42
         or raw.get("validation_fraction") != 0
@@ -75,6 +78,7 @@ def validate(raw):
         eligible_tree,
         make_row,
         tree_candidates,
+        ellipsis,
     )
 
     baseline = raw["baseline_snapshot"]
@@ -88,7 +92,11 @@ def validate(raw):
                     "Classifier must preserve the entire original annotation"
                 )
     else:
-        retained, _ = corrector_originals(raw["original_snapshot"], baseline)
+        retained, _ = corrector_originals(
+            raw["original_snapshot"],
+            baseline,
+            retain_abbreviated=raw["format"] == FORMAT_V2,
+        )
         expected = (
             retained + [r for r in baseline if type(r["ID"]) is not int] + external
         )
@@ -140,7 +148,19 @@ def validate(raw):
         ):
             raise ValueError("Balance target must equal clean population")
         expected_train, expected_info = balanced_view(
-            raw["unique"], balance["target"], 4
+            raw["unique"],
+            balance["target"],
+            4,
+            no_repeat_ids=(
+                [
+                    r["ID"]
+                    for r in raw["original_snapshot"]
+                    if r["Output"]["Error_Type_Id"]
+                    and ellipsis(r["Output"]["Fixed Sentence"])
+                ]
+                if raw["format"] == FORMAT_V2 and raw["stage"] == "correction"
+                else ()
+            ),
         )
         if raw["train"] != expected_train or balance != expected_info:
             raise ValueError("Training exposures or declared balance differs")
@@ -185,7 +205,7 @@ def load_retained(raw, fraction, seed):
         _records_from_raw(raw["train"]),
         [],
         {
-            "format": FORMAT,
+            "format": raw["format"],
             "provenance": provenance,
             "independent_validation_rows": 0,
             "canonical_counts": dict(

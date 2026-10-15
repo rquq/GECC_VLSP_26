@@ -426,7 +426,7 @@ def select_candidates(base, candidates, target, max_parent=4, max_rule=32):
     return picked, rejected
 
 
-def balanced_view(rows, target=None, max_repeat=4):
+def balanced_view(rows, target=None, max_repeat=4, no_repeat_ids=()):
     result = copy.deepcopy(rows)
     groups = defaultdict(list)
     for r in rows:
@@ -435,7 +435,11 @@ def balanced_view(rows, target=None, max_repeat=4):
     repeats = Counter()
     for label in range(5):
         group = sorted(
-            (r for r in groups[label] if r["ID"] not in NOTES),
+            (
+                r
+                for r in groups[label]
+                if r["ID"] not in NOTES and r["ID"] not in no_repeat_ids
+            ),
             key=lambda r: digest([r["ID"], r["Input"]]),
         )
         count = len(groups[label])
@@ -469,7 +473,7 @@ def balanced_view(rows, target=None, max_repeat=4):
                     count += 1
                     repeats[label] += 1
     counts = Counter(r["Output"]["Error_Type_Id"] for r in result)
-    return result, {
+    info = {
         "target": target,
         "max_exposures_per_row": max_repeat,
         "repeat_priority": "organizer_then_legacy_then_new_code; notes_never_repeated",
@@ -481,10 +485,13 @@ def balanced_view(rows, target=None, max_repeat=4):
         "repeated_counts": {str(i): repeats[i] for i in range(5)},
         "shortfalls": {str(i): max(0, target - counts[i]) for i in range(5)},
     }
+    if no_repeat_ids:
+        info["non_repeated_original_ids"] = sorted(no_repeat_ids)
+    return result, info
 
 
-def corrector_originals(original, baseline):
-    """Retain supported targets, never turn an abbreviated target into gold."""
+def corrector_originals(original, baseline, retain_abbreviated=False):
+    """Versioned retention of organizer references; no invented completions."""
     existing = {r["ID"]: r for r in baseline if type(r["ID"]) is int}
     correction = []
     pending = []
@@ -505,6 +512,9 @@ def corrector_originals(original, baseline):
         if label == 0:
             row["Output"]["Fixed Sentence"] = r["Input"]
         else:
+            if retain_abbreviated and ellipsis(row["Output"]["Fixed Sentence"]):
+                correction.append(row)
+                continue
             previous = existing.get(r["ID"])
             if (
                 previous
@@ -536,7 +546,7 @@ def classifier_base(original, baseline):
 
 
 def build(output, external_limit=32):
-    from model.retained_balanced import seal, validate
+    from model.retained_balanced import FORMAT_V2, seal, validate
 
     base_dir = ROOT / "dataset/kaggle-sailor-qwen-lora-20261014"
     ext_dir = ROOT / "dataset/external/ud-vietnamese-vtb"
@@ -590,7 +600,14 @@ def build(output, external_limit=32):
             candidates.extend(corpus_candidates(r["Input"], r["ID"]))
     classifier = classifier_base(original, baseline["classification"]) + external
     # Keep original labels; all note targets are corrector-ineligible. Keep supported prior target repairs.
-    correction, pending = corrector_originals(original, baseline["correction"])
+    correction, pending = corrector_originals(
+        original, baseline["correction"], retain_abbreviated=True
+    )
+    abbreviated_ids = [
+        r["ID"]
+        for r in correction
+        if r["Output"]["Error_Type_Id"] and ellipsis(r["Output"]["Fixed Sentence"])
+    ]
     legacy = [
         copy.deepcopy(r) for r in baseline["correction"] if type(r["ID"]) is not int
     ]
@@ -616,6 +633,9 @@ def build(output, external_limit=32):
         "restored_unchanged_classifier_ids": sorted(PREVIOUSLY_EXCLUDED),
         "corrector_note_exclusions": sorted(NOTES),
         "corrector_review_exclusions": CORRECTOR_REVIEW_EXCLUSIONS,
+        "correction_target_policy": "retain_organizer_abbreviated_references_v2",
+        "retained_abbreviated_target_ids": abbreviated_ids,
+        "abbreviated_reference_policy": "Exact organizer targets, not newly validated full sentences; one exposure each, no inferred completion.",
         "new_code_examples": len(added),
         "new_code_class_counts": dict(
             Counter(str(r["Output"]["Error_Type_Id"]) for r in added)
@@ -647,7 +667,10 @@ def build(output, external_limit=32):
     views = {}
     for stage in unique:
         views[stage], metadata["stage_balance"][stage] = balanced_view(
-            unique[stage], target=target, max_repeat=4
+            unique[stage],
+            target=target,
+            max_repeat=4,
+            no_repeat_ids=abbreviated_ids if stage == "correction" else (),
         )
     for stage, filename in [
         ("classification", "VGEC_classifier.json"),
@@ -655,7 +678,14 @@ def build(output, external_limit=32):
     ]:
         train = views[stage]
         bundle = seal(
-            stage, original, baseline[stage], unique[stage], train, external, metadata
+            stage,
+            original,
+            baseline[stage],
+            unique[stage],
+            train,
+            external,
+            metadata,
+            format_version=FORMAT_V2,
         )
         validate(bundle)
         write_json(output / filename, bundle)
@@ -671,7 +701,7 @@ def build(output, external_limit=32):
     (output / "UD_VTB_README.md").write_bytes((ext_dir / "README.md").read_bytes())
     manifest = dict(
         metadata,
-        format="vgec-retained-balanced-v1",
+        format=FORMAT_V2,
         data_sha256={
             k: hashlib.sha256((output / name).read_bytes()).hexdigest()
             for k, name in names.items()
@@ -684,11 +714,13 @@ def build(output, external_limit=32):
     readme = (
         "# Private retained and balanced VGEC training data\n\n"
         "Classification: VGEC_classifier.json. Correction: VGEC_balanced.json. "
-        "Use the vgec-retained-balanced-v1 loader, seed 42, validation fraction 0. "
+        "Use the vgec-retained-balanced-v2 loader, seed 42, validation fraction 0. "
         "Raw exports are also included. This package is not a submission ZIP.\n\n"
         "Canonical (non-resampled) examples and explicit repeated training exposures are separate. "
         "Original duplicates are preserved; new generated sources are deduplicated. "
         "See training_manifest.json for exact counts and unresolved targets. "
+        "V2 retains 112 original organizer references containing ellipses verbatim, once per epoch. "
+        "They are not claimed to be reconstructed complete sentences. Public predictions are audit-only. "
         "No model benefit or human adjudication is claimed. No Kaggle launch is authorized by this export.\n\n"
         "Do not publish or redistribute VGEC data or this mixed archive. Acknowledge VLSP 2026 and the VGEC organizers.\n\n"
         "External component only: UD Vietnamese VTB, train split, CC BY-SA 4.0. "
@@ -709,7 +741,7 @@ def build(output, external_limit=32):
         output / "file_manifest.json",
         {"format": "private-vgec-file-manifest-v1", "files": files},
     )
-    archive = output / "VGEC26-retained-balanced-20261015.zip"
+    archive = output / "VGEC26-retained-balanced-v2-20261015.zip"
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as z:
         for p in sorted(output.iterdir()):
             if p.is_file() and p != archive:

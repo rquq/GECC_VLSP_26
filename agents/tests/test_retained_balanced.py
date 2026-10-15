@@ -121,6 +121,52 @@ class RetainedBalanceTests(unittest.TestCase):
             )
         )
 
+    def test_v2_retains_original_abbreviated_references_without_completing_them(self):
+        m = self.module()
+        row = self.row(2, 2, "fixture source ...")
+        row["Output"]["Fixed Sentence"] = "fixture corrected ..."
+        self.assertEqual(m.corrector_originals([row], [])[0], [])
+        retained, pending = m.corrector_originals([row], [], retain_abbreviated=True)
+        self.assertEqual(retained, [row])
+        self.assertEqual(pending, [])
+
+    def test_explicit_non_repeat_set_keeps_abbreviated_rows_once(self):
+        m = self.module()
+        rows = [self.row(2, 2), self.row(3, 2)]
+        train, info = m.balanced_view(rows, target=5, max_repeat=4, no_repeat_ids=[2])
+        self.assertEqual(info["exposure_counts"]["2"], 5)
+        self.assertTrue(
+            all(
+                r.get("Provenance", {}).get("resampling", {}).get("source_id") != 2
+                for r in train
+            )
+        )
+
+    def test_v2_loader_accepts_only_unchanged_organizer_abbreviated_reference(self):
+        from model.retained_balanced import seal, validate
+        from augmentation.review import digest
+
+        row = self.row(2, 2, "fixture source ...")
+        row["Output"]["Fixed Sentence"] = "fixture corrected ..."
+        raw = seal(
+            "correction",
+            [row],
+            [],
+            [row],
+            [row],
+            [],
+            {},
+            format_version="vgec-retained-balanced-v2",
+        )
+        validate(raw)
+        for name in ("unique", "train"):
+            raw[name][0]["Output"]["Fixed Sentence"] = "unsupported completion"
+        raw["content_sha256"] = digest(
+            {k: v for k, v in raw.items() if k != "content_sha256"}
+        )
+        with self.assertRaises(ValueError):
+            validate(raw)
+
     def test_loader_rejects_resealed_synthetic_label_tampering(self):
         m = self.module()
         from model.retained_balanced import seal, validate

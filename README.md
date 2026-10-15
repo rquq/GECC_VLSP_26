@@ -1,4 +1,8 @@
-# Local retained and balanced dataset candidate
+# Retained dataset v2 and public-output inventory
+
+**Latest dataset decision — 2026-10-15:** PUBLIC_ABBREVIATION_20261015.md/.json records139/443 public inputs with ellipses and saved output counts100 Sailor /134 Qwen /80 ViT5 /142 latest run. V2 restores112 exact ORGANIZER training references with ellipses, each once per correction epoch, without inferred completions or public pseudo-labels. This supersedes blanket ellipsis exclusion. Corrector canonical933 (389 originals), classifier945 (all401 originals,8 notes unchanged); balanced1360 per stage/272 each class.11 note targets remain corrector-excluded; ID11 is the sole remaining review item. Phrase canonical is101 classifier/95 corrector, not272 independent examples. All29 saved stage/export materializations and every extra type are inventoried privately. V1 remains preserved; no real-model training, new synthesis, recipe/notebook change or Kaggle launch. Read this record before the historical v1 snapshots below.
+
+Private v2 ZIP: `dataset/retained-balanced-v2-20261015/VGEC26-retained-balanced-v2-20261015.zip`. Complete per-dataset inventory and actual type examples: `runs/public-abbreviation-inventory-final-20261015/`. Source/target examples and all dataset archives remain private.
 
 The private package is built at `dataset/retained-balanced-20261015/VGEC26-retained-balanced-20261015.zip`. Both training views contain1360 rows:272 per class. Before explicit resampling, classifier945/corrector821 rows include320 new deterministic error pairs,32 UD-VTB train clean controls and all192 legacy pairs. All401 originals, including the eight previously excluded annotations, are retained unchanged for classification. Corrector excludes11 note targets and113 unresolved targets. Counts, licenses, hashes and limitations are recorded in `agents/experiments/RETAINED_BALANCED_20261015.md`/.json.
 

@@ -611,7 +611,7 @@ def main(*, tracking):
     # Limits are diagnostics only, after validating the entire connected pipeline.
     train = balanced_limit(train, config["data"].get("train_limit"), seed)
     validation = balanced_limit(validation, config["data"].get("validation_limit"), seed + 1)
-    final_fit = provenance.get("format") in ("vgec-final-training-v1", "vgec-retained-balanced-v1")
+    final_fit = provenance.get("format") in ("vgec-final-training-v1", "vgec-retained-balanced-v1", "vgec-retained-balanced-v2")
     if not train or (not validation and not final_fit):
         raise ValueError("Correction training and validation must be nonempty except verified final fits")
     if final_fit and (validation or inference["hint_mode"] != "none"):

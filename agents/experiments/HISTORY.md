@@ -1,5 +1,7 @@
 # Recovered experiment history
 
+**Latest dataset decision — 2026-10-15:** PUBLIC_ABBREVIATION_20261015.md/.json records139/443 public inputs with ellipses and saved output counts100 Sailor /134 Qwen /80 ViT5 /142 latest run. V2 restores112 exact ORGANIZER training references with ellipses, each once per correction epoch, without inferred completions or public pseudo-labels. This supersedes blanket ellipsis exclusion. Corrector canonical933 (389 originals), classifier945 (all401 originals,8 notes unchanged); balanced1360 per stage/272 each class.11 note targets remain corrector-excluded; ID11 is the sole remaining review item. Phrase canonical is101 classifier/95 corrector, not272 independent examples. All29 saved stage/export materializations and every extra type are inventoried privately. V1 remains preserved; no real-model training, new synthesis, recipe/notebook change or Kaggle launch. Read this record before the historical v1 snapshots below.
+
 2026-10-15 latest: RETAINED_BALANCED_20261015.md/.json — private retained/balanced candidate built and verified;320 new code pairs,32 external controls,8 originals restored unchanged, each training view1360/272 per class,213 tests. No new model/score/Kaggle run.113 unresolved corrector targets remain pending; prior model failures are not promoted.
 
 Recovery uses surviving run artifacts, archived agent notes, Git history, and maintenance records. No historical training was rerun. Private recovered notes can contain corpus text and remain ignored by Git.
