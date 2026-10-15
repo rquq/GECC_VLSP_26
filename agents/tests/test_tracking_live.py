@@ -36,6 +36,13 @@ class LiveTrackingTests(unittest.TestCase):
                     group="unique-experiment",
                 )
                 self.assertEqual(sdk.init.call_args.kwargs["name"], "run")
+                settings = sdk.Settings.call_args.kwargs
+                self.assertFalse(settings["x_disable_stats"])
+                self.assertTrue(settings["x_stats_track_process_tree"])
+                self.assertEqual(settings["x_stats_sampling_interval"], 15)
+                self.assertEqual(settings["x_stats_pid"], os.getpid())
+                self.assertIn(str((Path(folder) / "run").resolve()), settings["x_stats_disk_paths"])
+                self.assertIsNone(settings.get("x_stats_gpu_device_ids"))
                 self.assertTrue(
                     all(
                         "*" not in call.args[0][:-1]

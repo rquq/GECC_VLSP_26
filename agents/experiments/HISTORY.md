@@ -1,5 +1,8 @@
 # Recovered experiment history
 
+**System monitoring — 2026-10-15:** W&B native resource collection is enabled, sampling every15seconds in root and model runs. Process-tree CPU/RAM tracking follows the root run's child trainers; all visible GPUs are monitored, plus root/output filesystems, disk I/O and network activity. Actual offline SDK0.27.0 recording verified GPU utilization/VRAM/temperature/power, CPU/RAM, disk/network metrics.7 focused tests passed. Read `WANDB_SYSTEM_MONITORING_20261015.md`/.json; no model/data/notebook changes or training run. Applies to newly started processes, not retroactively to an existing Kaggle session.
+
+
 **Launcher fix — 2026-10-15:** the Kaggle log failed before training because its filename-loaded launcher could not import `model.reproducibility`. `launch()` now resolves/adds the cloned project root before package imports and uses an absolute cleanup-helper import. Both reproduced failures now pass;21 focused launcher/bootstrap/final-training tests passed. The earlier189 tests missed this outside-checkout filename-loading boundary. Pip dependency conflict warnings were not the reported abort: the provided log passed training imports before the launcher exception. Recipe/model/data/requirements/notebook cells remain unchanged. Read `KAGGLE_LAUNCHER_IMPORT_FIX_20261015.md`/.json.
 
 

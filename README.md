@@ -20,7 +20,7 @@ The approved grouped validation package provides1145 training exposures per stag
 
 Standard LoRA uses FP16 frozen bases, FP32 adapters/head, rank16/alpha32 and effective batch8. Each model runs sequentially across both T4s in one process. Quantization, folds and hints are disabled. Fresh child processes, explicit exit/join, release checks and per-load memory budgets protect model transitions. Runtime memory availability can still cause a guarded failure. Strict RNG controls target replay on the same hardware/software; they do not guarantee cross-platform bit identity.
 
-The root W&B run reports live model-prefixed loss/validation metrics, stage outcomes, current stage and elapsed time, with a30-second heartbeat until export/archive finishes. Only numeric summaries and corpus-safe metadata are uploaded. Without a W&B key, local status/artifacts remain available.
+The root W&B run reports live model-prefixed loss/validation metrics, stage outcomes, current stage and elapsed time, with a30-second heartbeat until export/archive finishes. Native system monitoring samples every15seconds: all visible GPUs (utilization, VRAM, temperature/power when supported), process-tree CPU/RAM, free RAM, root/output disk usage/I/O and network traffic. Open the run's **System** section to view these charts. Only numeric summaries and corpus-safe metadata are uploaded. Without a W&B key, local status/artifacts remain available.
 
 The default is `configs/experiment.json`, selecting `configs/validation_baseline.json` and `configs/validation_correction.json`. A separately committed `configs/full_training_experiment.json` preserves the older full-training dataset option; changing experiments requires a committed recipe change, not a notebook toggle.
 

@@ -294,7 +294,11 @@ class TrackingRun:
                 save_code=False,
                 console="off",
                 quiet=True,
-                x_disable_stats=True,
+                x_disable_stats=False,
+                x_stats_sampling_interval=15,
+                x_stats_pid=os.getpid(),
+                x_stats_track_process_tree=True,
+                x_stats_disk_paths=("/", str(self.output.resolve())),
             ),
         )
         self.identity.update(id=self.run.id, url=self.run.url)
