@@ -1,0 +1,15 @@
+{
+  "name": "qwen-sailor-mistral-soft-vote-full-training",
+  "mode": "both",
+  "classification_config": "configs/baseline.json",
+  "correction_config": "configs/correction.json",
+  "classifier_run": null,
+  "initial_adapter": null,
+  "data_archive": "VGEC26-sailor-qwen-retained-v2-20261015.zip",
+  "submission_filename": "public_test.json",
+  "data_sha256": {
+    "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+    "classification": "da41c05015914ad1a1cb7f5a92333c5943cfdca23a1d8e38f7093f8f15a6bd3a",
+    "correction": "e7915837ab4e4773fb77b7ed32152a19d43022e076dba49b82276083ef9f39d0"
+  }
+}

@@ -1,7 +1,7 @@
 {
   "task": "classification",
   "run": {
-    "name": "sailor7b-lora-grouped-validation",
+    "name": "qwen-sailor-mistral-vote",
     "output_root": "runs",
     "device": "cuda",
     "world_size": 1,
@@ -23,15 +23,16 @@
     "input_root": "/kaggle/input",
     "validation_fraction": 0.2,
     "augmentation_path": null,
-    "augmentation_filename": "VGEC_classifier.json"
+    "augmentation_filename": "VGEC_classifier.json",
+    "split_seed": 42
   },
   "model": {
-    "name": "sail/Sailor-7B-Chat",
-    "revision": "19066fae0a8a3ba029c190d8e3dacccf4d1234b8",
-    "load_in_4bit": false,
+    "name": "Qwen/Qwen2.5-7B-Instruct",
+    "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
     "compute_dtype": "float16",
+    "device_map": "balanced",
     "attn_implementation": "sdpa",
-    "device_map": "balanced"
+    "load_in_4bit": false
   },
   "lora": {
     "r": 16,
@@ -80,5 +81,43 @@
   },
   "oof": {
     "enabled": false
+  },
+  "ensemble": {
+    "members": [
+      {
+        "name": "qwen7b",
+        "model": {
+          "name": "Qwen/Qwen2.5-7B-Instruct",
+          "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+          "compute_dtype": "float16",
+          "device_map": "balanced",
+          "attn_implementation": "sdpa",
+          "load_in_4bit": false
+        }
+      },
+      {
+        "name": "sailor7b",
+        "model": {
+          "name": "sail/Sailor-7B-Chat",
+          "revision": "19066fae0a8a3ba029c190d8e3dacccf4d1234b8",
+          "load_in_4bit": false,
+          "compute_dtype": "float16",
+          "attn_implementation": "sdpa",
+          "device_map": "balanced"
+        }
+      },
+      {
+        "name": "mistral7b",
+        "model": {
+          "name": "mistralai/Mistral-7B-Instruct-v0.3",
+          "revision": "c170c708c41dac9275d15a8fff4eca08d52bab71",
+          "load_in_4bit": false,
+          "compute_dtype": "float16",
+          "attn_implementation": "sdpa",
+          "device_map": "balanced"
+        }
+      }
+    ],
+    "method": "soft"
   }
 }

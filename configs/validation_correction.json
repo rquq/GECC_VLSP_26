@@ -20,7 +20,8 @@
     "path": null,
     "filename": "VGEC_balanced.json",
     "input_root": "/kaggle/input",
-    "validation_fraction": 0.2
+    "validation_fraction": 0.2,
+    "split_seed": 42
   },
   "model": {
     "name": "Qwen/Qwen2.5-7B-Instruct",

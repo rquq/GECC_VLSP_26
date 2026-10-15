@@ -240,6 +240,11 @@ def _release(device):
 
 def classify(checkpoint, records, device="cuda", batch_size=8):
     """Reload the saved hierarchical LoRA/score head and return five joint scores."""
+    if (Path(checkpoint) / "ensemble.json").is_file():
+        from .classifier_ensemble import classify as ensemble_classify
+        return ensemble_classify(checkpoint, records, device, batch_size)
+    from .reproducibility import seed_everything
+    seed_everything(42)
     from peft import PeftModel, prepare_model_for_kbit_training
 
     checkpoint = Path(checkpoint)
@@ -365,7 +370,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     import torch
     from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
     from transformers import (DataCollatorWithPadding, TrainerCallback,
-                              TrainingArguments, set_seed)
+                              TrainingArguments)
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
     rank = int(os.environ.get("RANK", "0"))
     tracking.start(config, artifact_dir, "classification-oof" if fixed_epochs is not None else "classification",
@@ -384,7 +389,8 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     if "algorithm" in config["training"]:
         raise ValueError("training.algorithm is obsolete; classifier training uses single-forward hierarchical loss")
     weighting = _class_weights(train, config["training"].get("class_weight_power", 0.0))
-    set_seed(seed)
+    from .reproducibility import seed_everything
+    reproducibility = seed_everything(seed)
     placement = placement_preflight(config["model"], device)
     device = placement["device"]
     print(json.dumps({"classifier_placement": placement}), flush=True)
@@ -417,6 +423,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         "num_labels": len(LABELS), "labels": list(LABELS),
         "architecture": _architecture(),
         "inference_precision": "CUDA autocast at model.compute_dtype; FP32 composition; no CPU autocast",
+        "training_seed": seed,
         "pad_token_id": tokenizer.pad_token_id, "tokenizer_length": len(tokenizer),
         "added_pad_token": added_pad,
         "class_weighting": weighting,
@@ -531,6 +538,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         write_json(artifact_dir / "trainer_history.json", trainer.state.log_history)
     barrier()
     stats = {
+        "reproducibility": reproducibility,
         "training_loss": result.training_loss, "optimizer_steps": result.global_step,
         "trainable_parameters": trainable_parameters, "total_parameters": total_parameters,
         "classifier_config": classifier_config, "placement": placement,
@@ -761,8 +769,10 @@ def main(*, tracking):
     mixed_config["data"].update(path=config["data"].get("augmentation_path"),
                                 filename=config["data"]["augmentation_filename"])
     mixed_path = resolve_data(mixed_config, None)
-    train, classifier_info = load_classifier_split(path, mixed_path, fraction, seed)
-    original_train, validation = _organizer_partition(path, fraction, seed, classifier_info)
+    from .runtime import split_seed
+    data_seed = split_seed(config)
+    train, classifier_info = load_classifier_split(path, mixed_path, fraction, data_seed)
+    original_train, validation = _organizer_partition(path, fraction, data_seed, classifier_info)
     preprocessing = _preprocessing(config)
     enabled = config.get("oof", {}).get("enabled", False) and not args.skip_hints
     if enabled and classifier_info["format"] == "vgec-grouped-validation-v1":
@@ -809,7 +819,7 @@ def main(*, tracking):
         write_json(output / "metrics.json", metrics)
         tracking.complete("classifier", metrics, best_epoch=stats["best_epoch"])
         manifest = {
-            "task": "classification", "config": config, "seed": seed, "validation_fraction": fraction,
+            "task": "classification", "config": config, "seed": seed, "split_seed": data_seed, "validation_fraction": fraction,
             "device": device, "world_size": world_size, "output_dir": str(output), "classifier_path": str(checkpoint),
             "data_path": str(path), "data_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
             "classifier_data_path": str(mixed_path),

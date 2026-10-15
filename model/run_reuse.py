@@ -34,7 +34,9 @@ def _manifest_stage(root, stage):
 
 def _is_stage(root, stage):
     checkpoint = "classifier" if stage == "classification" else "adapter"
-    return (root / "run_manifest.json").is_file() and (root / checkpoint / "adapter_config.json").is_file()
+    return (root / "run_manifest.json").is_file() and (
+        (root / checkpoint / "adapter_config.json").is_file()
+        or stage == "classification" and (root / checkpoint / "ensemble.json").is_file())
 
 
 def resolve_run(path, stage="classification"):
@@ -60,7 +62,7 @@ def resolve_run(path, stage="classification"):
         parent = entry.parent
         if any(parent.is_relative_to(owner) for owner in manifest_roots):
             continue
-        if _is_stage(parent, stage) and "oof" not in parent.relative_to(root).parts:
+        if _is_stage(parent, stage) and not {"oof", "members"}.intersection(parent.relative_to(root).parts):
             candidates.append(parent)
     if len(candidates) != 1:
         if candidates:
@@ -109,6 +111,11 @@ def validate_classifier_run(classifier_run, classification=None, *, require_hint
     """Validate completed adapter/head and metadata without loading base weights."""
     classifier_run = Path(classifier_run)
     checkpoint = classifier_run / "classifier"
+    if (checkpoint / "ensemble.json").is_file():
+        if require_hints:
+            raise ValueError("Voting classifier supports independent correction without OOF hints")
+        from .classifier_ensemble import validate
+        return validate(classifier_run, classification)
     required = [checkpoint / name for name in ("classifier_config.json", "adapter_config.json", "preprocessing.json", "tokenizer_config.json")]
     required.extend(classifier_run / name for name in CLASSIFICATION_FILES)
     if require_hints:
@@ -228,8 +235,10 @@ def copy_classifier_run(source, destination):
         raise ValueError(f"Classifier export destination already exists: {destination}")
     destination.mkdir(parents=True)
     shutil.copytree(source / "classifier", destination / "classifier")
+    if (source / "classifier/ensemble.json").is_file():
+        shutil.copytree(source / "members", destination / "members")
     for name in (*CLASSIFICATION_FILES, "hints.json", "oof_metrics.json", "wandb_run.json",
-                 "preprocessing.json", "predictions.json", "source_manifest.json"):
+                 "preprocessing.json", "predictions.json", "source_manifest.json", "voting_details.json"):
         if (source / name).is_file():
             shutil.copy2(source / name, destination / name)
     manifest = _json(destination / "run_manifest.json")

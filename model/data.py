@@ -149,7 +149,7 @@ def load_training_split(path: str | Path, validation_fraction: float, seed: int)
     Only seed 42 is accepted, before opening the dataset; fractions must match.
     """
     if type(seed) is not int or seed != 42:
-        raise ValueError("Training seed must be 42")
+        raise ValueError("Dataset split seed must be 42")
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
     if isinstance(raw, dict) and raw.get("format") == "vgec-grouped-validation-v1":
         from .grouped_validation import load_grouped

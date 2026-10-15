@@ -27,11 +27,11 @@ class PipelineContractTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     analyze("missing-data.json", "unused-output", seed=seed)
 
-    def test_config_rejects_non42_and_legacy_seed_lists(self):
+    def test_config_rejects_unsupported_training_seeds_and_legacy_seed_lists(self):
         config = json.loads((Path(__file__).resolve().parents[2] / "configs/baseline.json").read_text())
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "config.json"
-            for seed in (43, "42", 42.0, True):
+            for seed in (45, "42", 42.0, True):
                 with self.subTest(seed=seed):
                     config["run"]["seed"] = seed
                     path.write_text(json.dumps(config))

@@ -64,7 +64,7 @@ def model_size(config):
         raise ValueError(
             f"{config['task']} model plus adapter exceeds the constrained-track 8B limit: {total:,}"
         )
-    return {
+    result = {
         "base": base,
         "adapter": adapter,
         "saved_module_copies": saved,
@@ -72,6 +72,20 @@ def model_size(config):
         "total_upper_bound": total,
         "limit": 8_000_000_000,
     }
+    if config.get("ensemble"):
+        sizes = {}
+        for entry in config["ensemble"]["members"]:
+            child = {**config, "model": entry["model"]}
+            child.pop("ensemble", None)
+            sizes[entry["name"]] = model_size(child)
+        result["members"] = sizes
+        result["total_member_parameters"] = sum(
+            v["total_upper_bound"] for v in sizes.values()
+        )
+        result["eligibility_scope"] = (
+            "Each separate classifier component <=8B; bases are different and not shared."
+        )
+    return result
 
 
 def resolve_inputs(recipe, input_root, destination):
@@ -322,7 +336,9 @@ def main():
             "This committed experiment requires CUDA; select Kaggle GPU T4 x2"
         )
     recipe = json.loads(Path(args.recipe).read_text())
-    stage = load_config(PROJECT_ROOT / recipe["classification_config"], "classification")
+    stage = load_config(
+        PROJECT_ROOT / recipe["classification_config"], "classification"
+    )
     world_size = stage["run"].get("world_size", 1)
     kaggle = Path("/kaggle/working").is_dir()
     input_root = (
@@ -353,10 +369,18 @@ def main():
         "preflight_only": args.preflight_only,
     }
     record(work, "started", **identity)
+    from model.reproducibility import process_environment
+
+    environment = process_environment(42)
     try:
-        subprocess.run(command + ["--preflight-only"], cwd=PROJECT_ROOT, check=True)
+        subprocess.run(
+            command + ["--preflight-only"],
+            cwd=PROJECT_ROOT,
+            env=environment,
+            check=True,
+        )
         if not args.preflight_only:
-            subprocess.run(command, cwd=PROJECT_ROOT, check=True)
+            subprocess.run(command, cwd=PROJECT_ROOT, env=environment, check=True)
             required = (
                 "classification/metrics.json"
                 if identity["mode"] == "task1"

@@ -91,7 +91,7 @@ class PredictionExportTests(unittest.TestCase):
                 patch("model.classification.classify", return_value=[{"id": 1, "label": 1}]), \
                 patch("model.correction.load_corrector", return_value=(object(), object(), {})), \
                 patch("model.correction.correct", return_value=predictions), \
-                patch.dict("sys.modules", {"torch": SimpleNamespace()}), \
+                patch("model.reproducibility.seed_everything"), \
                 contextlib.redirect_stdout(io.StringIO()):
             predict_main()
 

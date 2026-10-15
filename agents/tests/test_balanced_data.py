@@ -95,7 +95,7 @@ class BalancedSplitTests(unittest.TestCase):
         self.assertEqual(sum(r["label"] == 0 for r in train), 90)
 
     def test_seed_and_fraction_mismatch_cannot_resplit_augmented_rows(self):
-        with self.assertRaisesRegex(ValueError, "Training seed must be 42"):
+        with self.assertRaisesRegex(ValueError, "Dataset split seed must be 42"):
             self.load(seed=43)
         with self.assertRaisesRegex(ValueError, "validation_fraction differs"):
             self.load(fraction=0.25)
@@ -115,7 +115,7 @@ class BalancedSplitTests(unittest.TestCase):
                     self.load()
 
     def test_non42_seed_is_rejected_before_opening_dataset(self):
-        with self.assertRaisesRegex(ValueError, "Training seed must be 42"):
+        with self.assertRaisesRegex(ValueError, "Dataset split seed must be 42"):
             load_training_split(self.path, 0.2, 43)
 
     def test_all_original_and_synthetic_cross_text_validation_leaks_rejected(self):

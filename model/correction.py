@@ -425,7 +425,7 @@ def placement_preflight(settings, device="cuda", *, local_rank=None, training=Tr
     if mode == "single":
         mapping = {"": f"cuda:{local_rank}" if device == "cuda" else "cpu"}
     else:
-        eligible = ("llama", "qwen2", "qwen3") if task == "classification" else ("qwen2", "qwen3")
+        eligible = ("llama", "qwen2", "qwen3", "mistral") if task == "classification" else ("qwen2", "qwen3")
         if config.model_type not in eligible or (task == "correction" and config.tie_word_embeddings):
             raise ValueError("Balanced placement requires a supported decoder architecture with a separate head")
         layer_sizes = [weight_bytes(layer) for layer in skeleton.model.layers]
@@ -505,6 +505,8 @@ def _load_base(settings, device, placement=None):
 
 def load_corrector(adapter, device="cuda"):
     """Reload the saved base placement, tokenizer, adapter and exact inference prompt."""
+    from .reproducibility import seed_everything
+    seed_everything(42)
     adapter = Path(adapter)
     settings = json.loads((adapter / "loading.json").read_text(encoding="utf-8"))
     inference = json.loads((adapter / "inference.json").read_text(encoding="utf-8"))
@@ -624,12 +626,13 @@ def main(*, tracking):
     placement = placement_preflight(settings, device)
     settings["revision"] = placement["resolved_revision"]
     from peft import LoraConfig, PeftModel, TaskType, get_peft_model, prepare_model_for_kbit_training
-    from transformers import AutoTokenizer, Trainer, TrainerCallback, TrainingArguments, set_seed
+    from transformers import AutoTokenizer, Trainer, TrainerCallback, TrainingArguments
     from .metrics import experiment_report
     from .modeling import ResponseCollator
     dtype = _dtype(settings, device)
     settings["compute_dtype"] = str(dtype).removeprefix("torch.")
-    set_seed(seed)
+    from .reproducibility import seed_everything
+    reproducibility = seed_everything(seed)
     tokenizer = AutoTokenizer.from_pretrained(initial["path"] if initial else settings["name"],
                                              **({} if initial else {"revision": settings["revision"]}))
     if tokenizer.pad_token_id is None:
@@ -827,6 +830,7 @@ def main(*, tracking):
     if device == "cuda":
         torch.cuda.empty_cache()
     manifest = {
+        "reproducibility": reproducibility,
         "config": config, "resolved_model_revision": settings["revision"], "model": settings,
         "adapter_path": str(adapter_path), "output_dir": str(output), "seed": seed,
         "initial_adapter": initial["path"] if initial else None,

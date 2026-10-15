@@ -77,6 +77,7 @@ def comparison_rows(records, predictions):
             "predicted_correction": prediction.get("target"),
         }
         for field in ("raw_generation", "parse_error", "probabilities", "fold",
+                      "votes", "mean_probabilities",
                       "candidates", "selected_candidate", "reranking", "regenerated"):
             if field in prediction:
                 row[field] = prediction[field]

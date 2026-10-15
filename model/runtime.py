@@ -1,4 +1,5 @@
 """Shared configuration, paths, artifacts, and selection for both task stages."""
+
 import json
 import math
 from datetime import datetime, timezone
@@ -10,6 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 def native_bf16_supported():
     """Do not mistake PyTorch's BF16 emulation on T4 for native support."""
     import torch
+
     return torch.cuda.is_bf16_supported(including_emulation=False)
 
 
@@ -17,7 +19,9 @@ class CompleteEpochMixin:
     """Consume rank-local final batches with Transformers 4.x accumulation."""
 
     def set_initial_training_values(self, args, dataloader, total_train_batch_size):
-        values = super().set_initial_training_values(args, dataloader, total_train_batch_size)
+        values = super().set_initial_training_values(
+            args, dataloader, total_train_batch_size
+        )
         epochs, updates, examples, samples, epoch_based, batches, steps = values
         if epoch_based and batches is not None:
             updates = max(math.ceil(batches / args.gradient_accumulation_steps), 1)
@@ -28,41 +32,108 @@ class CompleteEpochMixin:
         # Trainer 4.51 computes its last window from global example count,
         # not rank-local microbatches. Iterator exhaustion gives the true tail.
         return super().get_batch_samples(
-            epoch_iterator, self.args.gradient_accumulation_steps, device)
+            epoch_iterator, self.args.gradient_accumulation_steps, device
+        )
 
 
 def load_config(path, expected_task=None):
     config = json.loads(Path(path).read_text(encoding="utf-8"))
     task = config.get("task")
-    if task not in ("classification", "correction") or (expected_task is not None and task != expected_task):
-        raise ValueError(f"Expected {expected_task or 'classification/correction'} task configuration")
+    if task not in ("classification", "correction") or (
+        expected_task is not None and task != expected_task
+    ):
+        raise ValueError(
+            f"Expected {expected_task or 'classification/correction'} task configuration"
+        )
     for section in ("run", "data", "model", "training"):
         if not isinstance(config.get(section), dict):
             raise ValueError(f"Missing configuration section: {section}")
-    if type(config["run"].get("seed")) is not int or config["run"]["seed"] != 42:
-        raise ValueError("run.seed must be 42")
+    allowed_seeds = (42, 43, 44) if task == "classification" else (42,)
+    if (
+        type(config["run"].get("seed")) is not int
+        or config["run"]["seed"] not in allowed_seeds
+    ):
+        raise ValueError(f"run.seed must be one of {allowed_seeds}")
+    split_seed(config)
+    if config.get("ensemble") is not None:
+        spec = config["ensemble"]
+        entries = spec.get("members", []) if isinstance(spec, dict) else []
+        expected = ["qwen7b", "sailor7b", "mistral7b"]
+        if (
+            task != "classification"
+            or len(entries) != 3
+            or any(not isinstance(entry, dict) for entry in entries)
+            or [entry.get("name") for entry in entries] != expected
+            or spec.get("method", "soft") != "soft"
+            or config["run"]["seed"] != 42
+            or config.get("oof", {}).get("enabled", False)
+        ):
+            raise ValueError(
+                "Soft voting requires Qwen/Sailor/Mistral members, seed 42 and no OOF hints"
+            )
+        models = [entry.get("model") for entry in entries]
+        if (
+            any(
+                not isinstance(model, dict)
+                or not all(
+                    isinstance(model.get(key), str) and model[key]
+                    for key in ("name", "revision")
+                )
+                for model in models
+            )
+            or len({model["name"] for model in models}) != 3
+            or models[0] != config["model"]
+        ):
+            raise ValueError(
+                "Soft voting requires three distinct pinned models and the first model as root"
+            )
     world_size = config["run"].get("world_size", 1)
     if type(world_size) is not int or world_size not in (1, 2):
         raise ValueError("run.world_size must be 1 or 2")
     if config["model"].get("device_map") == "balanced" and world_size != 1:
-        raise ValueError("Balanced placement uses one process across two GPUs; world_size must be 1")
+        raise ValueError(
+            "Balanced placement uses one process across two GPUs; world_size must be 1"
+        )
     batch = config["training"]["args"]["per_device_train_batch_size"]
     effective = config["training"]["effective_batch_size"]
-    if type(batch) is not int or type(effective) is not int or batch <= 0 or effective < batch or effective % batch:
-        raise ValueError("effective_batch_size must be a positive multiple of the microbatch")
+    if (
+        type(batch) is not int
+        or type(effective) is not int
+        or batch <= 0
+        or effective < batch
+        or effective % batch
+    ):
+        raise ValueError(
+            "effective_batch_size must be a positive multiple of the microbatch"
+        )
     if effective < batch * world_size or effective % (batch * world_size):
-        raise ValueError("effective_batch_size must be a positive multiple of microbatch * world_size")
+        raise ValueError(
+            "effective_batch_size must be a positive multiple of microbatch * world_size"
+        )
     return config
+
+
+def split_seed(config):
+    value = config["data"].get("split_seed", 42)
+    if type(value) is not int or value != 42:
+        raise ValueError("data.split_seed must stay 42 for every model seed")
+    return value
 
 
 def resolve_data(config, explicit=None):
     from tools.runtime import discover_data
+
     path = explicit or config["data"].get("path")
     if path is not None:
         path = Path(path).expanduser()
         if not path.is_absolute():
             path = PROJECT_ROOT / path
-    return discover_data(path, PROJECT_ROOT, Path(config["data"]["input_root"]), config["data"]["filename"])
+    return discover_data(
+        path,
+        PROJECT_ROOT,
+        Path(config["data"]["input_root"]),
+        config["data"]["filename"],
+    )
 
 
 def resolve_submission_data(value="auto", *, input_root=Path("/kaggle/input")):
@@ -74,6 +145,7 @@ def resolve_submission_data(value="auto", *, input_root=Path("/kaggle/input")):
     if value is None:
         return None
     from tools.runtime import discover_data
+
     if value != "auto":
         return discover_data(value, PROJECT_ROOT, Path(input_root), "public_test.json")
     try:
@@ -102,13 +174,16 @@ def resolve_output(config, explicit=None):
 
 
 def write_json(path, value):
-    Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    Path(path).write_text(
+        json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def balanced_limit(records, limit, seed):
     if limit is None:
         return records
     import random
+
     groups = {label: [] for label in range(5)}
     for record in records:
         groups[record["label"]].append(record)
@@ -132,8 +207,14 @@ def selection_key(metrics, metric_paths):
             value = value[field]
         if value is None:
             value = 0.0
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
-            raise ValueError(f"Selection metric {path!r} must be a finite number or null")
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+        ):
+            raise ValueError(
+                f"Selection metric {path!r} must be a finite number or null"
+            )
         values.append(value)
     return tuple(values)
 
@@ -141,14 +222,25 @@ def selection_key(metrics, metric_paths):
 def unscored_final_report():
     """Explicitly unavailable scores for a fit with no independent validation."""
     from .metrics import COMBINED_SCORE_METADATA
-    return {"count": 0, "evaluation_status": "unavailable_full_training",
-            "classification": None, "corrections": {}, "clean_preservation": {},
-            "combined_score": None, "combined_score_metadata": dict(COMBINED_SCORE_METADATA)}
+
+    return {
+        "count": 0,
+        "evaluation_status": "unavailable_full_training",
+        "classification": None,
+        "corrections": {},
+        "clean_preservation": {},
+        "combined_score": None,
+        "combined_score_metadata": dict(COMBINED_SCORE_METADATA),
+    }
 
 
 def promote_trainable_parameters(model):
     """AMP scaling requires FP32 trainable tensors, including PEFT saved heads."""
     import torch
+
     for parameter in model.parameters():
-        if parameter.requires_grad and parameter.dtype in (torch.float16, torch.bfloat16):
+        if parameter.requires_grad and parameter.dtype in (
+            torch.float16,
+            torch.bfloat16,
+        ):
             parameter.data = parameter.data.float()

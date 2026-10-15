@@ -20,7 +20,8 @@
     "path": null,
     "filename": "VGEC_balanced.json",
     "input_root": "/kaggle/input",
-    "validation_fraction": 0
+    "validation_fraction": 0,
+    "split_seed": 42
   },
   "model": {
     "name": "Qwen/Qwen2.5-7B-Instruct",
@@ -74,7 +75,7 @@
     "output_format": "sentence",
     "hint_mode": "none",
     "user_role": "user",
-    "prompt": "H\u00e3y s\u1eeda l\u1ed7i ng\u1eef ph\u00e1p Ti\u1ebfng Vi\u1ec7t. S\u1eeda \u00edt nh\u1ea5t c\u00f3 th\u1ec3, gi\u1eef nguy\u00ean \u00fd ngh\u0129a v\u00e0 h\u00e3y gi\u1eef nguy\u00ean c\u00e2u \u0111\u00fang. Ch\u1ec9 tr\u1ea3 l\u1eddi JSON v\u1edbi duy nh\u1ea5t kh\u00f3a corrected_sentence ch\u1ee9a c\u00e2u ho\u00e0n ch\u1ec9nh; kh\u00f4ng gi\u1ea3i th\u00edch."
+    "prompt": "Hãy sửa lỗi ngữ pháp Tiếng Việt. Sửa ít nhất có thể, giữ nguyên ý nghĩa và hãy giữ nguyên câu đúng. Chỉ trả lời JSON với duy nhất khóa corrected_sentence chứa câu hoàn chỉnh; không giải thích."
   },
   "generation": {
     "max_new_tokens": 192,

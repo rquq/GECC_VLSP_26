@@ -14,12 +14,19 @@ from .prediction_export import comparison_rows, submission_rows, write_submissio
 
 def _classify_isolated(classifier, records, device, batch_size):
     """Exit the classifier process before the corrector allocates CUDA weights."""
+    if (Path(classifier) / "ensemble.json").is_file():
+        from .classifier_ensemble import classify as ensemble_classify
+        return ensemble_classify(classifier, records, device, batch_size)
     from concurrent.futures import ProcessPoolExecutor
     from multiprocessing import get_context
     from .classification import classify
 
+    from .gpu_lifecycle import snapshot, wait_for_release
+    before = snapshot()
     with ProcessPoolExecutor(max_workers=1, mp_context=get_context("spawn")) as worker:
-        return worker.submit(classify, classifier, records, device, batch_size).result()
+        result = worker.submit(classify, classifier, records, device, batch_size).result()
+    wait_for_release(before)
+    return result
 
 
 def run_inference(classifier, adapter, records, output, *, device="cuda", batch_size=1,
@@ -30,6 +37,8 @@ def run_inference(classifier, adapter, records, output, *, device="cuda", batch_
     Gold labels/targets are retained only for comparison/evaluation, never passed
     to either inference stage. Invalid generations fail export without fallback.
     """
+    from .reproducibility import seed_everything
+    seed_everything(42)
     if type(batch_size) is not int or batch_size <= 0:
         raise ValueError("batch-size must be positive")
     _validate_records(records, require_labels=evaluate)
@@ -121,6 +130,7 @@ def main():
     parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--evaluate", action="store_true", help="Require gold labels and write local evaluation metrics")
+    parser.add_argument("--input-scope", choices=("explicit_submission", "validation"), default="explicit_submission")
     parser.add_argument("--hint-mode", choices=["predicted", "none"], help="Override saved hint conditioning")
     parser.add_argument("--rerank", action="store_true", help="Score beam candidates and unchanged source")
     args = parser.parse_args()
@@ -141,7 +151,7 @@ def main():
     output = (Path(args.output) if args.output else
               resolve_output({"run": {"name": "submission", "output_root": "runs"}}) / "results.json")
     run_inference(classifier, adapter, records, output, device=args.device,
-                  batch_size=args.batch_size, evaluate=args.evaluate, input_path=data,
+                  batch_size=args.batch_size, evaluate=args.evaluate, input_path=data, input_scope=args.input_scope,
                   hint_mode=args.hint_mode, rerank=args.rerank)
 
 
