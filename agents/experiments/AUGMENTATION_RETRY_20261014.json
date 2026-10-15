@@ -1,0 +1,110 @@
+{
+  "schema": "vgec-augmentation-full-size-retry-v1",
+  "date": "2026-10-14",
+  "status": "completed_zero_accepted_augmentation",
+  "record": "agents/experiments/AUGMENTATION_RETRY_20261014.md",
+  "run_path": "runs/augment/augmentation-runs/hy-qwen-sailor-reviewed-roundtrip-20261014T132131880892Z",
+  "source": {
+    "repo_url": "https://github.com/rquq/GECC_VLSP_26.git",
+    "branch": "kaggle-augment",
+    "commit": "018a9fbe9ea4ed9ad278cabaf643c069e3167ae4",
+    "dirty": false
+  },
+  "recipe": {
+    "name": "hy-qwen-sailor-reviewed-roundtrip",
+    "sha256": "9b0c863c488fde790ea1fa606d71820183f950a2ac714407c890fc2021790bed",
+    "seed": 42,
+    "max_calls": 1536,
+    "actual_calls": 1462,
+    "max_wall_minutes": 360,
+    "elapsed_seconds": 12703.233016629,
+    "budget_exhausted": false,
+    "inputs": {
+      "archive": "VGEC26-sailor-qwen-lora-full-training-20261014.zip",
+      "classification_rows": 585,
+      "correction_rows": 495,
+      "original_sha256": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+      "classification_sha256": "6fbcb68cf531e53ab880914386a3809703cff3e7ef3f17829a92a1f514486dc9",
+      "correction_sha256": "d3aa54495f188a07740aa6e04763f53d24c8a7296f1b015520b3744e018a15cf"
+    }
+  },
+  "models": {
+    "translator": {
+      "name": "tencent/Hy-MT2-7B",
+      "revision": "9b0eb4e8f001def3e5ff6469a0ac96fdb39ec223",
+      "parameters": 7504568320,
+      "dtype": "float16",
+      "quantized": false
+    },
+    "author": {
+      "name": "Qwen/Qwen2.5-7B-Instruct",
+      "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+      "parameters": 7615616512,
+      "dtype": "float16",
+      "quantized": false
+    },
+    "reviewer": {
+      "name": "sail/Sailor-7B-Chat",
+      "revision": "19066fae0a8a3ba029c190d8e3dacccf4d1234b8",
+      "parameters": 7721324544,
+      "dtype": "float16",
+      "quantized": false
+    }
+  },
+  "hardware": {
+    "gpus": 2,
+    "per_gpu_total_bytes": 15636037632,
+    "per_gpu_free_bytes_at_worker_start": 15419113472,
+    "native_fp16": true,
+    "sequential_isolated_workers": true,
+    "all_workers_exit_code_zero": true,
+    "oom": false
+  },
+  "pipeline": {
+    "selected_parents": 96,
+    "translated_references": 148,
+    "translation_phase_rejections": 44,
+    "authoring_proposals": 296,
+    "authored_candidates": 249,
+    "authoring_phase_rejections": 47,
+    "clean_review_tasks": 142,
+    "blind_error_review_tasks": 249,
+    "initial_review_requests_retried": 391,
+    "schema_valid_clean_reviews": 0,
+    "final_error_reviews_with_schema_field_types": 187,
+    "error_reviews_matching_candidate_label": 10,
+    "error_reviews_matching_exact_mechanism": 5,
+    "error_reviews_matching_reference_correction": 13,
+    "rejected_candidates": 249,
+    "accepted_error_pairs": 0,
+    "added_clean_controls": 0,
+    "new_rows_per_stage": 0,
+    "result": "completed_no_accepted_augmentation",
+    "human_adjudicated": false,
+    "training_run": false,
+    "score": null
+  },
+  "rejection_reason_counts_overlap": {
+    "clean_semantics_review_failed": 249,
+    "blind_error_review_failed": 249,
+    "overbroad_edit": 111,
+    "function_edit_changes_content": 47,
+    "phrase_edit_changes_vocabulary": 38,
+    "structure_edit_adds_vocabulary": 32,
+    "names_or_numbers_changed": 18,
+    "mixed_punctuation_error": 18,
+    "identity_error": 1
+  },
+  "archive": {
+    "path": "dataset/VGEC26-augmented-full-training.zip",
+    "bytes": 2152898,
+    "sha256": "a72752e6c6b105caf396953972bd2fc5597f925960f96ebea94561219df96a44",
+    "crc_validation": "passed",
+    "accepted_pairs": 0,
+    "classification_baseline_rows": 585,
+    "classification_total_rows": 585,
+    "correction_baseline_rows": 495,
+    "correction_total_rows": 495
+  },
+  "next_step": "Run a small saved-output diagnostic of proposal and review formats; do not repeat the full run or weaken quality gates until independent reviews are reliable."
+}

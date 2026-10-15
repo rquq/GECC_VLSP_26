@@ -1,5 +1,11 @@
 # Recovered experiment history
 
+**Current training request — 2026-10-15:** user explicitly requests updating `kaggle-linux` for retained v2 and skipping verification. The active recipe is Sailor7B classification5 epochs /Qwen7B correction6 epochs, standard LoRA,1360 exposures per stage/272 per class; stored945/933. Use the complete PRIVATE `VGEC26-sailor-qwen-retained-v2-20261015.zip`, including the existing public inference input. All401 classifier originals (including8 notes) remain; corrector389 originals include112 abbreviated references once each;11 note targets and ID11 remain excluded. The v2 loader/rules are ported without augmentation-pipeline imports. No notebook toggles or model/loss/precision changes. No tests, smoke runs or model preflight are to be run for this update, per the user. Runtime input/size/memory checks remain active. Read KAGGLE_RETAINED_V2_20261015.md/.json. Earlier holds/585-495 training defaults below are historical; this instruction authorizes preparation of the selected v2 training recipe, with no score claim or automatic Kaggle launch.
+
+**Latest dataset decision — 2026-10-15:** PUBLIC_ABBREVIATION_20261015.md/.json records139/443 public inputs with ellipses and saved output counts100 Sailor /134 Qwen /80 ViT5 /142 latest run. V2 restores112 exact ORGANIZER training references with ellipses, each once per correction epoch, without inferred completions or public pseudo-labels. This supersedes blanket ellipsis exclusion. Corrector canonical933 (389 originals), classifier945 (all401 originals,8 notes unchanged); balanced1360 per stage/272 each class.11 note targets remain corrector-excluded; ID11 is the sole remaining review item. Phrase canonical is101 classifier/95 corrector, not272 independent examples. All29 saved stage/export materializations and every extra type are inventoried privately. V1 remains preserved; no real-model training, new synthesis, recipe/notebook change or Kaggle launch. Read this record before the historical v1 snapshots below.
+
+2026-10-15 latest: RETAINED_BALANCED_20261015.md/.json — private retained/balanced candidate built and verified;320 new code pairs,32 external controls,8 originals restored unchanged, each training view1360/272 per class,213 tests. No new model/score/Kaggle run.113 unresolved corrector targets remain pending; prior model failures are not promoted.
+
 Recovery uses surviving run artifacts, archived agent notes, Git history, and maintenance records. No historical training was rerun. Private recovered notes can contain corpus text and remain ignored by Git.
 
 ## Surviving measured artifacts
@@ -159,3 +165,40 @@ SAILOR_QWEN_LORA_20261014.md/.json records the user-requested Sailor7B classific
 ## Translation model recommendation and native size audit — 2026-10-14
 
 TRANSLATION_MODELS_20261014.md/.json recommends Apache-2.0 Hy-MT2-7B and its1.8B sibling for a pilot. Native meta audits verify7,504,568,320 and1,791,080,448 unique parameters with tied embeddings. The initial stored-tensor8.029B exclusion was corrected. No model weights, generation, training or active recipe change occurred; corpus quality and downstream improvement remain unmeasured.
+
+
+## Separate Kaggle augmentation preparation — 2026-10-14
+
+AUGMENTATION_20261014.md/.json records the user-requested kaggle-augment branch, preserving the585/495/all81 baseline and training branch030cb13. The initial recipe used96 parents,200 accepted-error caps plus matched clean controls,1344 calls/360 active minutes, Hy-MT2-7B round trips, Qwen7B minimal proposals and independent blind Sailor7B review. The actual dual-GPU FP16 run then completed1071 calls, translated148 references and authored249 candidates, but Sailor returned no parseable JSON in391 review responses. All249 failed strict review gates, leaving zero accepted pairs and zero added rows. See AUGMENTATION_RUN_20261014.md/.json. Follow-up source commit969f22c adds one format-only retry and raises the call ceiling to1536; it preserves precision and every quality gate. Local tests and a toy CPU smoke pass, but a fresh full-size yield/quality run and downstream score remain pending.
+
+
+## Augmentation phase-memory failure and worker isolation — 2026-10-14
+
+AUGMENTATION_MEMORY_FIX_20261014.md/.json records the first user Kaggle log:96 parents/148 translated references then Qwen startup memory precheck fails9.30GiB needed/7.36GiB free. Exact retained owner was unknown. Worker isolation was followed by a successful full-size dual-GPU FP16 run with all three models exiting cleanly and no OOM. Sailor's review output format—not memory—then caused zero accepted augmentation. Follow-up code commit969f22c asks for strict JSON and allows one schema retry; the repeat full-size quality/yield run is pending. No score gain is claimed.
+
+## Full-size augmentation run and reviewer output-contract diagnosis — 2026-10-14
+
+The completed private run at `runs/augment/augmentation-runs/hy-qwen-sailor-reviewed-roundtrip-20261014T094859674639Z` was sourced from clean commit15d2694093e9b6e758bf8cd36d11a009c3c8ca6d. Dual GPUs each exposed15,636,037,632 bytes; Hy-MT2-7B, Qwen2.5-7B-Instruct and Sailor-7B-Chat loaded sequentially in unquantized FP16. The job completed1071 calls in8272.5 seconds without OOM. It made148 round-trip references and249 authored candidates. All142 clean and249 blind error review outputs were non-JSON prose; every candidate failed both independent review gates. The ZIP is valid but contains zero accepted pairs and zero additional classifier/corrector rows. No training or score evaluation ran.
+
+The code follow-up is commit969f22c99c7a3f6f51d90b2d1434217c85ad586e. It preserves strict parsing and data-quality gates, explicitly asks Sailor for a single JSON object, retries a malformed/schema-invalid response once, records both call IDs and sets the maximum to1536 calls.11 focused augmentation tests,178 repository tests and the CPU tiny-model smoke passed; those are protocol/mechanics checks, not proof of improved real-data output. New run record: AUGMENTATION_RUN_20261014.md/.json.
+
+## Full-size augmentation retry — 2026-10-14
+
+AUGMENTATION_RETRY_20261014.md/.json records the 1,462-call run from clean commit018a9fbe9ea4ed9ad278cabaf643c069e3167ae4. Dual-GPU native FP16 completed without OOM in12,703 seconds. It translated148 references and authored249 candidates. The format-only retry still failed: all142 final clean reviews were schema-invalid; only187 of249 final error reviews had type-valid fields, and just10/5/13 agreed with the candidate label/exact mechanism/reference correction respectively. All249 candidates failed independent review; mechanical edits included111 overbroad examples and other taxonomy/protected-content failures. The verified ZIP is baseline-only:585 classifier/495 corrector rows, zero accepted pairs or added rows. No training or score was measured. Keep all strict gates and pause another full run until a small saved-output pilot demonstrates reliable review behavior.
+
+
+## Saved-output recovery — 2026-10-15
+
+AUGMENTATION_RECOVERY_20261015.md/.json records recovery of the completed148-reference/249-proposal run. Mechanical checks retain51 candidates across47 references and reject198 before inference. The pinned private ZIP carries unchanged585/495 baselines and saved journal proof. Only Qwen3-4B-Instruct-2507 is loaded in Kaggle native FP16; translation and authoring perform zero calls. Hard JSON/bounded source-span decoding preserves exact correction and every original review gate. Eight exposed-original operational controls stop the job early on failure. Budget256 calls/90 minutes; laptop NF4 diagnostics are not promoted. Every failed local probe and verification limit is retained in the new record; no training/public score is claimed.
+
+Recovery implementation8cd7de0 passes202 repository tests,47 augmentation tests under Transformers5.6 and an actual CPU native tiny-model constrained-decoding/recovery smoke. The committed CLI passes reviewer-only meta preflight and fails cleanly/resumes without extra calls using the actual private payload plus a tiny fixture. Twenty fresh local NF4 reviewer calls across seven probes still fail the known type1 correction; no candidate inference or training promotion followed. Native FP16 pilot and accepted real yield remain pending.
+
+
+## Augmentation held after local cross-check — 2026-10-15
+
+The user rejected further Kaggle risk without local review results. LOCAL_AUGMENTATION_SCREEN_20261015.md/.json records actual inference with four saved native checkpoints in122.9 seconds,179 rows/model. On51 candidates, Bami/Qwen0.5 subtype agreements are4/7; ViT5/BARTpho exact proposed references are10/2. Both classifier agreement and both corrector exact reference hold for0/51. Their exposed-original error diagnostics are weak too, so disagreement does not adjudicate labels. No new rows or training/Kaggle run occurred. The next-run recommendation was withdrawn; require positive local quality evidence and a small grouped data comparison before another Kaggle recommendation. Preserve the best-supported hybrid and all original artifacts.
+
+
+## Retention-first recovery proposal —2026-10-15
+
+The user requested review and a better written plan, not execution. RETENTION_RECOVERY_PLAN_20261015.md/.json records a proposed immutable401-row master,393-original classifier view after8 user exclusions,11 note-target corrector exclusions,32 complete-source/80 source-abbreviated recovery cases,192 retained code-synthetic baseline rows, qualified≤8B local teacher candidates and explicit class0 exposure/grouped local comparison gates. It distinguishes preserving a row from inventing a target, and grammatical test errors from unverified hidden-label errors. No model download, generation, dataset promotion, training or Kaggle run occurred.

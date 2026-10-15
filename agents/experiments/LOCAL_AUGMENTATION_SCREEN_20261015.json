@@ -1,0 +1,369 @@
+{
+  "schema": "vgec-local-augmentation-crosscheck-v1",
+  "date": "2026-10-15",
+  "status": "completed_augmentation_on_hold",
+  "user_request": "No additional Kaggle risk without measured local review evidence; user confused by previous rerun recommendation.",
+  "decision": "Do not recommend or start a further Kaggle run. Preserve best-supported hybrid and existing baseline. Current automatic augmentation review is unqualified.",
+  "artifact": "runs/augmentation-local-screen-20261015",
+  "manifest": {
+    "scope": "Read-only model agreement, NOT adjudicated data or independent validation; no training/promotion/Kaggle",
+    "source_commit": "314621cba536dbc2433e67767fb547dda07396f8",
+    "source_script_sha256": "d8ff32e34382b8284475d5ce92fd9a7ed3d70d247ddec098c0fc1d4c9f0c7b1e",
+    "source_candidates_sha256": "f916733974414cc7ee7340017b45285d6f817557a74b925f566f4b179c24d5e4",
+    "rows": 179,
+    "eligible_candidates": 51,
+    "proposed_clean_references": 47,
+    "recorded_exposed_controls": 81,
+    "seed": 42,
+    "max_wall_seconds": 600,
+    "max_new_tokens": 256,
+    "microbatch": 2,
+    "precision": "FP32 weights with native BF16 autocast",
+    "models": {
+      "bami-flat-final": {
+        "task": "classification",
+        "parameters": 102955013,
+        "training_summary_sha256": "748de527db9ae3cd91fe5757b0e5b562c650c1890e25f1ac030340338476bcd6",
+        "checkpoint_sha256": "8fae414d51c48049f1789f1794342e7b3c0c6a1d296de9213cbfcb3c555239fa",
+        "peak_allocated_vram_bytes": 618467328,
+        "elapsed_seconds": 4.776894052003627,
+        "completed": true
+      },
+      "qwen05-flat-final": {
+        "task": "classification",
+        "parameters": 494037248,
+        "training_summary_sha256": "8b00eac31625641dc4329f43eab8b7f59b1af706a9be450da6684e998b0f707d",
+        "checkpoint_sha256": "406b1d8f042414d2bbc3c5ca461df213a61e9353ddbb3fd86dfb935e1848bb8c",
+        "peak_allocated_vram_bytes": 2713961984,
+        "elapsed_seconds": 20.85340758300299,
+        "completed": true
+      },
+      "vit5-base-edit5-final": {
+        "task": "correction",
+        "parameters": 225950976,
+        "training_summary_sha256": "e56105665ad2aa428e53d5348983f5ac5b81bc02933e72d443c0d4ee0fa66d0e",
+        "checkpoint_sha256": "90694a7a0278c357c550215d581fb71d4aae5aad715e474e43b30255b6e14a92",
+        "peak_allocated_vram_bytes": 1426826240,
+        "elapsed_seconds": 73.92321237800206,
+        "completed": true
+      },
+      "bartpho-syllable-final": {
+        "task": "correction",
+        "parameters": 395814912,
+        "training_summary_sha256": "820154c210eeed7a70aa672d451c2d96b1a0523f45c41bc1bc727eb64bbc46db",
+        "checkpoint_sha256": "98ce000553caa3cd0c764f7db409494e084b37e465cf985f21e667170ab8c7d9",
+        "peak_allocated_vram_bytes": 2397560320,
+        "elapsed_seconds": 122.68786048400216,
+        "completed": true
+      }
+    },
+    "elapsed_seconds": 122.918485263006,
+    "completed_models": 4,
+    "approved_pairs": 0,
+    "training_performed": false
+  },
+  "results": {
+    "bami-flat-final": {
+      "candidate_error": {
+        "count": 51,
+        "label_agreement_count": 4,
+        "predicted_labels": {
+          "1": 3,
+          "0": 42,
+          "2": 5,
+          "3": 1
+        },
+        "by_proposed_type": {
+          "0": {
+            "count": 0,
+            "agreement": 0
+          },
+          "1": {
+            "count": 2,
+            "agreement": 0
+          },
+          "2": {
+            "count": 22,
+            "agreement": 3
+          },
+          "3": {
+            "count": 21,
+            "agreement": 1
+          },
+          "4": {
+            "count": 6,
+            "agreement": 0
+          }
+        }
+      },
+      "proposed_clean_reference": {
+        "count": 47,
+        "label_agreement_count": 42,
+        "predicted_labels": {
+          "1": 3,
+          "0": 42,
+          "2": 2
+        },
+        "by_proposed_type": {
+          "0": {
+            "count": 47,
+            "agreement": 42
+          },
+          "1": {
+            "count": 0,
+            "agreement": 0
+          },
+          "2": {
+            "count": 0,
+            "agreement": 0
+          },
+          "3": {
+            "count": 0,
+            "agreement": 0
+          },
+          "4": {
+            "count": 0,
+            "agreement": 0
+          }
+        }
+      },
+      "exposed_recorded_control": {
+        "count": 81,
+        "label_agreement_count": 52,
+        "predicted_labels": {
+          "0": 51,
+          "1": 14,
+          "3": 7,
+          "4": 9
+        },
+        "by_proposed_type": {
+          "0": {
+            "count": 40,
+            "agreement": 38
+          },
+          "1": {
+            "count": 20,
+            "agreement": 8
+          },
+          "2": {
+            "count": 7,
+            "agreement": 0
+          },
+          "3": {
+            "count": 7,
+            "agreement": 1
+          },
+          "4": {
+            "count": 7,
+            "agreement": 5
+          }
+        }
+      }
+    },
+    "qwen05-flat-final": {
+      "candidate_error": {
+        "count": 51,
+        "label_agreement_count": 7,
+        "predicted_labels": {
+          "1": 6,
+          "0": 37,
+          "3": 6,
+          "2": 2
+        },
+        "by_proposed_type": {
+          "0": {
+            "count": 0,
+            "agreement": 0
+          },
+          "1": {
+            "count": 2,
+            "agreement": 0
+          },
+          "2": {
+            "count": 22,
+            "agreement": 2
+          },
+          "3": {
+            "count": 21,
+            "agreement": 5
+          },
+          "4": {
+            "count": 6,
+            "agreement": 0
+          }
+        }
+      },
+      "proposed_clean_reference": {
+        "count": 47,
+        "label_agreement_count": 39,
+        "predicted_labels": {
+          "1": 6,
+          "0": 39,
+          "3": 2
+        },
+        "by_proposed_type": {
+          "0": {
+            "count": 47,
+            "agreement": 39
+          },
+          "1": {
+            "count": 0,
+            "agreement": 0
+          },
+          "2": {
+            "count": 0,
+            "agreement": 0
+          },
+          "3": {
+            "count": 0,
+            "agreement": 0
+          },
+          "4": {
+            "count": 0,
+            "agreement": 0
+          }
+        }
+      },
+      "exposed_recorded_control": {
+        "count": 81,
+        "label_agreement_count": 56,
+        "predicted_labels": {
+          "0": 48,
+          "1": 15,
+          "3": 11,
+          "4": 4,
+          "2": 3
+        },
+        "by_proposed_type": {
+          "0": {
+            "count": 40,
+            "agreement": 39
+          },
+          "1": {
+            "count": 20,
+            "agreement": 8
+          },
+          "2": {
+            "count": 7,
+            "agreement": 2
+          },
+          "3": {
+            "count": 7,
+            "agreement": 4
+          },
+          "4": {
+            "count": 7,
+            "agreement": 3
+          }
+        }
+      }
+    },
+    "vit5-base-edit5-final": {
+      "candidate_error": {
+        "count": 51,
+        "exact_reference_count": 10,
+        "unchanged_source_count": 36,
+        "empty_count": 0
+      },
+      "proposed_clean_reference": {
+        "count": 47,
+        "exact_reference_count": 46,
+        "unchanged_source_count": 46,
+        "empty_count": 0
+      },
+      "exposed_recorded_control": {
+        "count": 81,
+        "exact_reference_count": 41,
+        "unchanged_source_count": 64,
+        "empty_count": 0
+      }
+    },
+    "bartpho-syllable-final": {
+      "candidate_error": {
+        "count": 51,
+        "exact_reference_count": 2,
+        "unchanged_source_count": 46,
+        "empty_count": 0
+      },
+      "proposed_clean_reference": {
+        "count": 47,
+        "exact_reference_count": 45,
+        "unchanged_source_count": 45,
+        "empty_count": 0
+      },
+      "exposed_recorded_control": {
+        "count": 81,
+        "exact_reference_count": 40,
+        "unchanged_source_count": 77,
+        "empty_count": 0
+      }
+    }
+  },
+  "recorded_control_diagnostics": {
+    "bami-flat-final": {
+      "error": {
+        "matched": 14,
+        "count": 41
+      },
+      "clean": {
+        "matched": 38,
+        "count": 40
+      }
+    },
+    "qwen05-flat-final": {
+      "error": {
+        "matched": 17,
+        "count": 41
+      },
+      "clean": {
+        "matched": 39,
+        "count": 40
+      }
+    },
+    "vit5-base-edit5-final": {
+      "error": {
+        "matched": 1,
+        "count": 41
+      },
+      "clean": {
+        "matched": 40,
+        "count": 40
+      }
+    },
+    "bartpho-syllable-final": {
+      "error": {
+        "matched": 0,
+        "count": 41
+      },
+      "clean": {
+        "matched": 40,
+        "count": 40
+      }
+    }
+  },
+  "cross_model_agreement": {
+    "both_classifiers_match_proposed_subtype": 1,
+    "both_correctors_reproduce_proposed_reference": 1,
+    "all_four": 0,
+    "candidate_count": 51
+  },
+  "training_performed": false,
+  "new_approved_rows": 0,
+  "kaggle_used": false,
+  "raw_artifacts_private": true,
+  "artifact_sha256": {
+    "manifest.json": "a55a6e53ee708802818f81ca5a364256689d6f1ffa02b524bda9548c509f8b03",
+    "inputs.json": "4bbe7da2bfebbcdbcacad9b5b5c536678b76d5020f0108905b1ff6fff9972dee",
+    "summary.json": "32dcc60956bfbbcca3a35fae84e5ef4a4ca3a02e6585ed009f2fc66b07483cdd",
+    "candidate_reviews.json": "6abf4ab9a45ce853b3cb51c0a7562179dae69dc819ea7a396d870e520f195c9d",
+    "reviews.md": "fc71c357da7594f288b44b27cdef94c2c94a8e13028973e73a5d04e09d51fd05"
+  },
+  "interpretation": [
+    "Disagreement is not proof that a proposed label is wrong. Classifiers have low rare-class recall; correctors have poor exact match on recorded error targets.",
+    "Agreement is not adjudication: models share training sources and may share mistakes.",
+    "The81 controls were used in previous screening/selection; these are diagnostic replays, not new independent validation.",
+    "Exact target matching does not cover alternate valid corrections, and original targets can contain annotations.",
+    "Runtime and JSON/worker tests do not qualify a teacher. FP16 might change outputs, but it is not evidence that a failed local reviewer will succeed."
+  ],
+  "next_prerequisite": "A reviewer must demonstrate reliable subtype/minimal-correction judgments on supported known examples locally; any proposed added data then needs a small controlled comparison with grouped parent families. No scaling based on self-confidence or model consensus alone."
+}

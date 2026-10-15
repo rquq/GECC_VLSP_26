@@ -151,6 +151,9 @@ def load_training_split(path: str | Path, validation_fraction: float, seed: int)
     if type(seed) is not int or seed != 42:
         raise ValueError("Training seed must be 42")
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    if isinstance(raw, dict) and raw.get("format") in ("vgec-retained-balanced-v1", "vgec-retained-balanced-v2"):
+        from .retained_balanced import load_retained
+        return load_retained(raw, validation_fraction, seed)
     if isinstance(raw, dict) and raw.get("format") == "vgec-final-training-v1":
         from .final_data import load_final
         return load_final(raw, validation_fraction, seed)
@@ -287,6 +290,16 @@ def load_classifier_split(original_path, bundle_path, validation_fraction, seed)
     annotations remain supervision; no original may be repaired or relabeled.
     """
     bundle_raw = json.loads(Path(bundle_path).read_text(encoding="utf-8"))
+    if isinstance(bundle_raw, dict) and bundle_raw.get("format") in ("vgec-retained-balanced-v1", "vgec-retained-balanced-v2"):
+        from .retained_balanced import load_retained
+        original_bytes = Path(original_path).read_bytes()
+        if (bundle_raw.get("stage") != "classification"
+                or bundle_raw.get("original_snapshot") != json.loads(original_bytes)
+                or bundle_raw.get("metadata", {}).get("original_file_sha256")
+                != hashlib.sha256(original_bytes).hexdigest()):
+            raise ValueError("Retained classifier original snapshot/hash differs")
+        train, _, info = load_retained(bundle_raw, validation_fraction, seed)
+        return train, info
     if isinstance(bundle_raw, dict) and bundle_raw.get("format") == "vgec-final-training-v1":
         from .final_data import load_final_classifier
         return load_final_classifier(original_path, bundle_raw, validation_fraction, seed)

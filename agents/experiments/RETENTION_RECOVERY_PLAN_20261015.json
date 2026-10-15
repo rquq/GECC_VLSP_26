@@ -1,0 +1,70 @@
+{
+  "schema": "vgec-retention-recovery-proposal-v1",
+  "date": "2026-10-15",
+  "status": "proposed_not_executed",
+  "plan": "agents/experiments/RETENTION_RECOVERY_PLAN_20261015.md",
+  "plan_sha256": "7c5cc57a277838c26ffde76b134bf3e4549bcf637a39b9d07da16b5fef36b05d",
+  "original_sha256": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+  "verified_counts": {
+    "raw_original": 401,
+    "raw_clean": 200,
+    "raw_error": 201,
+    "abbreviated_targets": 112,
+    "abbreviated_targets_source_without_ellipsis": 32,
+    "abbreviated_targets_source_with_ellipsis": 80,
+    "parenthetical_notes": 11,
+    "correct_description_note_subset": 8,
+    "source_and_target_without_ellipsis_non_note_error_pairs": 77,
+    "remaining_non_note_full_target_source_with_ellipsis_ids": [
+      48
+    ],
+    "current_classifier_original": 393,
+    "current_classifier_synthetic": 192,
+    "current_corrector_original": 303,
+    "current_corrector_synthetic": 192,
+    "maximum_original_corrector_if_all_eligible_targets_validated": 390
+  },
+  "proposed_classifier_excluded_ids": [
+    104,
+    105,
+    116,
+    121,
+    141,
+    143,
+    147,
+    168
+  ],
+  "proposed_corrector_note_excluded_ids": [
+    103,
+    104,
+    105,
+    108,
+    116,
+    121,
+    141,
+    143,
+    147,
+    168,
+    200
+  ],
+  "candidate_teacher": "Viet-Mistral/Vistral-7B-Chat; access/license/native count/task qualification pending",
+  "fallback_teacher": "vinai/PhoGPT-4B-Chat; native count/runtime/task qualification pending",
+  "candidate_verifier": "Qwen/Qwen2.5-7B-Instruct; focused-task qualification pending",
+  "proposed_clean_exposure_range": [
+    0.45,
+    0.5
+  ],
+  "initial_stored_clean_floor": 0.4,
+  "proposed_qualification": {
+    "cases": 12,
+    "maximum_attempts": 36,
+    "maximum_active_minutes": 20,
+    "not_started": true
+  },
+  "new_data_generated": false,
+  "dataset_promoted": false,
+  "model_downloaded": false,
+  "training_started": false,
+  "kaggle_started": false,
+  "source_text_in_tracked_plan": false
+}

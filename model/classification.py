@@ -807,6 +807,8 @@ def main(*, tracking):
             "retained_original_train_count": len(classifier_info["provenance"]["retained_original_train_ids"]),
             "quarantined_original_train_count": len(classifier_info["provenance"]["quarantined_ids"]),
             "synthetic_train_count": len(classifier_info["provenance"]["selected_synthetic_ids"]),
+            "external_train_count": len(classifier_info["provenance"].get("external_train_ids", [])),
+            "resampled_train_count": len(classifier_info["provenance"].get("resampled_train_ids", [])),
             "model": config["model"], "resolved_model_revision": config["model"]["revision"],
             "preprocessing": preprocessing, "saved_classifier_reloaded_for_evaluation": not final_fit,
             "saved_classifier_reload_verified": True, "final_fit": final_fit,

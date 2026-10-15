@@ -1,7 +1,7 @@
 {
   "task": "classification",
   "run": {
-    "name": "sailor7b-lora-full-training",
+    "name": "sailor7b-lora-retained-v2",
     "output_root": "runs",
     "device": "cuda",
     "world_size": 1,

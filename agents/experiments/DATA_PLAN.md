@@ -1,5 +1,7 @@
 # Data and score plan
 
+**Current training request — 2026-10-15:** user explicitly requests updating `kaggle-linux` for retained v2 and skipping verification. The active recipe is Sailor7B classification5 epochs /Qwen7B correction6 epochs, standard LoRA,1360 exposures per stage/272 per class; stored945/933. Use the complete PRIVATE `VGEC26-sailor-qwen-retained-v2-20261015.zip`, including the existing public inference input. All401 classifier originals (including8 notes) remain; corrector389 originals include112 abbreviated references once each;11 note targets and ID11 remain excluded. The v2 loader/rules are ported without augmentation-pipeline imports. No notebook toggles or model/loss/precision changes. No tests, smoke runs or model preflight are to be run for this update, per the user. Runtime input/size/memory checks remain active. Read KAGGLE_RETAINED_V2_20261015.md/.json. Earlier holds/585-495 training defaults below are historical; this instruction authorizes preparation of the selected v2 training recipe, with no score claim or automatic Kaggle launch.
+
 The native-model review was approved and executed. LOCAL_REVIEW_RESULTS.md / .json record the failed synthetic pilot, negative Bami comparison and prepared five-repair corrector dataset. The production recipe is now corrector-only with the saved Sailor classifier. The earlier planning sequence below is historical; new work must use current evidence and receive authorization for any expanded budget.
 
 ## First comparison: cheap no-fold system
