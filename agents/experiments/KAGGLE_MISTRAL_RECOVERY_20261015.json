@@ -132,5 +132,6 @@
     "Original downloaded run and checkpoints remain unchanged",
     "Full Kaggle continuation not verified locally; live W&B cloud artifact resolution not exercised by offline tiny probe"
   ],
-  "direct_output_followup": "KAGGLE_OUTPUT_DISCOVERY_20261015.md/.json"
+  "direct_output_followup": "KAGGLE_OUTPUT_DISCOVERY_20261015.md/.json",
+  "tokenizer_followup": "MISTRAL_COLD_CACHE_20261015.md/.json"
 }

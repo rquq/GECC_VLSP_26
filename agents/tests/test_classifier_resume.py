@@ -104,6 +104,14 @@ class ClassifierResumeTests(unittest.TestCase):
             )
             self.assertEqual(validate_files(output)["members"], ["qwen7b", "sailor7b"])
             resume_output(output)
+            retry = materialize(
+                output,
+                archive.name,
+                digest,
+                root / "retry-output",
+                source_manifest=proof_path,
+            )
+            self.assertEqual(validate_files(retry)["members"], ["qwen7b", "sailor7b"])
             weight = (
                 "classification/members/qwen7b/classifier/adapter_model.safetensors"
             )

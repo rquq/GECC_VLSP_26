@@ -153,8 +153,27 @@ def _load_tokenizer(path, **kwargs):
     backend_only = ((directory / "tokenizer.json").is_file() and
                     not (directory / "vocab.json").is_file() and
                     not (directory / "merges.txt").is_file())
-    # Native Mistral v0.3 uses a versioned vocabulary unsupported by the slow Llama loader.
+    # Native Mistral/Llama checkpoints provide a serialized fast backend.
     native_fast = saved.get("tokenizer_class") in {"LlamaTokenizer", "LlamaTokenizerFast"}
+    if native_fast and not directory.is_dir():
+        from huggingface_hub import hf_hub_download
+        download_kwargs = {key: kwargs[key] for key in (
+            "revision", "cache_dir", "token", "local_files_only", "force_download", "subfolder"
+        ) if key in kwargs}
+        # Fetch the native backend and metadata explicitly so cold workers use
+        # one complete pinned snapshot, with no remote-resolution fallback.
+        assets = [Path(hf_hub_download(str(path), filename, **download_kwargs))
+                  for filename in ("tokenizer.json", "tokenizer_config.json", "special_tokens_map.json")]
+        directory = assets[0].parent
+        if any(not asset.is_file() or asset.parent != directory for asset in assets):
+            raise ValueError("Native fast tokenizer assets must exist in one pinned snapshot")
+        path = str(directory)
+        kwargs.update(local_files_only=True, from_slow=False)
+    if native_fast and (directory / "tokenizer.json").is_file():
+        # Transformers 4.51 LlamaTokenizerFast forces slow conversion whenever
+        # add_prefix_space is specified. Its serialized backend already encodes
+        # that behavior; None preserves it without requiring SentencePiece.
+        kwargs.update(add_prefix_space=None, from_slow=False)
     tokenizer = AutoTokenizer.from_pretrained(path, use_fast=generic_fast or backend_only or native_fast, **kwargs)
     # Decoder classifiers have no token-type input; generic tokenizer reloads
     # otherwise silently restore the encoder-style default input names.

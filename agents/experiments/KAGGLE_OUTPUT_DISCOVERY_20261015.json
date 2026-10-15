@@ -54,5 +54,6 @@
     "Combined resume ZIP route"
   ],
   "remaining": "New Kaggle run restores Qwen/Sailor, trains Mistral then Qwen corrector, exports submission",
-  "limits": "Full-size Kaggle continuation not executed locally; no new score claim; online W&B linkage not tested by this preflight."
+  "limits": "Full-size Kaggle continuation not executed locally; no new score claim; online W&B linkage not tested by this preflight.",
+  "tokenizer_followup": "MISTRAL_COLD_CACHE_20261015.md/.json"
 }

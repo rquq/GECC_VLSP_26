@@ -145,7 +145,17 @@ def materialize(
             raise ValueError("Attach exactly one extracted classifier resume package")
         source = candidates[0].parent
         raw = candidates[0].read_bytes()
-        if hashlib.sha256(raw).hexdigest() != expected_manifest_sha256:
+        trusted_digests = {expected_manifest_sha256}
+        if source_manifest is not None and Path(source_manifest).is_file():
+            proof = Path(source_manifest)
+            if (
+                json.loads(proof.read_text()).get("packet_manifest_sha256")
+                == expected_manifest_sha256
+            ):
+                # A failed continuation already contains this trusted runtime
+                # descriptor. Its copied checkpoint bytes remain reusable.
+                trusted_digests.add(sha256(proof))
+        if hashlib.sha256(raw).hexdigest() not in trusted_digests:
             raise ValueError("Classifier resume manifest differs from committed recipe")
         value = validate_files(source)
         for name in _entries(value):

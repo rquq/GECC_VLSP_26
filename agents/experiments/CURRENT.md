@@ -1,5 +1,8 @@
 # Current experiment — 2026-10-14
 
+**Cold-cache Mistral tokenizer fix — 2026-10-15:** the new pasted preflight log shows LlamaTokenizerFast still entering slow conversion. Pinned Transformers4.51.3 forces from_slow=True when add_prefix_space is supplied; Mistral metadata sets itTrue, and the worker had no resolved SentencePiece vocabulary. Native assets are now explicitly downloaded to one pinned snapshot and loaded locally; add_prefix_space=None preserves the serialized backend's existing prefix behavior and prevents forced conversion.198 tests passed plus an actual empty-cache Python3.13.7 test matching all401 original input encodings and offline export/reload. Existing inputs and standard-LoRA recovery remain unchanged. See MISTRAL_COLD_CACHE_20261015.md/.json.
+
+
 **Recursive Kaggle output discovery — 2026-10-15:** the continuation now accepts the original failed notebook's full output directly, together with the original78-row validation dataset. It recursively discovers the classification directory beneath arbitrary input mount prefixes and checks every required file against committed original-output hashes before reuse. Duplicate candidates, missing/changed checkpoints or wrong data fail before training. The combined private resume ZIP remains supported. No notebook switches or model/data changes. See KAGGLE_OUTPUT_DISCOVERY_20261015.md/.json.
 
 
