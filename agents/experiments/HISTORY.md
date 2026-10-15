@@ -1,5 +1,8 @@
 # Recovered experiment history
 
+**Recursive Kaggle output discovery — 2026-10-15:** the continuation now accepts the original failed notebook's full output directly, together with the original78-row validation dataset. It recursively discovers the classification directory beneath arbitrary input mount prefixes and checks every required file against committed original-output hashes before reuse. Duplicate candidates, missing/changed checkpoints or wrong data fail before training. The combined private resume ZIP remains supported. No notebook switches or model/data changes. See KAGGLE_OUTPUT_DISCOVERY_20261015.md/.json.
+
+
 **Mistral recovery — 2026-10-15:** the supplied Kaggle run completed Qwen and Sailor, then failed before Mistral training because production selected its slow tokenizer. Native fast-backend loading and early tokenizer preflight are fixed. The user explicitly chose standard-LoRA Kaggle continuation; no local full-size/QLoRA training. Default recipe now consumes PRIVATE VGEC26-soft-vote-resume-20261015.zip, preserving exact78-row validation data and both saved adapters. It skips validated Qwen/Sailor, trains Mistral then Qwen corrector and exports the soft-vote submission.196 tests plus native data/checkpoint and tiny end-to-end recovery checks passed. Read KAGGLE_MISTRAL_RECOVERY_20261015.md/.json. Older statements that no full-size stage has run are historical; continuation/new score remain pending.
 
 

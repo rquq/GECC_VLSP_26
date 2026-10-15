@@ -131,5 +131,6 @@
     "No change to dataset labels, rows, precision, seed42, microbatch1, effective batch8 or no-hint/no-fold protocol",
     "Original downloaded run and checkpoints remain unchanged",
     "Full Kaggle continuation not verified locally; live W&B cloud artifact resolution not exercised by offline tiny probe"
-  ]
+  ],
+  "direct_output_followup": "KAGGLE_OUTPUT_DISCOVERY_20261015.md/.json"
 }

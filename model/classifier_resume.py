@@ -66,7 +66,9 @@ def validate_files(root):
     return manifest
 
 
-def materialize(input_root, archive_name, expected_manifest_sha256, output):
+def materialize(
+    input_root, archive_name, expected_manifest_sha256, output, source_manifest=None
+):
     """Accept the private ZIP or its extracted contents; copy only hash-bound files."""
     input_root, output = Path(input_root), Path(output)
     archives = list(input_root.rglob(archive_name))
@@ -103,6 +105,42 @@ def materialize(input_root, archive_name, expected_manifest_sha256, output):
                 path.chmod(0o600)
     else:
         candidates = list(input_root.rglob(MANIFEST))
+        if (
+            not candidates
+            and source_manifest is not None
+            and Path(source_manifest).is_file()
+        ):
+            # Original Kaggle output has no packet descriptor. Only accept the
+            # exact completed-stage files bound by this committed source proof.
+            value = json.loads(Path(source_manifest).read_text())
+            if value.get("packet_manifest_sha256") != expected_manifest_sha256:
+                raise ValueError(
+                    "Original-output proof differs from requested recovery"
+                )
+            files = _entries(value)
+            roots = [
+                p.parent
+                for p in input_root.rglob("classification")
+                if p.is_dir() and all((p.parent / name).is_file() for name in files)
+            ]
+            if len(roots) != 1:
+                raise ValueError(
+                    "Attach exactly one original notebook output with both saved classifiers"
+                )
+            for name, expected in files.items():
+                source = roots[0] / name
+                if (
+                    not source.resolve().is_relative_to(roots[0].resolve())
+                    or sha256(source) != expected
+                ):
+                    raise ValueError(f"Original notebook output hash differs: {name}")
+            for name in files:
+                path = output / name
+                path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+                shutil.copy2(roots[0] / name, path)
+            write_json(output / MANIFEST, value)
+            validate_files(output)
+            return output
         if len(candidates) != 1:
             raise ValueError("Attach exactly one extracted classifier resume package")
         source = candidates[0].parent

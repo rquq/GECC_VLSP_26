@@ -300,6 +300,7 @@ def prepare_run(recipe_path, input_root, output_root, *, world_size, device="cud
             recipe["data_archive"],
             recipe["classifier_resume_sha256"],
             work / "run",
+            source_manifest=PROJECT_ROOT / "configs/classifier_resume_source.json",
         )
     if recipe["mode"] != "task1":
         command.extend(["--submission-data", str(inputs["submission"])])

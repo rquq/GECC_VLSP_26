@@ -75,6 +75,60 @@ class ClassifierResumeTests(unittest.TestCase):
                 sha256(output / weights), sha256(root / "extracted" / weights)
             )
 
+    def test_original_notebook_output_can_be_reused_without_packet_manifest(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source, _, _, _, archive = self.fixture(root)
+            packet = json.loads((root / "packet" / MANIFEST).read_text())
+            digest = sha256(root / "packet" / MANIFEST)
+            proof = {
+                **packet,
+                "packet_manifest_sha256": digest,
+                "file_sha256": {
+                    name: sha256(source / name) for name in packet["file_sha256"]
+                },
+            }
+            proof_path = root / "expected-source.json"
+            write_json(proof_path, proof)
+            inputs = root / "kaggle/input"
+            mounted = (
+                inputs / "notebooks/some-user/odd-version/outputs/runs/previous run/run"
+            )
+            shutil.copytree(source, mounted)
+            output = materialize(
+                inputs,
+                archive.name,
+                digest,
+                root / "raw-output",
+                source_manifest=proof_path,
+            )
+            self.assertEqual(validate_files(output)["members"], ["qwen7b", "sailor7b"])
+            resume_output(output)
+            weight = (
+                "classification/members/qwen7b/classifier/adapter_model.safetensors"
+            )
+            self.assertEqual(sha256(source / weight), sha256(output / weight))
+            duplicate = inputs / "another-version/run"
+            shutil.copytree(mounted, duplicate)
+            with self.assertRaisesRegex(ValueError, "exactly one original"):
+                materialize(
+                    inputs,
+                    archive.name,
+                    digest,
+                    root / "ambiguous",
+                    source_manifest=proof_path,
+                )
+            shutil.rmtree(duplicate)
+            (mounted / weight).write_bytes(b"changed")
+            with self.assertRaisesRegex(ValueError, "hash differs"):
+                materialize(
+                    inputs,
+                    archive.name,
+                    digest,
+                    root / "changed-output",
+                    source_manifest=proof_path,
+                )
+
     def test_changed_manifest_weights_and_escaping_members_fail_closed(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
