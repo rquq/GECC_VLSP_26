@@ -21,6 +21,16 @@ from .data import load_classifier_split
 from .tracking import TrackingRun, publish_stage_result, records_identity, tracked_entrypoint
 
 
+def _organizer_partition(path, fraction, seed, classifier_info):
+    """Use the bundle's grouped holdout instead of regenerating the legacy split."""
+    if classifier_info.get("format") == "vgec-grouped-validation-v1":
+        train_ids = {_id_key(i) for i in classifier_info["provenance"]["original_train_ids"]}
+        return ([r for r in load_records(path) if _id_key(r["id"]) in train_ids],
+                classifier_info["validation_records"])
+    return ((load_records(path), []) if fraction == 0 else
+            split_records(load_records(path), fraction, seed))
+
+
 def _architecture():
     return {
         "name": "soft_hierarchical_error_type", "version": 2,
@@ -747,15 +757,16 @@ def main(*, tracking):
     path = resolve_data(config, args.data)
     fraction = config["data"]["validation_fraction"]
     final_fit = fraction == 0
-    original_train, validation = ((load_records(path), []) if final_fit else
-                                  split_records(load_records(path), fraction, seed))
     mixed_config = copy.deepcopy(config)
     mixed_config["data"].update(path=config["data"].get("augmentation_path"),
                                 filename=config["data"]["augmentation_filename"])
     mixed_path = resolve_data(mixed_config, None)
     train, classifier_info = load_classifier_split(path, mixed_path, fraction, seed)
+    original_train, validation = _organizer_partition(path, fraction, seed, classifier_info)
     preprocessing = _preprocessing(config)
     enabled = config.get("oof", {}).get("enabled", False) and not args.skip_hints
+    if enabled and classifier_info["format"] == "vgec-grouped-validation-v1":
+        raise ValueError("Grouped validation recipe uses one holdout without OOF hints")
     plans = []
     if final_fit and enabled:
         raise ValueError("Final fits have no validation or OOF hints")

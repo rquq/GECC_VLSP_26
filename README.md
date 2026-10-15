@@ -30,3 +30,9 @@ The training loader supports the retained v1/v2 formats through pure provenance/
 Prepared and committed at the user request. **No tests, smoke runs, model preflight, full-size training or new score verification were run for this branch update**, as explicitly requested. Historical tests of the source v2 dataset remain historical evidence. The Kaggle run itself has not been started.
 
 Read `agents/experiments/KAGGLE_RETAINED_V2_20261015.md`/.json for package hashes, exact changes and the skipped-verification record. Dataset provenance, public-output audit and all extra-data types are recorded in `PUBLIC_ABBREVIATION_20261015.md`/.json and `RETAINED_BALANCED_20261015.md`/.json. Keep corpus data, derivatives and run outputs private.
+
+## Extra dataset with validation
+
+A separate private package is available at `dataset/kaggle-grouped-validation-20261015/VGEC26-grouped-validation-20261015.zip`, with one shared78-row original holdout,778/766 canonical training rows and1145 exposures per stage (229/class). The approximately80/20 original-row split keeps parents, corrected counterparts, duplicate/near-duplicate text and specific template families together across both stages. Train-only balancing follows family exclusion. No model training ran.
+
+The separate committed recipe is `configs/validation_experiment.json`; the runner accepts it through `--recipe`. The notebook still selects the full-fit default above, so uploading the extra ZIP alone does not switch experiments. Use fresh pretrained bases for validation: earlier project full fits/reviews exposed these originals. Only top-level train is fit input; embedded source packets and withheld records are audit material. Read `agents/experiments/GROUPED_VALIDATION_20261015.md`/.json and the ZIP's leakage_audit.json for checks and limits.
