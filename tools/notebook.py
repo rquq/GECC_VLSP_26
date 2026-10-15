@@ -105,7 +105,10 @@ def redact(text):
 
 def launch(project, python):
     """Run the committed recipe; interrupts stop the entire trainer process group."""
-    project = Path(project)
+    project = Path(project).resolve()
+    # Kaggle loads this file by path while the kernel stays outside the clone.
+    if str(project) not in sys.path:
+        sys.path.insert(0, str(project))
     run_dir = None
     log_path = None
     from model.reproducibility import process_environment
@@ -132,7 +135,7 @@ def launch(project, python):
                         log.write(line)
             returncode = process.wait()
         except BaseException:
-            from .process_groups import descendant_groups, signal_groups
+            from tools.process_groups import descendant_groups, signal_groups
 
             try:
                 groups = descendant_groups(process.pid) | {process.pid}

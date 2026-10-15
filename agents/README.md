@@ -1,5 +1,8 @@
 # Working on the constrained Kaggle pipeline
 
+**Launcher fix — 2026-10-15:** the Kaggle log failed before training because its filename-loaded launcher could not import `model.reproducibility`. `launch()` now resolves/adds the cloned project root before package imports and uses an absolute cleanup-helper import. Both reproduced failures now pass;21 focused launcher/bootstrap/final-training tests passed. The earlier189 tests missed this outside-checkout filename-loading boundary. Pip dependency conflict warnings were not the reported abort: the provided log passed training imports before the launcher exception. Recipe/model/data/requirements/notebook cells remain unchanged. Read `KAGGLE_LAUNCHER_IMPORT_FIX_20261015.md`/.json.
+
+
 **Active request — 2026-10-15:** the user superseded three seeds with three distinct classifiers and explicitly required **equal-weight soft voting**. Ordered members are pinned Qwen2.5-7B-Instruct, Sailor-7B-Chat and Mistral-7B-Instruct-v0.3; each trains once with seed42. The default recipe now selects the user-approved78-row grouped validation package (1145 training exposures per stage). Corrector remains Qwen, maximum6 epochs, standard LoRA; no folds, hints or notebook switches. Read `MODEL_SOFT_VOTING_20261015.md`/.json for exact revisions, counts, verification and limits. Earlier full-fit/default/three-seed descriptions below are historical. No full7B training or Kaggle launch has been performed for this change.
 
 

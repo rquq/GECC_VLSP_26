@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-15",
+  "source_commit": "41c6435",
+  "status": "fixed_and_locally_verified",
+  "reported_failure": "Kaggle notebook In[4]: ModuleNotFoundError: No module named 'model' at tools/notebook.py:111",
+  "root_cause": "Notebook loads launcher as gecc_notebook by filename while kernel cwd/sys.path exclude cloned source; child cwd does not change parent import lookup. Relative process_groups import would also fail when cancellation executes.",
+  "fix": [
+    "Resolve cloned project root and insert it into sys.path before model imports",
+    "Use absolute tools.process_groups import for filename-loaded cancellation path"
+  ],
+  "unchanged": [
+    "training recipe",
+    "model choice",
+    "soft voting",
+    "seeds",
+    "precision",
+    "dataset",
+    "requirements",
+    "notebook cells"
+  ],
+  "reproduction": {
+    "before": {
+      "tests": 2,
+      "failures": 1,
+      "errors": 1,
+      "model_import": "ModuleNotFoundError",
+      "cleanup_import": "ImportError: attempted relative import with no known parent package"
+    },
+    "after": {
+      "tests": 21,
+      "status": "passed",
+      "command": "OMP_NUM_THREADS=1 python -m unittest agents.tests.test_notebook_imports agents.tests.test_final_training agents.tests.test_kaggle -q",
+      "scope": "Isolated Python -I subprocess outside checkout, no PYTHONPATH, same filename module loading; child launch mocked to avoid training. Cancellation helper path, actual local Git notebook bootstrap and full-training artifact display also checked."
+    }
+  },
+  "logs": {
+    "red": "runs/verification-launcher-import-20261015/red.log",
+    "green": "runs/verification-launcher-import-20261015/green.log"
+  },
+  "pip_warning_evidence": "Provided log says Successfully installed and Training imports passed with torch2.11.0+cu128/CUDA12.8 before the parent import exception; no evidence those unrelated preinstalled package conflicts caused this abort.",
+  "limitation": "No full-size Kaggle training or Python3.13/T4x2 runtime validation was run locally; successful imports alone do not prove training compatibility.",
+  "prior_gap": "Previous189 checks and tiny CPU/CUDA runs imported packages from the project context; they did not cover this file-loader boundary.",
+  "recovery": "Existing notebook clones fresh kaggle-linux on each Save & Run All; no dataset reupload or notebook-cell change needed for this fix.",
+  "config_sha256": {
+    "configs/experiment.json": "3da353694558e6f17c9b5c48b5b9fd80818c0e0b13255a2817cb738127619456",
+    "configs/validation_baseline.json": "ee24988a269ab100404efa5801f8827113c0af94a1bfe2abae880fa830372cba",
+    "configs/validation_correction.json": "edbbbe1ff5787080da8891da98fc57bafdc61e633b29c5f62de42a558357e13d"
+  }
+}
