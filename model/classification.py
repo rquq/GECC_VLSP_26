@@ -754,6 +754,7 @@ def main(*, tracking):
     parser.add_argument("--output-dir")
     parser.add_argument("--device", choices=["cuda", "cpu"])
     parser.add_argument("--skip-hints", action="store_true", help="Train the main classifier only; not a connected pipeline run.")
+    parser.add_argument("--fit-only", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     config = load_config(args.config, expected_task="classification")
     device = args.device or config["run"]["device"]
@@ -830,17 +831,11 @@ def main(*, tracking):
         write_json(output / "preprocessing.json", preprocessing)
     barrier()
     config["_tracking_group"] = os.environ.get("WANDB_RUN_GROUP") or output.name
+    if args.fit_only and (enabled or world_size != 1):
+        raise ValueError("Separate classifier verification requires one process and no hints")
     stats = _fit(config, train, None if final_fit else validation, checkpoint, output, device, seed, preprocessing, tracking=tracking)
     batch_size = config["training"]["args"].get("per_device_eval_batch_size", 8)
     if rank == 0:
-        reloaded_predictions = classify(checkpoint, train[:1] if final_fit else validation, device, batch_size)
-        predictions = [] if final_fit else reloaded_predictions
-        metrics = {"count": len(validation), "evaluation_status": "unavailable_full_training" if final_fit else "evaluated",
-                   "classification": None if final_fit else _classification_metrics(validation, predictions),
-                   "training": stats}
-        write_json(output / "predictions.json", comparison_rows(validation, predictions))
-        write_json(output / "metrics.json", metrics)
-        tracking.complete("classifier", metrics, best_epoch=stats["best_epoch"])
         manifest = {
             "task": "classification", "config": config, "seed": seed, "split_seed": data_seed, "validation_fraction": fraction,
             "device": device, "world_size": world_size, "output_dir": str(output), "classifier_path": str(checkpoint),
@@ -854,12 +849,21 @@ def main(*, tracking):
             "external_train_count": len(classifier_info["provenance"].get("external_train_ids", [])),
             "resampled_train_count": len(classifier_info["provenance"].get("resampled_train_ids", [])),
             "model": config["model"], "resolved_model_revision": config["model"]["revision"],
-            "preprocessing": preprocessing, "saved_classifier_reloaded_for_evaluation": not final_fit,
-            "saved_classifier_reload_verified": True, "final_fit": final_fit,
+            "preprocessing": preprocessing, "saved_classifier_reloaded_for_evaluation": False,
+            "saved_classifier_reload_verified": False, "final_fit": final_fit,
             "train_count": len(train), "validation_count": len(validation),
             "hints_enabled": bool(enabled), **stats,
             "versions": {name: importlib.metadata.version(name) for name in ("torch", "transformers", "accelerate", "peft", "bitsandbytes")},
         }
+        write_json(output / "training_complete.json", manifest)
+    if args.fit_only:
+        return
+    if rank == 0:
+        from .classifier_finalize import finalize
+        metrics = finalize(output, device)
+        tracking.complete("classifier", metrics, best_epoch=stats["best_epoch"])
+        manifest.update(saved_classifier_reloaded_for_evaluation=not final_fit,
+                        saved_classifier_reload_verified=True)
     barrier()
     if enabled:
         if rank == 0:

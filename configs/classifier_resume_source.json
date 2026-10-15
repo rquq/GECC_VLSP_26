@@ -2,10 +2,10 @@
   "format": "vgec-classifier-resume-v1",
   "members": [
     "qwen7b",
-    "sailor7b"
+    "sailor7b",
+    "mistral7b"
   ],
-  "packet_manifest_sha256": "5364f9082f05330db134e044a174411319fcb54eccf30271afb1b0fc05d28966",
-  "source_run": "qwen-sailor-mistral-soft-vote-validation-20261015T090238935918Z",
+  "source_run": "qwen-sailor-mistral-soft-vote-validation-resume-20261015T140358967795Z",
   "file_sha256": {
     "classification/members/qwen7b/classifier/README.md": "97b78591e33b63123b36f93c7e8f10b182c37dbf6c648acb35d8e80850121036",
     "classification/members/qwen7b/classifier/adapter_config.json": "f1eeb82fa549961e6f44052f91d6cbc5a8a84603c2ac678375aa62ce9c3f12f3",
@@ -42,6 +42,172 @@
     "classification/members/sailor7b/run_manifest.json": "e7e2dd1b8001d5e3fddcb5aea6ec405326e5a1a4622eb0b8c91b14b8f1c6a2c2",
     "classification/members/sailor7b/train.json": "a969f8e7ca549aacb38b4d542f3b0a589f687bee822e91e860498d220c8eb3a4",
     "classification/members/sailor7b/validation.json": "2cf1b5cc496011dc0ae88818cdc08c02d3e796c77e6b925904d8b3113eb063b7",
-    "classification/members/sailor7b/wandb_run.json": "b3ed92e8d0171672142ece5ba80807df1bb030a6883f845820cf144477ccbd97"
+    "classification/members/sailor7b/wandb_run.json": "b3ed92e8d0171672142ece5ba80807df1bb030a6883f845820cf144477ccbd97",
+    "classification/members/mistral7b/classifier/README.md": "321ce2ed663828a34a7bf84866f028bc9d72799f9474c9c87755bad885802bf8",
+    "classification/members/mistral7b/classifier/adapter_config.json": "ffa4954c99146e5fdfb379299ff1f21a338fc10ab2771202de361ab2de49d585",
+    "classification/members/mistral7b/classifier/adapter_model.safetensors": "67747632994fdcdbe7821a55c7b81e72761e91b6ccf6c86c81ab389d24ab272c",
+    "classification/members/mistral7b/classifier/classifier_config.json": "10e52b4e65b16a42d61027faa9b45a604be93f7829e155fe4c41b2ef2dfe0eeb",
+    "classification/members/mistral7b/classifier/preprocessing.json": "1cf21ddf4eca91418702c4fc6c8ef6c4681749c8e99b90c5bb745d973d6d4904",
+    "classification/members/mistral7b/classifier/special_tokens_map.json": "554e1d49610674150a155a1907757e8d25b5a92978a6da1861a65adc0f7e511f",
+    "classification/members/mistral7b/classifier/tokenizer.json": "61fc9b6d31f8a49442d9580f7d8a6804faa4d202dda02669c702ad34dbdf35ac",
+    "classification/members/mistral7b/classifier/tokenizer_config.json": "3f3f8f8d1b26d62628852792742daadf0f926ccfa7e9152e1269b18a6e05e11d",
+    "classification/members/mistral7b/config.json": "71a65dc5a40ee9915cc2239f2a375806975b25408756cfb5287ccbcbeff7e4e1",
+    "classification/members/mistral7b/epoch_history.json": "504e9e6d1ddb914c1726373c2736bf6fa177a4a8b963df016678c05d21dd1000",
+    "classification/members/mistral7b/preprocessing.json": "1cf21ddf4eca91418702c4fc6c8ef6c4681749c8e99b90c5bb745d973d6d4904",
+    "classification/members/mistral7b/train.json": "a969f8e7ca549aacb38b4d542f3b0a589f687bee822e91e860498d220c8eb3a4",
+    "classification/members/mistral7b/trainer_history.json": "095bf66e535c432a84d9bb1fa12948e6b1e10c66dedf0c3d4f8a48c93d91a2a4",
+    "classification/members/mistral7b/validation.json": "2cf1b5cc496011dc0ae88818cdc08c02d3e796c77e6b925904d8b3113eb063b7",
+    "classification/members/mistral7b/wandb_run.json": "cca2ac66e7eb5e019702ed6e8fe03277963b73d4e39f4b2b05d25a0a62d94e86"
+  },
+  "pending_training": {
+    "mistral7b": {
+      "task": "classification",
+      "seed": 42,
+      "split_seed": 42,
+      "validation_fraction": 0.2,
+      "device": "cuda",
+      "world_size": 1,
+      "data_sha256": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+      "classifier_data_sha256": "35eb222892e14fe02badbf87a5f6c430e8b8d71ca9b8263127f16870be1e175f",
+      "original_train_count": 321,
+      "retained_original_train_count": 321,
+      "quarantined_original_train_count": 0,
+      "synthetic_train_count": 425,
+      "external_train_count": 32,
+      "resampled_train_count": 367,
+      "train_count": 1145,
+      "validation_count": 78,
+      "preprocessing": {
+        "word_segmentation": "none",
+        "implementation": "raw_text",
+        "max_length": 512,
+        "padding_side": "right",
+        "truncation": true,
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "final_fit": false,
+      "hints_enabled": false,
+      "config": {
+        "task": "classification",
+        "run": {
+          "name": "classifier-mistral7b",
+          "output_root": "/kaggle/working/runs/qwen-sailor-mistral-soft-vote-validation-resume-20261015T140358967795Z",
+          "device": "cuda",
+          "world_size": 1,
+          "seed": 42
+        },
+        "tracking": {
+          "enabled": true,
+          "project": "vlsp26-gec",
+          "entity": null,
+          "mode": "online",
+          "log_models": true,
+          "log_text": false
+        },
+        "data": {
+          "path": "/kaggle/input/datasets/bqa100507/gggggg/VGEC 2026_v1.json",
+          "filename": "VGEC 2026_v1.json",
+          "correction_path": "/kaggle/input/datasets/bqa100507/gggggg/VGEC_balanced.json",
+          "correction_filename": "VGEC_balanced.json",
+          "input_root": "/kaggle/input",
+          "validation_fraction": 0.2,
+          "augmentation_path": "/kaggle/input/datasets/bqa100507/gggggg/VGEC_classifier.json",
+          "augmentation_filename": "VGEC_classifier.json",
+          "split_seed": 42
+        },
+        "model": {
+          "name": "mistralai/Mistral-7B-Instruct-v0.3",
+          "revision": "c170c708c41dac9275d15a8fff4eca08d52bab71",
+          "load_in_4bit": false,
+          "compute_dtype": "float16",
+          "attn_implementation": "sdpa",
+          "device_map": "balanced"
+        },
+        "lora": {
+          "r": 16,
+          "lora_alpha": 32,
+          "lora_dropout": 0.05,
+          "target_modules": [
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj"
+          ],
+          "bias": "none",
+          "modules_to_save": [
+            "score",
+            "classifier",
+            "score",
+            "classifier",
+            "score",
+            "classifier",
+            "score",
+            "classifier",
+            "score"
+          ]
+        },
+        "training": {
+          "max_length": 512,
+          "effective_batch_size": 8,
+          "fp16_initial_scale": 1,
+          "class_weight_power": 0.5,
+          "args": {
+            "num_train_epochs": 5,
+            "max_steps": -1,
+            "per_device_train_batch_size": 1,
+            "per_device_eval_batch_size": 1,
+            "learning_rate": 5e-05,
+            "weight_decay": 0.01,
+            "warmup_steps": 30,
+            "gradient_checkpointing": true,
+            "gradient_checkpointing_kwargs": {
+              "use_reentrant": false
+            },
+            "optim": "adamw_torch",
+            "logging_steps": 10,
+            "dataloader_num_workers": 0,
+            "lr_scheduler_type": "cosine",
+            "max_grad_norm": 1,
+            "adam_beta1": 0.9,
+            "adam_beta2": 0.999,
+            "adam_epsilon": 1e-08
+          }
+        },
+        "oof": {
+          "enabled": false
+        }
+      },
+      "model": {
+        "name": "mistralai/Mistral-7B-Instruct-v0.3",
+        "revision": "c170c708c41dac9275d15a8fff4eca08d52bab71",
+        "load_in_4bit": false,
+        "compute_dtype": "float16",
+        "attn_implementation": "sdpa",
+        "device_map": "balanced"
+      },
+      "resolved_model_revision": "c170c708c41dac9275d15a8fff4eca08d52bab71",
+      "best_epoch": 1.0,
+      "selection_macro_f1": 0.5137657473612529,
+      "training_loss": 1.1843437360735456,
+      "optimizer_steps": 720,
+      "saved_classifier_reloaded_for_evaluation": false,
+      "saved_classifier_reload_verified": false,
+      "recovered_training_evidence": {
+        "source_run": "qwen-sailor-mistral-soft-vote-validation-resume-20261015T140358967795Z",
+        "epoch_history_sha256": "504e9e6d1ddb914c1726373c2736bf6fa177a4a8b963df016678c05d21dd1000",
+        "trainer_history_sha256": "095bf66e535c432a84d9bb1fa12948e6b1e10c66dedf0c3d4f8a48c93d91a2a4",
+        "status": "fit_completed_reload_pending"
+      },
+      "selection_rule": "highest outer-validation macro F1; ties retain earlier epoch"
+    }
   }
 }

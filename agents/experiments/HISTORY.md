@@ -1,5 +1,8 @@
 # Recovered experiment history
 
+**Classifier reload recovery — 2026-10-15:** updated Kaggle output confirms Mistral finished 720 steps; saved epoch1 Macro-F1=0.5137657474/Micro-F1=0.7051282051. It failed afterward at same-process inference placement (7.46 GiB free versus8.43 required). The default now binds all three saved classifiers from this latest full output and the unchanged78-row validation dataset: skip all classifier fits, verify Mistral in a fresh child, then train the Qwen corrector and export. New no-hint/single-process fits also separate fitting from verification with a saved training receipt and GPU release gate.202 tests, native51-file/data checks, two real tiny CPU continuations and a standard-LoRA FP16 CUDA pipeline passed; full-size/T4 verification remains pending. No notebook toggles, quantization or dataset changes. Read CLASSIFIER_RELOAD_RECOVERY_20261015.md/.json. Older two-member recovery instructions below are historical for the current default.
+
+
 **Cold-cache Mistral tokenizer fix — 2026-10-15:** the new pasted preflight log shows LlamaTokenizerFast still entering slow conversion. Pinned Transformers4.51.3 forces from_slow=True when add_prefix_space is supplied; Mistral metadata sets itTrue, and the worker had no resolved SentencePiece vocabulary. Native assets are now explicitly downloaded to one pinned snapshot and loaded locally; add_prefix_space=None preserves the serialized backend's existing prefix behavior and prevents forced conversion.198 tests passed plus an actual empty-cache Python3.13.7 test matching all401 original input encodings and offline export/reload. Existing inputs and standard-LoRA recovery remain unchanged. See MISTRAL_COLD_CACHE_20261015.md/.json.
 
 

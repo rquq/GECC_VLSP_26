@@ -137,6 +137,61 @@ class ClassifierResumeTests(unittest.TestCase):
                     source_manifest=proof_path,
                 )
 
+    def test_pinned_latest_output_preserves_pending_training_without_claiming_completion(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source, config, original, mixed, _ = self.fixture(root)
+            packet = json.loads((root / "packet" / MANIFEST).read_text())
+            member = source / "classification/members/sailor7b"
+            stats = json.loads((member / "run_manifest.json").read_text())
+            stats.update(
+                config=json.loads((member / "config.json").read_text()),
+                saved_classifier_reload_verified=False,
+            )
+            stats.pop("saved_classifier_reloaded_for_evaluation", None)
+            (member / "run_manifest.json").unlink()
+            files = {
+                name: sha256(source / name)
+                for name in packet["file_sha256"]
+                if (source / name).is_file()
+            }
+            proof = {
+                **packet,
+                "file_sha256": files,
+                "pending_training": {"sailor7b": stats},
+            }
+            proof_path = root / "proof.json"
+            write_json(proof_path, proof)
+            write_json(source / MANIFEST, {"old": "descriptor"})
+            output = materialize(
+                source, "unused.zip", sha256(proof_path), root / "out", proof_path
+            )
+            self.assertFalse(
+                (output / "classification/members/sailor7b/run_manifest.json").exists()
+            )
+            resume_output(output)
+            train = json.loads((member / "train.json").read_text())
+            validation = json.loads((member / "validation.json").read_text())
+            with patch(
+                "model.data.load_classifier_split", return_value=(train, {})
+            ), patch(
+                "model.classification._organizer_partition",
+                return_value=([], validation),
+            ):
+                self.assertEqual(
+                    list(plan(output, config, original, mixed)), ["qwen7b", "sailor7b"]
+                )
+            weight = next(
+                name for name in files if name.endswith("adapter_model.safetensors")
+            )
+            (source / weight).write_bytes(b"changed")
+            with self.assertRaisesRegex(ValueError, "hash differs"):
+                materialize(
+                    source, "unused.zip", sha256(proof_path), root / "bad", proof_path
+                )
+
     def test_changed_manifest_weights_and_escaping_members_fail_closed(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

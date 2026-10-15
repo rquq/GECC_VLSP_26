@@ -71,6 +71,38 @@ def materialize(
 ):
     """Accept the private ZIP or its extracted contents; copy only hash-bound files."""
     input_root, output = Path(input_root), Path(output)
+    # A new, directly pinned proof can recover a trained but unverified member.
+    # Prefer its exact full output even when it contains an older resume descriptor.
+    if (
+        source_manifest is not None
+        and Path(source_manifest).is_file()
+        and sha256(source_manifest) == expected_manifest_sha256
+    ):
+        value = json.loads(Path(source_manifest).read_text())
+        files = _entries(value)
+        roots = [
+            p.parent
+            for p in input_root.rglob("classification")
+            if p.is_dir() and all((p.parent / name).is_file() for name in files)
+        ]
+        if len(roots) != 1:
+            raise ValueError(
+                "Attach exactly one latest notebook output containing all three saved classifiers"
+            )
+        for name, expected in files.items():
+            path = roots[0] / name
+            if (
+                not path.resolve().is_relative_to(roots[0].resolve())
+                or sha256(path) != expected
+            ):
+                raise ValueError(f"Latest notebook output hash differs: {name}")
+        for name in files:
+            target = output / name
+            target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            shutil.copy2(roots[0] / name, target)
+        write_json(output / MANIFEST, value)
+        validate_files(output)
+        return output
     archives = list(input_root.rglob(archive_name))
     if len(archives) > 1:
         raise ValueError("Multiple classifier resume archives attached")
@@ -181,12 +213,16 @@ def resume_output(root):
     return root
 
 
+def pending_training(root):
+    return validate_files(root).get("pending_training", {})
+
+
 def plan(root, config, original, mixed):
     """Validate exact rows, pinned model, recipe and provenance before skipping a fit."""
     root = Path(root)
     if not (root / MANIFEST).exists():
         return {}
-    from .run_reuse import validate_classifier_run
+    from .run_reuse import validate_classifier_run, validate_classifier_checkpoint
     from .data import load_classifier_split
     from .classification import _organizer_partition
     from .runtime import split_seed
@@ -201,8 +237,17 @@ def plan(root, config, original, mixed):
     result = {}
     for name in manifest["members"]:
         member = root / "classification/members" / name
-        old = validate_classifier_run(member, require_hints=False)
-        stats = json.loads((member / "run_manifest.json").read_text())
+        if name in manifest.get("pending_training", {}):
+            old = validate_classifier_checkpoint(member)
+            stats = manifest["pending_training"][name]
+            if (
+                stats.get("saved_classifier_reload_verified")
+                or stats.get("config") != old
+            ):
+                raise ValueError("Invalid pending classifier training receipt")
+        else:
+            old = validate_classifier_run(member, require_hints=False)
+            stats = json.loads((member / "run_manifest.json").read_text())
         if (
             old["model"] != requested[name]["model"]
             or old["run"]["seed"] != 42

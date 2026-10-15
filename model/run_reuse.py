@@ -125,6 +125,25 @@ def validate_classifier_run(classifier_run, classification=None, *, require_hint
         raise FileNotFoundError("Completed classifier reuse requires saved adapter/head and metadata; missing: " + ", ".join(missing)
                                 + (". For predicted-hint Task2, train Task1 with oof.enabled=true on the same correction dataset."
                                    if require_hints else ". Use a completed Task1 classifier with saved validation predictions."))
+    config = validate_classifier_checkpoint(classifier_run, classification)
+    manifest = _json(classifier_run / "run_manifest.json")
+    if (manifest.get("task") != "classification" or not (manifest.get("saved_classifier_reloaded_for_evaluation") or
+                    manifest.get("final_fit") and manifest.get("validation_count") == 0 and
+                    manifest.get("saved_classifier_reload_verified"))
+            or not manifest.get("classifier_data_sha256")):
+        raise ValueError("Reused classifier must be a completed mixed-data classifier run with saved-adapter evaluation")
+    if (manifest.get("seed") != config["run"]["seed"]
+            or manifest.get("validation_fraction") != config["data"]["validation_fraction"]):
+        raise ValueError("Saved classifier split metadata differs from its configuration")
+    if require_hints and not manifest.get("hints_enabled"):
+        raise ValueError("Task2 requires saved OOF hints; rerun Task1 with oof.enabled=true")
+    return config
+
+
+def validate_classifier_checkpoint(classifier_run, classification=None):
+    """Validate saved tensors and model contract without claiming completed evaluation."""
+    classifier_run = Path(classifier_run)
+    checkpoint = classifier_run / "classifier"
     from .classification import _require_hierarchy, _preprocessing
     from .data import LABELS
     saved, adapter, config = (_json(checkpoint / "classifier_config.json"),
@@ -165,17 +184,6 @@ def validate_classifier_run(classifier_run, classification=None, *, require_hint
         raise ValueError("Saved classifier adapter weights do not contain the score head")
     if not any("lora_" in key for key in keys):
         raise ValueError("Saved classifier adapter weights do not contain LoRA tensors")
-    manifest = _json(classifier_run / "run_manifest.json")
-    if (manifest.get("task") != "classification" or not (manifest.get("saved_classifier_reloaded_for_evaluation") or
-                    manifest.get("final_fit") and manifest.get("validation_count") == 0 and
-                    manifest.get("saved_classifier_reload_verified"))
-            or not manifest.get("classifier_data_sha256")):
-        raise ValueError("Reused classifier must be a completed mixed-data classifier run with saved-adapter evaluation")
-    if (manifest.get("seed") != config["run"]["seed"]
-            or manifest.get("validation_fraction") != config["data"]["validation_fraction"]):
-        raise ValueError("Saved classifier split metadata differs from its configuration")
-    if require_hints and not manifest.get("hints_enabled"):
-        raise ValueError("Task2 requires saved OOF hints; rerun Task1 with oof.enabled=true")
     return config
 
 

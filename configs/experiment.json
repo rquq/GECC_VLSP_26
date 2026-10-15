@@ -1,16 +1,16 @@
 {
-  "name": "qwen-sailor-mistral-soft-vote-validation-resume",
+  "name": "qwen-sailor-mistral-verify-corrector",
   "mode": "both",
   "classification_config": "configs/validation_baseline.json",
   "correction_config": "configs/validation_correction.json",
   "classifier_run": null,
   "initial_adapter": null,
-  "data_archive": "VGEC26-soft-vote-resume-20261015.zip",
+  "data_archive": "VGEC26-grouped-validation-20261015.zip",
   "submission_filename": "public_test.json",
   "data_sha256": {
     "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
     "classification": "35eb222892e14fe02badbf87a5f6c430e8b8d71ca9b8263127f16870be1e175f",
     "correction": "03838131ca629f9958011a562bb926c5694949a964b5fee13ee60ada86859fe3"
   },
-  "classifier_resume_sha256": "5364f9082f05330db134e044a174411319fcb54eccf30271afb1b0fc05d28966"
+  "classifier_resume_sha256": "493027f776f2a444bf832d8843b123f8af67e7abc8e6e190bfb7ce8652ebc28d"
 }

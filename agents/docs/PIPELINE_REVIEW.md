@@ -1,5 +1,8 @@
 # Pipeline review — 2026-10-13
 
+**Classifier reload recovery — 2026-10-15:** updated Kaggle output confirms Mistral finished 720 steps; saved epoch1 Macro-F1=0.5137657474/Micro-F1=0.7051282051. It failed afterward at same-process inference placement (7.46 GiB free versus8.43 required). The default now binds all three saved classifiers from this latest full output and the unchanged78-row validation dataset: skip all classifier fits, verify Mistral in a fresh child, then train the Qwen corrector and export. New no-hint/single-process fits also separate fitting from verification with a saved training receipt and GPU release gate.202 tests, native51-file/data checks, two real tiny CPU continuations and a standard-LoRA FP16 CUDA pipeline passed; full-size/T4 verification remains pending. No notebook toggles, quantization or dataset changes. Read CLASSIFIER_RELOAD_RECOVERY_20261015.md/.json. Older two-member recovery instructions below are historical for the current default.
+
+
 This review describes the preserved five-fold pipeline at commit 47f3a23. The current no-fold/no-hint recipe and its pending full-size result are documented in `agents/experiments/CURRENT.md`; dataset work follows `DATA_PLAN.md` and `agents/docs/DATA_GUIDELINES.md`.
 
 KANO's second entry verifies the submission-format diagnosis: combined 0.5349, GLEU+ 0.7224, exact match 0.5395, ROUGE-L 0.8262, Macro-F1 0.3473, and Micro-F1 0.5485. Classification is now the primary bottleneck. The corrected submission preserved labels and sentences and changed strings to singleton lists.

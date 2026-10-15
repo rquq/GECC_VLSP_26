@@ -557,6 +557,9 @@ def main(*, tracking):
         if classifier_run is None
         else {}
     )
+    from .classifier_resume import pending_training
+
+    pending = pending_training(output) if resumed else {}
     if classifier_run is None:
         entries = classifier.get("ensemble", {}).get(
             "members", [{"name": "single", "model": classifier["model"]}]
@@ -573,6 +576,27 @@ def main(*, tracking):
                 else packaged_classifier
             )
             if name in resumed:
+                receipt = pending.get(name)
+                if receipt is not None:
+                    write_json(target / "training_complete.json", receipt)
+                    print(
+                        f"Verifying saved classifier-{name}; training skipped",
+                        flush=True,
+                    )
+                    _run_stage(
+                        [
+                            sys.executable,
+                            "-m",
+                            "model.classifier_finalize",
+                            "--output-dir",
+                            str(target),
+                            "--device",
+                            member_config["run"]["device"],
+                        ],
+                        {**child_env, "VGEC_STAGE_NAME": f"classifier-{name}"},
+                        tracking,
+                    )
+                    validate_classifier_run(target, require_hints=False)
                 old_identity = target / "wandb_run.json"
                 identity = (
                     json.loads(old_identity.read_text())
@@ -612,7 +636,29 @@ def main(*, tracking):
                     f"classifier-{name}" if len(entries) > 1 else "classifier"
                 ),
             }
-            _run_stage(command, env, tracking)
+            separate_verification = (
+                not member_config.get("oof", {}).get("enabled", False)
+                and member_config["run"].get("world_size", 1) == 1
+            )
+            _run_stage(
+                command + (["--fit-only"] if separate_verification else []),
+                env,
+                tracking,
+            )
+            if separate_verification:
+                _run_stage(
+                    [
+                        sys.executable,
+                        "-m",
+                        "model.classifier_finalize",
+                        "--output-dir",
+                        str(target),
+                        "--device",
+                        member_config["run"]["device"],
+                    ],
+                    env,
+                    tracking,
+                )
         if len(entries) > 1:
             from .classifier_ensemble import build
 
