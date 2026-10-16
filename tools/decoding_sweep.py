@@ -121,11 +121,10 @@ def _candidate_score(model, tokenizer, prefix, target):
     total = 0.0
     # Avoid a large FP32 sequence*vocabulary allocation on the local8GB GPU.
     for start in range(0, len(answer), 8):
-        values = logits[
-            0, len(prefix) - 1 + start : len(prefix) - 1 + start + 8
-        ].float()
+        end = min(start + 8, len(answer))
+        values = logits[0, len(prefix) - 1 + start : len(prefix) - 1 + end].float()
         total -= torch.nn.functional.cross_entropy(
-            values, labels[start : start + 8], reduction="sum"
+            values, labels[start:end], reduction="sum"
         ).item()
     return total / len(answer)
 

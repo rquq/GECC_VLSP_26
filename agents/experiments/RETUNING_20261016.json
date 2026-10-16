@@ -1,6 +1,6 @@
 {
   "date": "2026-10-16",
-  "status": "local_inference_running_kaggle_prepared",
+  "status": "local_comparisons_completed_native_kaggle_fits_prepared",
   "source_commit": "826d35e711f17dcd71c1ea9fe33b02a98e0c2fb4",
   "baseline_run": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/16_10_2026/runs/qwen-sailor-mistral-verify-corrector-20261015T155819864773Z/run",
   "intent": "Retune all models and compare decoding locally where memory permits, prepare standard-LoRA Kaggle continuation",
@@ -72,17 +72,73 @@
     "classifier_search": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/tuning-20261016/classifier_search.json",
     "calibration_stability": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/tuning-20261016/calibration_stability.json",
     "native_preparation": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/tuning-20261016/native-preparation/verification.json",
-    "tiny_controller": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/smoke-retuning-controller-20261016T141635242864Z/verification.json"
+    "tiny_controller": "runs/smoke-retuning-controller-20261016T144443064798Z/verification.json",
+    "rerank_recovery": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/tuning-20261016/local-rerank-recovery",
+    "comparison": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/tuning-20261016/comparison.md"
   },
   "verification": {
-    "unit_tests": 213,
+    "unit_tests": 214,
     "tiny_cpu_controller": "runs/smoke-retuning-controller-20261016T144443064798Z/verification.json",
     "full_size_gpu_training": "not performed locally",
-    "tiny_public_decoding": "runs/smoke-selected-public-decoder-20261016T144901522712Z/verification.json"
+    "tiny_public_decoding": "runs/smoke-selected-public-decoder-20261016T144901522712Z/verification.json",
+    "source_integrity": "runs/tuning-20261016/source_integrity.json",
+    "launcher_boundaries": "21 tests passed including actual local-Git notebook bootstrap"
   },
   "failures_and_fixes": [
     "Initial local probe omitted required classifier probabilities; full inference comparison uses the no-hint prompt and saved classifier predictions.",
     "Native handoff preflight caught a missing ensemble manifest; all73 saved files are now bound and a regression guards it.",
-    "Temporary smoke script needed a multiprocessing main guard; final full controller passed."
-  ]
+    "Temporary smoke script needed a multiprocessing main guard; final full controller passed.",
+    "Local candidate reranking exposed a final likelihood-chunk off-by-one; exact shifted-likelihood regression reproduced it; fixed;214 tests passed; real7B NF4 recovery completed all10 panel rows without OOM, matching greedy_no_penalty outputs."
+  ],
+  "implementation_commit": "26e571f053e5491978defe8c4ec297cc04cf1beb",
+  "local_decoding_results": {
+    "precision": "NF4 inference proxy; not native FP16 scores",
+    "successful_screen_strategies": 11,
+    "screen_rows": 10,
+    "full_passes": [
+      {
+        "strategy": "greedy_reference",
+        "rows": 78,
+        "gleu_all": 0.6149706110055551,
+        "gleu_error": 0.2278072604554554,
+        "error_exact_match": 0.13157894736842105,
+        "clean_preservation": 1.0,
+        "additional_phase_seconds": 382.31397397099954,
+        "peak_allocated_GiB": 5.631019115447998
+      },
+      {
+        "strategy": "contrastive",
+        "rows": 78,
+        "gleu_all": 0.601683032474819,
+        "gleu_error": 0.22277202190118742,
+        "error_exact_match": 0.13157894736842105,
+        "clean_preservation": 0.875,
+        "additional_phase_seconds": 2457.955177197,
+        "peak_allocated_GiB": 5.631019115447998
+      },
+      {
+        "strategy": "greedy_no_penalty",
+        "rows": 78,
+        "gleu_all": 0.611163051517921,
+        "gleu_error": 0.22657433875475189,
+        "error_exact_match": 0.13157894736842105,
+        "clean_preservation": 1.0,
+        "additional_phase_seconds": 388.1226099600008,
+        "peak_allocated_GiB": 5.631019115447998
+      }
+    ],
+    "rerank_recovery_screen": {
+      "strategy": "beam4_edit_rerank",
+      "rows": 10,
+      "gleu_all": 0.3604295422497207,
+      "gleu_error": 0.2401650436500402,
+      "error_exact_match": 0.375,
+      "clean_preservation": 1.0,
+      "additional_phase_seconds": 150.09293656800037,
+      "peak_allocated_GiB": 5.601428985595703
+    },
+    "recommendation": "Retain saved greedy/repetition1.05; no measured local decoder improvement",
+    "no_local_OOM_observed": true,
+    "cache_scope": "The long-lived first sweep began before cache identity hardening and retains its original adapter/data/precision identity. Do not resume it with newer code. The corrected reranker recovery records final decoder, metadata, environment and source hashes."
+  }
 }

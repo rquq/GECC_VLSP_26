@@ -65,3 +65,38 @@ class CacheIdentityTests(unittest.TestCase):
             first = cache_identity(root, [], False)
             (root / "inference.json").write_text(json.dumps({"prompt": "changed"}))
             self.assertNotEqual(first, cache_identity(root, [], False))
+
+
+class CandidateLikelihoodTests(unittest.TestCase):
+    def test_partial_final_chunk_matches_full_shifted_likelihood(self):
+        import json
+        import types
+        import torch
+        from tools.decoding_sweep import _candidate_score
+
+        class Tokenizer:
+            eos_token_id = 2
+
+            def encode(self, text, add_special_tokens=False):
+                self.asserted_text = json.loads(text)
+                return [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+        class Model:
+            def get_input_embeddings(self):
+                return types.SimpleNamespace(weight=torch.empty(1))
+
+            def __call__(self, input_ids, **kwargs):
+                length = input_ids.shape[1]
+                self.logits = (
+                    torch.arange(length * 16).reshape(1, length, 16).float() / 13
+                )
+                return types.SimpleNamespace(logits=self.logits)
+
+        model, tokenizer = Model(), Tokenizer()
+        prefix = [1, 2, 3]
+        actual = _candidate_score(model, tokenizer, prefix, "toy")
+        expected = -torch.nn.functional.cross_entropy(
+            model.logits[0, len(prefix) - 1 : -1],
+            torch.tensor([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 2]),
+        ).item()
+        self.assertAlmostEqual(actual, expected, places=6)
