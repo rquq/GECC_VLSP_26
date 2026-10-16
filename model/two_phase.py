@@ -283,11 +283,14 @@ def stage_command(module, config):
     return [sys.executable, "-m", module]
 
 
-def _run_stage(command, env, tracking):
+def _run_stage(command, env, tracking, timeout_seconds=None):
     """Reap each process group; keep the root alive even during silent loading."""
     from .reproducibility import process_environment
 
     env = process_environment(int(env.get("VGEC_MODEL_SEED", "42")), env)
+    deadline = (
+        time.monotonic() + timeout_seconds if timeout_seconds is not None else None
+    )
     stage = env.get("VGEC_STAGE_NAME", "starting")
     gpu = env.get("VGEC_CUDA_STAGE") == "1"
     before = None
@@ -322,7 +325,13 @@ def _run_stage(command, env, tracking):
         next_heartbeat = time.monotonic() + HEARTBEAT_SECONDS
         try:
             while True:
+                if deadline is not None and time.monotonic() >= deadline:
+                    raise TimeoutError(
+                        f"Stage {stage} exceeded its committed time budget"
+                    )
                 remaining = max(0.01, next_heartbeat - time.monotonic())
+                if deadline is not None:
+                    remaining = min(remaining, max(0.01, deadline - time.monotonic()))
                 try:
                     line = lines.get(timeout=remaining)
                 except queue.Empty:
@@ -338,24 +347,33 @@ def _run_stage(command, env, tracking):
                 if result is not None:
                     event = result
                     tracking.stage_result(event)
+                    if env.get("VGEC_FORWARD_EVENTS") == "1":
+                        print(STAGE_EVENT + json.dumps(event), flush=True)
                     print(
                         f"Completed {event['stage']}: {json.dumps(event['metrics'])}",
                         flush=True,
                     )
                 elif progress is not None:
                     tracking.progress(progress)
+                    if env.get("VGEC_FORWARD_EVENTS") == "1":
+                        print(PROGRESS_EVENT + json.dumps(progress), flush=True)
                 else:
                     print(line, end="", flush=True)
             returncode = process.wait()
         except BaseException:
+            from tools.process_groups import descendant_groups, signal_groups
+
+            groups = descendant_groups(process.pid) | {process.pid}
             try:
-                os.killpg(process.pid, signal.SIGTERM)
+                signal_groups(groups, signal.SIGTERM)
                 process.wait(timeout=15)
             except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
+                signal_groups(groups, signal.SIGKILL)
                 process.wait()
             except ProcessLookupError:
                 process.wait()
+            finally:
+                signal_groups(groups - {process.pid}, signal.SIGKILL)
             raise
         finally:
             reader.join(timeout=2)

@@ -160,6 +160,30 @@ def launch(project, python):
     from IPython.display import FileLink, display
 
     manifest = json.loads((run_dir / "pipeline_manifest.json").read_text())
+    if manifest.get("mode") == "tuning":
+        report = json.loads((run_dir / "tuning_summary.json").read_text())
+        public_metrics = {
+            key: value
+            for key, value in report["selected_metrics"].items()
+            if key
+            in {
+                "count",
+                "classification",
+                "corrections",
+                "combined_score",
+                "clean_preservation",
+                "invalid_json_rate",
+            }
+        }
+        print(
+            json.dumps(
+                {"selected": report["selected"], "metrics": public_metrics},
+                indent=2,
+            )
+        )
+        display(FileLink(str(run_dir / "tuning_summary.json")))
+        display(FileLink(str(run_dir / "results.zip")))
+        return run_dir
     metrics = json.loads((run_dir / "classification/metrics.json").read_text())[
         "classification"
     ]

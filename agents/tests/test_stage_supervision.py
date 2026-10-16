@@ -43,6 +43,33 @@ class StageSupervisionTests(unittest.TestCase):
         tracking.progress.assert_called_once()
         self.assertEqual(tracking.progress.call_args.args[0]["metrics"]["loss"], 0.4)
 
+    def test_nested_tuning_forwards_numeric_progress_to_the_outer_root(self):
+        from model.tracking import PROGRESS_EVENT
+
+        tracking = MagicMock()
+        event = (
+            PROGRESS_EVENT
+            + '{"stage":"classifier-qwen7b","prefix":"train","metrics":{"loss":0.5}}'
+        )
+        captured = io.StringIO()
+        with contextlib.redirect_stdout(captured):
+            _run_stage(
+                [sys.executable, "-c", "print(" + repr(event) + ")"],
+                {**os.environ, "VGEC_FORWARD_EVENTS": "1"},
+                tracking,
+            )
+        self.assertIn(PROGRESS_EVENT, captured.getvalue())
+        tracking.progress.assert_called_once()
+
+    def test_timeout_stops_a_quiet_child(self):
+        with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(TimeoutError):
+            _run_stage(
+                [sys.executable, "-c", "import time;time.sleep(30)"],
+                os.environ.copy(),
+                MagicMock(),
+                timeout_seconds=0.1,
+            )
+
     def test_nonzero_exit_propagates_and_interrupt_reaps_child_group(self):
         tracking = MagicMock()
         with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(

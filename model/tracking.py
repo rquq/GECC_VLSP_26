@@ -267,7 +267,7 @@ class TrackingRun:
         if task == "classification-oof":
             stage = f"fold-{int(self.output.name.rsplit('-', 1)[1]) + 1}"
         name = (
-            "run"
+            os.environ.get("VGEC_ROOT_RUN_NAME", "run")
             if task == "pipeline"
             else (
                 os.environ.get("VGEC_STAGE_NAME")
