@@ -5,8 +5,8 @@
   "source_run": "qwen-sailor-mistral-soft-vote-validation-resume-20261015T140358967795Z",
   "status": {
     "mistral_fit": "completed",
-    "mistral_saved_reload": "pending_Kaggle",
-    "corrector": "not_started",
+    "mistral_saved_reload": "completed_Kaggle",
+    "corrector": "completed_Kaggle",
     "recovery_code": "locally_verified"
   },
   "failure": {
@@ -54,7 +54,9 @@
       "scope": "three tiny classifiers fit/exit/reload sequentially, corrector and submission export on local RTX4060; not full-size T4"
     },
     "full_size_local_weights_loaded": false,
-    "full_T4_continuation_executed": false
+    "full_T4_continuation_executed": true,
+    "full_T4_continuation_evidence": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/16_10_2026/runs/qwen-sailor-mistral-verify-corrector-20261015T155819864773Z/run"
   },
-  "handoff": "Attach exactly the latest full notebook output and the unchanged private 78-row validation dataset. Mount names arbitrary. Reuse Qwen/Sailor, verify Mistral in a fresh process, build equal-weight soft voting, train Qwen corrector, export."
+  "handoff": "Attach exactly the latest full notebook output and the unchanged private 78-row validation dataset. Mount names arbitrary. Reuse Qwen/Sailor, verify Mistral in a fresh process, build equal-weight soft voting, train Qwen corrector, export.",
+  "followup_result": "VALIDATION_RESULTS_20261016.json"
 }

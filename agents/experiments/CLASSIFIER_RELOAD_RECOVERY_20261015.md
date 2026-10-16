@@ -1,5 +1,7 @@
 # Saved Mistral reload recovery — 2026-10-15
 
+**Follow-up 2026-10-16:** the supplied full Kaggle output completed Mistral verification, corrector training and export. See VALIDATION_RESULTS_20261016.md/.json. The pending statements below describe the original preparation date.
+
 The supplied updated output completed all five Mistral epochs (720 optimizer steps, 4336.93 seconds of training). The classifier adapter and tokenizer exist. The next call failed during inference placement preflight: cuda:0 had 7.46 GiB free versus an estimated 8.43 GiB requirement. This happened in the training process before the saved model could load; lowering the training batch size does not address that boundary. Residual training allocations are the working diagnosis; no full-size local allocation trace was taken.
 
 The selected checkpoint is epoch 1, internal Macro-F1 0.5137657474 and Micro-F1 0.7051282051. Epoch 5 fell to Macro-F1 0.4160062160. Retain the existing best checkpoint. Saved Qwen and Sailor Macro-F1 are 0.5003168719 and 0.4988912704. These are selected scores on the same small internal 78-row partition, not public results or an ensemble score.
