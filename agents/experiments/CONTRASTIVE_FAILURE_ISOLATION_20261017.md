@@ -1,3 +1,5 @@
+**Follow-up:** CONTRASTIVE_OUTPUT_COMPAT_20261017.md/.json repairs the reproduced contrastive path. The skip-only behavior below is historical failure isolation, retained as a safeguard.
+
 # Contrastive decoder failure isolation — 2026-10-17
 
 The supplied Kaggle log reached native baseline decoder screening, completed diverse_beam4 and beam_sampling4, then aborted at Transformers4.51.3 stack_model_outputs with TypeError: Unexpected attribute type: <class 'dict'> during low-memory contrastive search. Source7098c1f; Torch2.11.0+cu128/Python3.13 in the supplied runtime. The local proxy used a different device/precision/runtime and did not establish native compatibility. The exact origin of the dictionary in that runtime is not established by the excerpt.

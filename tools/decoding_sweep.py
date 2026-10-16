@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import time
+from contextlib import contextmanager, nullcontext
 
 from model.data import _id_key
 from model.runtime import write_json
@@ -129,6 +130,26 @@ def _candidate_score(model, tokenizer, prefix, target):
     return total / len(answer)
 
 
+@contextmanager
+def _contrastive_output_compat(model):
+    """Remove stale dataclass attributes introduced by Accelerate's positional mapping."""
+    from transformers.utils import ModelOutput
+
+    base = model.get_base_model() if hasattr(model, "get_base_model") else model
+
+    def canonical_output(module, inputs, output):
+        # send_to_device reconstructs ModelOutput with a positional dictionary,
+        # leaving loss=dict even when no loss key exists. Keyword construction
+        # preserves tensors/cache objects and restores absent optional fields.
+        return type(output)(**output) if isinstance(output, ModelOutput) else output
+
+    handle = base.register_forward_hook(canonical_output)
+    try:
+        yield
+    finally:
+        handle.remove()
+
+
 def decode(model, tokenizer, record, inference, strategy):
     import torch
     from model.correction import _prompt_ids, _parse_correction
@@ -149,9 +170,15 @@ def decode(model, tokenizer, record, inference, strategy):
     ids = torch.tensor([prefix], device=model.get_input_embeddings().weight.device)
 
     def generate(options):
-        output = model.generate(
-            input_ids=ids, attention_mask=torch.ones_like(ids), **options
+        compatibility = (
+            _contrastive_output_compat(model)
+            if options.get("penalty_alpha", 0) > 0 and options.get("low_memory", False)
+            else nullcontext()
         )
+        with compatibility:
+            output = model.generate(
+                input_ids=ids, attention_mask=torch.ones_like(ids), **options
+            )
         sequences = output.sequences if hasattr(output, "sequences") else output
         return [
             tokenizer.decode(seq[len(prefix) :], skip_special_tokens=True).strip()

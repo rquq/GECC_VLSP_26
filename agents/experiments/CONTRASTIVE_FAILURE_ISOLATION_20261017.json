@@ -25,5 +25,6 @@
     "red": "/tmp/vgec-contrastive-red.log",
     "green": "/tmp/vgec-contrastive-green.log",
     "suite": "/tmp/vgec-contrastive-suite.log"
-  }
+  },
+  "follow_up_actual_compatibility_fix": "CONTRASTIVE_OUTPUT_COMPAT_20261017.md/.json; this record preserves the earlier isolation-only change"
 }
