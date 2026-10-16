@@ -321,7 +321,12 @@ def sweep(
                 ),
             }
             publish_stage_result("decode-" + name, metrics)
-        except (torch.cuda.OutOfMemoryError, RuntimeError, ValueError) as error:
+        except (
+            torch.cuda.OutOfMemoryError,
+            RuntimeError,
+            ValueError,
+            TypeError,
+        ) as error:
             report = {
                 "status": "failed",
                 "phase": phase,

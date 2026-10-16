@@ -1,3 +1,5 @@
+**Kaggle contrastive failure — 2026-10-17:** native screening reached Transformers contrastive search and raised a dictionary-output TypeError. Optional decoder failure isolation now records TypeError and continues; failed candidates are not scored/selected, and all-failed sweeps still fail. This contains the runtime incompatibility rather than repairing upstream contrastive search. User requests a fresh Save Version rerun with no reuse of this failed output; recipes, data and model settings unchanged. See CONTRASTIVE_FAILURE_ISOLATION_20261017.md/.json.
+
 **2026-10-16 local retuning completed:**11 successful10-row decoder screens after a reproduced/fixed candidate-likelihood chunk error;3 complete78-row NF4 inference passes. Original greedy wins0.6149706110 all/0.2278072605 error GLEU+, clean40/40; no measured decoder improvement or local OOM. Saved classifier soft-vote search reaches development Macro-F1=0.6377559133, partition sensitivity0.5789647045 versus0.5615999132 baseline. Native four-model standard-LoRA challenger workflow prepared, not run;214 tests passed. See RETUNING_20261016.md/.json.
 
 # Recovered experiment history

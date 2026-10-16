@@ -100,3 +100,100 @@ class CandidateLikelihoodTests(unittest.TestCase):
             torch.tensor([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 2]),
         ).item()
         self.assertAlmostEqual(actual, expected, places=6)
+
+
+class OptionalDecoderFailureTests(unittest.TestCase):
+    def test_transformers_contrastive_type_error_is_recorded_and_next_decoder_runs(
+        self,
+    ):
+        import json
+        from pathlib import Path
+        import tempfile
+        from unittest.mock import patch
+        import torch
+        from transformers import Qwen2Config
+        from transformers.generation.utils import stack_model_outputs
+        from transformers.modeling_outputs import CausalLMOutputWithPast
+        from model.runtime import write_json
+        from model.tuning import decoding_strategies
+        from tools.decoding_sweep import sweep
+
+        def decode(model, tokenizer, row, inference, strategy):
+            if strategy["name"] == "contrastive":
+                # Reproduce the exact upstream dictionary-concatenation failure.
+                stack_model_outputs(
+                    [
+                        CausalLMOutputWithPast(
+                            logits=torch.zeros(1, 1, 8), past_key_values={}
+                        )
+                    ],
+                    Qwen2Config(),
+                )
+            return {
+                "id": row["id"],
+                "target": row["source"],
+                "raw_generation": "toy",
+                "parse_error": None,
+            }
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            adapter, classifier = root / "adapter", root / "classification"
+            adapter.mkdir()
+            classifier.mkdir()
+            (adapter / "adapter_model.safetensors").write_bytes(b"test-only")
+            gold = [
+                {"id": i, "source": "toy", "target": "toy", "label": i}
+                for i in range(5)
+            ]
+            write_json(classifier / "validation.json", gold)
+            write_json(
+                classifier / "predictions.json",
+                [{"id": i, "predicted_class": i} for i in range(5)],
+            )
+            matrix = {s["name"]: s for s in decoding_strategies()}
+            strategies = [
+                matrix[n] for n in ["greedy_reference", "contrastive", "beam2"]
+            ]
+            with patch(
+                "tools.decoding_sweep._load", return_value=(object(), object(), {})
+            ), patch("tools.decoding_sweep.decode", side_effect=decode):
+                result = sweep(
+                    adapter,
+                    classifier,
+                    root / "output",
+                    device="cpu",
+                    per_class=1,
+                    finalists=2,
+                    strategies=strategies,
+                )
+                with self.assertRaisesRegex(
+                    RuntimeError, "No decoding strategy completed"
+                ):
+                    sweep(
+                        adapter,
+                        classifier,
+                        root / "all-failed",
+                        device="cpu",
+                        per_class=1,
+                        finalists=1,
+                        strategies=[matrix["contrastive"]],
+                    )
+            reports = {r["strategy"]["name"]: r for r in result["screen"]}
+            failed = reports["contrastive"]
+            self.assertEqual(failed["status"], "failed")
+            self.assertEqual(failed["error_type"], "TypeError")
+            self.assertIn("dict", failed["error"])
+            self.assertNotIn("metrics", failed)
+            self.assertEqual(reports["beam2"]["status"], "completed")
+            self.assertEqual(
+                {r["strategy"]["name"] for r in result["full"]},
+                {"greedy_reference", "beam2"},
+            )
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(
+                json.loads((root / "output/contrastive/screen.json").read_text())[
+                    "error_type"
+                ],
+                "TypeError",
+            )
