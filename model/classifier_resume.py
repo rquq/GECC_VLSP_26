@@ -237,6 +237,8 @@ def plan(root, config, original, mixed):
     result = {}
     for name in manifest["members"]:
         member = root / "classification/members" / name
+        from .runtime import classifier_member_config
+        expected = classifier_member_config(config, requested[name])
         if name in manifest.get("pending_training", {}):
             old = validate_classifier_checkpoint(member)
             stats = manifest["pending_training"][name]
@@ -251,8 +253,8 @@ def plan(root, config, original, mixed):
         if (
             old["model"] != requested[name]["model"]
             or old["run"]["seed"] != 42
-            or old.get("lora") != config.get("lora")
-            or old["training"] != config["training"]
+            or old.get("lora") != expected.get("lora")
+            or old["training"] != expected["training"]
             or data_recipe(old) != data_recipe(config)
             or stats.get("data_sha256") != sha256(original)
             or stats.get("classifier_data_sha256") != sha256(mixed)

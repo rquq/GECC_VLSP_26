@@ -148,7 +148,6 @@ def _member_population(root):
         if (
             populations[i] != populations[0]
             or configs[i].get("lora") != configs[0].get("lora")
-            or configs[i]["training"] != configs[0]["training"]
             or data_recipe(configs[i]) != data_recipe(configs[0])
             or any(
                 manifests[i].get(key) != manifests[0].get(key)
@@ -173,6 +172,9 @@ def build(root, config):
     for entry, child in zip(config["ensemble"]["members"], configs):
         if child["model"] != entry["model"]:
             raise ValueError("Member differs from its requested pinned model")
+        from .runtime import classifier_member_config
+        if child["training"] != classifier_member_config(config, entry)["training"]:
+            raise ValueError("Member differs from its requested training recipe")
     checkpoint = root / "classifier"
     checkpoint.mkdir(parents=True, exist_ok=False)
     entries = []
@@ -314,6 +316,9 @@ def validate(root, classification=None):
     for entry, child in zip(config["ensemble"]["members"], configs):
         if child["model"] != entry["model"]:
             raise ValueError("Member differs from its requested pinned model")
+        from .runtime import classifier_member_config
+        if child["training"] != classifier_member_config(config, entry)["training"]:
+            raise ValueError("Member differs from its requested training recipe")
     manifest = json.loads((root / "run_manifest.json").read_text())
     if (
         manifest.get("ensemble_members") != NAMES

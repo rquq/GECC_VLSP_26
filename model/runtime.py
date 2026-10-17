@@ -1,5 +1,6 @@
 """Shared configuration, paths, artifacts, and selection for both task stages."""
 
+import copy
 import json
 import math
 from datetime import datetime, timezone
@@ -34,6 +35,27 @@ class CompleteEpochMixin:
         return super().get_batch_samples(
             epoch_iterator, self.args.gradient_accumulation_steps, device
         )
+
+
+def classifier_member_config(config, entry):
+    """Resolve committed model-specific optimization without changing data/seed."""
+    overrides = entry.get("training_args", {})
+    allowed = {"learning_rate", "num_train_epochs", "warmup_steps"}
+    if not isinstance(overrides, dict) or set(overrides) - allowed:
+        raise ValueError("Member training_args only supports learning_rate, num_train_epochs and warmup_steps")
+    for key, value in overrides.items():
+        if key == "warmup_steps":
+            valid = type(value) is int and value >= 0
+        else:
+            valid = type(value) in (int, float) and math.isfinite(value) and value > 0
+        if not valid:
+            raise ValueError(f"Invalid member training_args.{key}")
+    child = copy.deepcopy(config)
+    child.pop("ensemble", None)
+    child["model"] = copy.deepcopy(entry["model"])
+    child["training"]["args"].update(overrides)
+    child["run"].update(seed=42, name=f"classifier-{entry['name']}")
+    return child
 
 
 def load_config(path, expected_task=None):
@@ -89,6 +111,8 @@ def load_config(path, expected_task=None):
             raise ValueError(
                 "Soft voting requires three distinct pinned models and the first model as root"
             )
+        for entry in entries:
+            classifier_member_config(config, entry)
     world_size = config["run"].get("world_size", 1)
     if type(world_size) is not int or world_size not in (1, 2):
         raise ValueError("run.world_size must be 1 or 2")

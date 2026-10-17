@@ -1,0 +1,360 @@
+{
+  "status": "verified_ready_for_kaggle",
+  "date": "2026-10-18",
+  "intent": "User authorizes a fresh expanded-dataset trial plus targeted parameter tuning; final steering requires every model to train at least5epochs.",
+  "source_before_change": "338293f90e664803ee3dde12e82dd5d4d5601d43",
+  "recipe": {
+    "name": "expanded-v2-tuned-fresh-20261018",
+    "mode": "both",
+    "classification_config": "configs/expanded_classification.json",
+    "correction_config": "configs/expanded_correction.json",
+    "classifier_run": null,
+    "initial_adapter": null,
+    "data_archive": "VGEC26-diverse-v2-private-20261017.zip",
+    "submission_filename": "private_test.json",
+    "data_sha256": {
+      "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+      "classification": "37c5bf46c4c95ae62e488291a82310eb01e2bd5f2c7191aa3fc13c8f761bc519",
+      "correction": "9b10bce87dbfe73feb0eae41e0d045816885c0a5d8419c9f6e44af630b7cd17c"
+    },
+    "submission_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045"
+  },
+  "config_sha256": {
+    "configs/experiment.json": "f1f3ba917e6a25cae15dfe3f439266bd3e529c2079fdf02cf7c87490563c0b50",
+    "configs/expanded_classification.json": "608d3af43c23bfbd736afbfdbc9e0be06e64f2dfb35d25a39163d4efc2a6fbf5",
+    "configs/expanded_correction.json": "108ba690db1db9385b75f37a5af08a0604fcf0c4dd8754fd7ce8b2fafaf38bf7",
+    "configs/quality_experiment.json": "a7c39998319f610874d479e8fa3c817e6ef94c54cf30a61186928f30baf8296a"
+  },
+  "classification": {
+    "task": "classification",
+    "run": {
+      "name": "qwen-sailor-mistral-expanded-tuned",
+      "output_root": "runs",
+      "device": "cuda",
+      "world_size": 1,
+      "seed": 42
+    },
+    "tracking": {
+      "enabled": true,
+      "project": "vlsp26-gec",
+      "entity": null,
+      "mode": "online",
+      "log_models": true,
+      "log_text": false
+    },
+    "data": {
+      "path": null,
+      "filename": "VGEC 2026_v1.json",
+      "correction_path": null,
+      "correction_filename": "VGEC_balanced.json",
+      "input_root": "/kaggle/input",
+      "validation_fraction": 0.2,
+      "augmentation_path": null,
+      "augmentation_filename": "VGEC_classifier.json",
+      "split_seed": 42
+    },
+    "model": {
+      "name": "Qwen/Qwen2.5-7B-Instruct",
+      "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+      "compute_dtype": "float16",
+      "device_map": "balanced",
+      "attn_implementation": "sdpa",
+      "load_in_4bit": false
+    },
+    "lora": {
+      "r": 16,
+      "lora_alpha": 32,
+      "lora_dropout": 0.05,
+      "target_modules": [
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj"
+      ],
+      "bias": "none",
+      "modules_to_save": [
+        "score"
+      ]
+    },
+    "training": {
+      "max_length": 512,
+      "effective_batch_size": 8,
+      "fp16_initial_scale": 1,
+      "class_weight_power": 0.5,
+      "args": {
+        "num_train_epochs": 5,
+        "max_steps": -1,
+        "per_device_train_batch_size": 1,
+        "per_device_eval_batch_size": 1,
+        "learning_rate": 5e-05,
+        "weight_decay": 0.01,
+        "warmup_steps": 30,
+        "gradient_checkpointing": true,
+        "gradient_checkpointing_kwargs": {
+          "use_reentrant": false
+        },
+        "optim": "adamw_torch",
+        "logging_steps": 10,
+        "dataloader_num_workers": 0,
+        "lr_scheduler_type": "cosine",
+        "max_grad_norm": 1,
+        "adam_beta1": 0.9,
+        "adam_beta2": 0.999,
+        "adam_epsilon": 1e-08
+      }
+    },
+    "oof": {
+      "enabled": false
+    },
+    "ensemble": {
+      "members": [
+        {
+          "name": "qwen7b",
+          "model": {
+            "name": "Qwen/Qwen2.5-7B-Instruct",
+            "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+            "compute_dtype": "float16",
+            "device_map": "balanced",
+            "attn_implementation": "sdpa",
+            "load_in_4bit": false
+          },
+          "training_args": {
+            "learning_rate": 2e-05,
+            "num_train_epochs": 5,
+            "warmup_steps": 70
+          }
+        },
+        {
+          "name": "sailor7b",
+          "model": {
+            "name": "sail/Sailor-7B-Chat",
+            "revision": "19066fae0a8a3ba029c190d8e3dacccf4d1234b8",
+            "load_in_4bit": false,
+            "compute_dtype": "float16",
+            "attn_implementation": "sdpa",
+            "device_map": "balanced"
+          }
+        },
+        {
+          "name": "mistral7b",
+          "model": {
+            "name": "mistralai/Mistral-7B-Instruct-v0.3",
+            "revision": "c170c708c41dac9275d15a8fff4eca08d52bab71",
+            "load_in_4bit": false,
+            "compute_dtype": "float16",
+            "attn_implementation": "sdpa",
+            "device_map": "balanced"
+          }
+        }
+      ],
+      "method": "soft",
+      "calibration": {
+        "weights": [
+          1,
+          2,
+          1
+        ],
+        "temperature": 1.0,
+        "phrase_scale": 1.25
+      }
+    }
+  },
+  "correction": {
+    "task": "correction",
+    "run": {
+      "name": "qwen-expanded-tuned",
+      "output_root": "runs",
+      "device": "cuda",
+      "world_size": 1,
+      "seed": 42,
+      "archive": false
+    },
+    "tracking": {
+      "enabled": true,
+      "project": "vlsp26-gec",
+      "entity": null,
+      "mode": "online",
+      "log_models": true,
+      "log_text": false
+    },
+    "data": {
+      "path": null,
+      "filename": "VGEC_balanced.json",
+      "input_root": "/kaggle/input",
+      "validation_fraction": 0.2,
+      "split_seed": 42
+    },
+    "model": {
+      "name": "Qwen/Qwen2.5-7B-Instruct",
+      "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+      "compute_dtype": "float16",
+      "device_map": "balanced",
+      "attn_implementation": "sdpa",
+      "load_in_4bit": false
+    },
+    "lora": {
+      "r": 16,
+      "lora_alpha": 32,
+      "lora_dropout": 0.1,
+      "target_modules": [
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj"
+      ],
+      "bias": "none"
+    },
+    "training": {
+      "max_length": 512,
+      "effective_batch_size": 8,
+      "fp16_initial_scale": 1.0,
+      "args": {
+        "num_train_epochs": 5,
+        "max_steps": -1,
+        "per_device_train_batch_size": 1,
+        "learning_rate": 1.5e-05,
+        "warmup_ratio": 0.1,
+        "weight_decay": 0.01,
+        "gradient_checkpointing": true,
+        "gradient_checkpointing_kwargs": {
+          "use_reentrant": false
+        },
+        "optim": "adamw_torch",
+        "logging_steps": 1,
+        "dataloader_num_workers": 0,
+        "lr_scheduler_type": "linear",
+        "max_grad_norm": 1.0,
+        "adam_beta1": 0.9,
+        "adam_beta2": 0.999,
+        "adam_epsilon": 1e-08
+      }
+    },
+    "inference": {
+      "output_format": "sentence",
+      "hint_mode": "none",
+      "user_role": "user",
+      "prompt": "Hãy sửa lỗi ngữ pháp Tiếng Việt. Sửa ít nhất có thể, giữ nguyên ý nghĩa và hãy giữ nguyên câu đúng. Chỉ trả lời JSON với duy nhất khóa corrected_sentence chứa câu hoàn chỉnh; không giải thích."
+    },
+    "generation": {
+      "max_new_tokens": 192,
+      "do_sample": false,
+      "use_cache": true,
+      "num_beams": 1,
+      "repetition_penalty": 1.0
+    },
+    "evaluation": {
+      "selection_metrics": [
+        "corrections.all.gleu_plus",
+        "corrections.error_only.gleu_plus",
+        "clean_preservation.exact_source_preservation"
+      ],
+      "save_epoch_adapters": false
+    }
+  },
+  "evidence": {
+    "qwen_epoch_macro": [
+      0.47222291021671825,
+      0.44461538461538463,
+      0.43412343470483006,
+      0.4415781808552893,
+      0.4415781808552893
+    ],
+    "qwen_loss_logged_first": 21.2503,
+    "qwen_loss_logged_near_end": 0.0015,
+    "interpretation": "Fits memorized the mixture while development subtype scores regressed; overfitting/mixture sensitivity plausible, not a proven isolated cause or a broken pretrained Qwen. Exact later values retained in original epoch_history.json.",
+    "three_predeclared_vote_candidates": [
+      {
+        "weights": [
+          1,
+          1,
+          2
+        ],
+        "macro_f1": 0.5727738927738928,
+        "micro_f1": 0.7435897435897436
+      },
+      {
+        "weights": [
+          1,
+          2,
+          1
+        ],
+        "macro_f1": 0.6010678210678211,
+        "micro_f1": 0.782051282051282
+      },
+      {
+        "weights": [
+          1,
+          3,
+          1
+        ],
+        "macro_f1": 0.5868253968253969,
+        "micro_f1": 0.7692307692307693
+      }
+    ],
+    "vote_scope": "Same reused78development, temperature1/phrase_scale1.25; selected1:2:1. No unseen accuracy claim.",
+    "expanded_bami_screens": "Negative versus quality baseline; V2 preferred over V3 for this user-authorized exploratory trial, not promoted as a measured better dataset."
+  },
+  "data": {
+    "canonical_classifier": 849,
+    "unique_classifier_sources": 844,
+    "classifier_exposures": 1394,
+    "canonical_corrector": 833,
+    "corrector_exposures": 1289,
+    "classifier_class_exposures": [
+      293,
+      290,
+      284,
+      285,
+      242
+    ],
+    "corrector_class_exposures": [
+      293,
+      257,
+      259,
+      265,
+      215
+    ],
+    "development": 78,
+    "private_inference_only": 2034,
+    "new_generation_or_relabeling": false
+  },
+  "validation": {
+    "tests": 237,
+    "full_suite_log": "/tmp/vgec-expanded-final-tests.log",
+    "native_preflight_root": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/preflight-expanded-tuned-20261017T194518Z",
+    "tiny_five_epoch_root": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/smoke-expanded-five-epochs-20261017T194715Z",
+    "production_fit_started": false,
+    "tiny_five_epoch_proof": {
+      "status": "passed",
+      "scope": "actual tinyCPU four fresh standardLoRA fits, FIVE full epochs each, all4reloads,1:2:1soft vote and valid typed-ID submission; tiny architecture/rank and Qwenwarmup2 instead of native70; not a native7B score",
+      "output": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/smoke-expanded-five-epochs-20261017T194715Z/outputs/tiny-expanded-five-epochs-20261017T194715922871Z/run",
+      "final_training_epochs": {
+        "qwen7b": 5.0,
+        "sailor7b": 5.0,
+        "mistral7b": 5.0,
+        "corrector": 5.0
+      },
+      "submission_rows": 2
+    },
+    "native_final_proof": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/preflight-expanded-tuned-20261017T194518Z/final-verification.json",
+    "artifact_checks": "237tests; native counts/data/archive; actual5epoch four-fit/reload/ZIP",
+    "prior_native_ensemble_contracts_python313": [
+      "16_10_2026",
+      "18_10_2026"
+    ]
+  },
+  "limitations": [
+    "78development rows repeatedly used for selection, not blind holdout.",
+    "Data and hyperparameters change together; next result is not a controlled dataset-only comparison.",
+    "Allfour native models train full5epochs/max_steps=-1, while selecting the best development checkpoint, possibly earlier.",
+    "Native7B standardLoRA not trained locally; no zeroOOM or score guarantee.",
+    "Larger data at5epochs increases optimizer steps and runtime.",
+    "Pre-existing exact-float calibrated-vote validation can reject Python3.13 native output when replayed in local Python3.10; unmodified previous code has the same issue. Both prior native ensembles validate in systemPython3.13, and new tiny3.10 fit/reload/export passes. No checkpoint reuse is requested for the next fresh run."
+  ]
+}

@@ -250,9 +250,10 @@ def preflight(
     if fresh_classifier and check_placement:
         entries = classification.get("ensemble", {}).get("members", [])
         if entries:
+            from .runtime import classifier_member_config
             report["classification_models"] = {
                 entry["name"]: _stage_placement(
-                    {**classification, "model": entry["model"]}, "classification"
+                    classifier_member_config(classification, entry), "classification"
                 )
                 for entry in entries
                 if entry["name"] not in resumed
@@ -588,10 +589,8 @@ def main(*, tracking):
             "members", [{"name": "single", "model": classifier["model"]}]
         )
         for entry in entries:
-            member_config = copy.deepcopy(classifier)
-            member_config.pop("ensemble", None)
-            member_config["model"] = entry["model"]
-            member_config["run"].update(seed=42, name=f"classifier-{entry['name']}")
+            from .runtime import classifier_member_config
+            member_config = classifier_member_config(classifier, entry)
             name = entry["name"]
             target = (
                 packaged_classifier / "members" / name

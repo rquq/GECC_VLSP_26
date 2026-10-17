@@ -1,6 +1,7 @@
 """Run the committed experiment recipe; notebooks contain no experiment switches."""
 
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -43,7 +44,7 @@ def model_size(config):
         model = factory.from_config(architecture)
     model.tie_weights()
     base = sum(parameter.numel() for parameter in model.parameters())
-    lora = dict(config["lora"])
+    lora = copy.deepcopy(config["lora"])
     lora.pop("task_type", None)
     task_type = (
         TaskType.SEQ_CLS if config["task"] == "classification" else TaskType.CAUSAL_LM
@@ -74,9 +75,9 @@ def model_size(config):
     }
     if config.get("ensemble"):
         sizes = {}
+        from model.runtime import classifier_member_config
         for entry in config["ensemble"]["members"]:
-            child = {**config, "model": entry["model"]}
-            child.pop("ensemble", None)
+            child = classifier_member_config(config, entry)
             sizes[entry["name"]] = model_size(child)
         result["members"] = sizes
         result["total_member_parameters"] = sum(
