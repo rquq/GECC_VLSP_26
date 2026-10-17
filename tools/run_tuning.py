@@ -75,9 +75,25 @@ def validate_plan(plan, project=PROJECT_ROOT, device="cuda"):
 
 
 def reuse_public_predictions(strategy, source_tag, proof, public_path):
-    return strategy == "greedy_reference" and (
-        source_tag == "challenger"
-        or proof.get("public_data_sha256") == sha256(public_path)
+    return (
+        strategy == "greedy_reference"
+        and source_tag == "baseline"
+        and proof.get("public_data_sha256") == sha256(public_path)
+    )
+
+
+def stage_timeout(plan, name, elapsed):
+    remaining = plan["max_wall_seconds"] - elapsed
+    if remaining <= 0:
+        raise RuntimeError(
+            "Tuning wall budget exhausted; saved stage artifacts are retained"
+        )
+    # This coordinator contains four model fits plus fresh reload verification.
+    # It is bounded by the whole experiment, not one individual-stage allowance.
+    return (
+        remaining
+        if name == "retuned-models"
+        else min(plan["max_stage_seconds"], remaining)
     )
 
 
@@ -212,10 +228,6 @@ def run(
             )
 
             def stage(args, name):
-                if time.monotonic() - started > plan["max_wall_seconds"]:
-                    raise RuntimeError(
-                        "Tuning wall budget exhausted; saved stage artifacts are retained"
-                    )
                 _run_stage(
                     args,
                     {
@@ -224,9 +236,8 @@ def run(
                         "VGEC_ROOT_RUN_NAME": "retuned-model-training",
                     },
                     tracking,
-                    timeout_seconds=min(
-                        plan["max_stage_seconds"],
-                        plan["max_wall_seconds"] - (time.monotonic() - started),
+                    timeout_seconds=stage_timeout(
+                        plan, name, time.monotonic() - started
                     ),
                 )
 
@@ -264,7 +275,8 @@ def run(
                 + baseline_strategy_args,
                 "baseline-decoders",
             )
-            stage(command, "retuned-models")
+            # Select models/decoding before spending GPU time on public inference.
+            stage(command + ["--defer-submission"], "retuned-models")
             challenger = training_work / "run"
             challenger_class = classifier_search(
                 challenger / "classification",

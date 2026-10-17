@@ -6,6 +6,25 @@ from model.runtime import write_json
 
 
 class TuningRunnerTests(unittest.TestCase):
+    def test_four_model_coordinator_uses_remaining_wall_budget(self):
+        from tools.run_tuning import stage_timeout
+
+        plan = {"max_wall_seconds": 32400, "max_stage_seconds": 21600}
+        self.assertEqual(stage_timeout(plan, "retuned-models", 3600), 28800)
+        self.assertEqual(stage_timeout(plan, "baseline-decoders", 3600), 21600)
+        self.assertEqual(stage_timeout(plan, "retuned-models", 30000), 2400)
+        with self.assertRaisesRegex(RuntimeError, "wall budget"):
+            stage_timeout(plan, "retuned-models", 32400)
+
+    def test_deferred_challenger_has_no_greedy_public_predictions_to_reuse(self):
+        from tools.run_tuning import reuse_public_predictions
+
+        self.assertFalse(
+            reuse_public_predictions(
+                "greedy_reference", "challenger", {}, Path("not-exported.json")
+            )
+        )
+
     def test_source_discovery_is_recursive_hash_bound_and_rejects_tampering(self):
         from tools.run_tuning import discover_source
         from model.classifier_resume import sha256

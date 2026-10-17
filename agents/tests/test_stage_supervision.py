@@ -14,6 +14,26 @@ from model.two_phase import _run_stage
 
 
 class StageSupervisionTests(unittest.TestCase):
+    def test_multi_fit_coordinator_is_not_killed_by_single_stage_cap(self):
+        from tools.run_tuning import stage_timeout
+
+        plan = {"max_wall_seconds": 5, "max_stage_seconds": 0.05}
+        command = [sys.executable, "-c", "import time;time.sleep(0.2)"]
+        with contextlib.redirect_stdout(io.StringIO()):
+            _run_stage(
+                command,
+                os.environ.copy(),
+                MagicMock(),
+                timeout_seconds=stage_timeout(plan, "retuned-models", 0),
+            )
+            with self.assertRaises(TimeoutError):
+                _run_stage(
+                    command,
+                    os.environ.copy(),
+                    MagicMock(),
+                    timeout_seconds=stage_timeout(plan, "baseline-decoders", 0),
+                )
+
     def test_quiet_child_keeps_heartbeat_and_forwards_safe_progress(self):
         from model.tracking import PROGRESS_EVENT
 

@@ -432,6 +432,11 @@ def main(*, tracking):
         help="Raw organizer ID/Input JSON or auto to discover public_test.json; otherwise export untouched validation",
     )
     parser.add_argument("--preflight-only", action="store_true")
+    parser.add_argument(
+        "--defer-submission",
+        action="store_true",
+        help="Internal tuning coordinator: save completed models/metrics; parent exports after selection",
+    )
     args = parser.parse_args()
     prior = args.classifier_run or args.prior_run
     if args.mode == "task2" and prior is None:
@@ -760,6 +765,11 @@ def main(*, tracking):
                 (output / "correction" / "metrics.json").read_text()
             ),
         )
+        manifest["combined_score"] = manifest["correction_metrics"]["combined_score"]
+        manifest["combined_score_metadata"] = manifest["correction_metrics"][
+            "combined_score_metadata"
+        ]
+    if corrector is not None and not args.defer_submission:
         validation_path = packaged_classifier / "validation.json"
         records = (
             submission_records
@@ -843,14 +853,15 @@ def main(*, tracking):
             for name, path in submission["artifacts"].items()
         }
         manifest["submission"] = submission
-        manifest["combined_score"] = manifest["correction_metrics"]["combined_score"]
-        manifest["combined_score_metadata"] = manifest["correction_metrics"][
-            "combined_score_metadata"
-        ]
         if submission["evaluated"]:
             tracking.evaluation(
                 json.loads((output / "results.metrics.json").read_text()), "submission"
             )
+    elif corrector is not None:
+        manifest["submission"] = {
+            "status": "deferred",
+            "reason": "Parent tuning coordinator exports after model and decoder selection",
+        }
     else:
         manifest["submission"] = {
             "status": "unavailable",
