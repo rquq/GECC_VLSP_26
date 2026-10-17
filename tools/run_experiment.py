@@ -137,6 +137,15 @@ def resolve_inputs(recipe, input_root, destination):
             path, require_labels=role == "original"
         ):
             raise ValueError(f"Empty {role} dataset")
+    if recipe.get("submission_sha256") is not None:
+        if (
+            "submission" not in paths
+            or hashlib.sha256(paths["submission"].read_bytes()).hexdigest()
+            != recipe["submission_sha256"]
+        ):
+            raise ValueError(
+                "Submission input differs from committed private-test hash"
+            )
     return paths
 
 
@@ -215,7 +224,10 @@ def prepare_run(recipe_path, input_root, output_root, *, world_size, device="cud
         "submission_filename",
         "data_sha256",
     }
-    if set(recipe) - {"classifier_resume_sha256"} != expected or recipe["mode"] not in (
+    if set(recipe) - {
+        "classifier_resume_sha256",
+        "submission_sha256",
+    } != expected or recipe["mode"] not in (
         "both",
         "task1",
         "task2",
@@ -223,16 +235,16 @@ def prepare_run(recipe_path, input_root, output_root, *, world_size, device="cud
         raise ValueError(
             "Recipe must contain exactly the documented fields; mode is both, task1, or task2"
         )
-    if "classifier_resume_sha256" in recipe:
-        digest = recipe["classifier_resume_sha256"]
+    for hash_field in ("classifier_resume_sha256", "submission_sha256"):
+        if hash_field not in recipe:
+            continue
+        digest = recipe[hash_field]
         if (
             not isinstance(digest, str)
             or len(digest) != 64
             or any(c not in "0123456789abcdef" for c in digest)
         ):
-            raise ValueError(
-                "classifier_resume_sha256 must pin a lowercase SHA256 digest"
-            )
+            raise ValueError(f"{hash_field} must pin a lowercase SHA256 digest")
     if recipe["mode"] == "task2" and not recipe["classifier_run"]:
         raise ValueError("task2 recipe requires a completed classifier_run")
     for key in ("data_archive", "submission_filename"):

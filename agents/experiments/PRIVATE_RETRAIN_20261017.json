@@ -1,0 +1,338 @@
+{
+  "date": "2026-10-17",
+  "source_commit_before_changes": "8a4bb01",
+  "status": "implemented and locally verified; full7B training not started",
+  "recipe": "configs/experiment.json",
+  "training_manifest": {
+    "format": "private-vgec-quality-upload-v1",
+    "archive": "VGEC26-quality-private-20261017.zip",
+    "data_sha256": {
+      "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+      "classification": "0120bdf836b20069ce01826c6a8c695c6deb76f6ff7c3ec1cb4f1f73b40bede2",
+      "correction": "9baa0e9ebbbb4b0c3713306462263170ec73e63bd5106ba8355452eae0890d17"
+    },
+    "submission_filename": "private_test.json",
+    "submission_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045",
+    "inference_rows": 2034,
+    "inference_role": "inference only; no labels, no generation parents",
+    "validation_rows": 78,
+    "leakage_audit": {
+      "id_overlap": 0,
+      "normalized_source_or_target_overlap": 0,
+      "token_bag_overlap": 0,
+      "shared_10_token_spans": 0,
+      "direct_validation_parent_hits": 0,
+      "mixed_lineage_or_text_components": 0,
+      "passed": true,
+      "validation_rows": 78,
+      "policy": {
+        "normalization": "NFKC/casefold/word-tokens",
+        "equal_token_bags": true,
+        "shared_span_tokens": 10,
+        "near_min_tokens": 8,
+        "near_length_ratio": 0.8,
+        "near_token_jaccard": 0.8,
+        "near_sequence_ratio": 0.9
+      },
+      "scope": "Exported fit/evaluation records only; past model or human exposure is not erased."
+    },
+    "private_exact_training_overlap": {
+      "classification": 0,
+      "correction": 0
+    },
+    "stages": {
+      "classification": {
+        "canonical_counts": {
+          "0": 229,
+          "1": 141,
+          "2": 67,
+          "3": 80,
+          "4": 100
+        },
+        "unique_source_counts": {
+          "0": 229,
+          "1": 136,
+          "2": 67,
+          "3": 80,
+          "4": 100
+        },
+        "exposure_counts": {
+          "0": 229,
+          "1": 229,
+          "2": 212,
+          "3": 229,
+          "4": 229
+        },
+        "shortfalls": {
+          "0": 0,
+          "1": 0,
+          "2": 17,
+          "3": 0,
+          "4": 0
+        },
+        "operator_rules": {
+          "classifier_after_annotated_noun": 3,
+          "quantifier_after_nominal_head": 8,
+          "quantifier_after_annotated_noun": 8,
+          "missing_main_copular_predicate": 1,
+          "missing_annotated_main_predicate": 1,
+          "duplicated_copula": 4,
+          "duplicated_annotated_conjunction": 8,
+          "duplicated_aspect_marker": 8,
+          "duplicated_annotated_preposition": 8,
+          "adjacent_copula_or_aspect_repetition": 8,
+          "missing_parenthesis_closing": 1,
+          "unmatched_bracket_opening": 8,
+          "unmatched_quotation_closing": 8,
+          "unmatched_bracket_closing": 8,
+          "unmatched_parenthesis_closing": 8,
+          "unmatched_quotation_opening": 8,
+          "unmatched_parenthesis_opening": 8
+        },
+        "operator_rows_before": 267,
+        "operator_rows_after": 106,
+        "matched_clean_controls": 0,
+        "legacy_clean_replaced": 0,
+        "policy": {
+          "operator_rule_cap": 8,
+          "operator_parent_cap": 2,
+          "original_legacy_max_exposures": 4,
+          "operator_max_exposures": 2,
+          "clean_control_budget": 37,
+          "seed": 42
+        },
+        "quality_scope": "controlled repetition/mechanism mix; no measured score or human-adjudication claim"
+      },
+      "correction": {
+        "canonical_counts": {
+          "0": 229,
+          "1": 140,
+          "2": 61,
+          "3": 77,
+          "4": 98
+        },
+        "unique_source_counts": {
+          "0": 229,
+          "1": 135,
+          "2": 61,
+          "3": 77,
+          "4": 98
+        },
+        "exposure_counts": {
+          "0": 229,
+          "1": 229,
+          "2": 149,
+          "3": 185,
+          "4": 219
+        },
+        "shortfalls": {
+          "0": 0,
+          "1": 0,
+          "2": 80,
+          "3": 44,
+          "4": 10
+        },
+        "operator_rules": {
+          "classifier_after_annotated_noun": 3,
+          "quantifier_after_nominal_head": 8,
+          "quantifier_after_annotated_noun": 8,
+          "missing_main_copular_predicate": 1,
+          "missing_annotated_main_predicate": 1,
+          "duplicated_copula": 4,
+          "duplicated_annotated_conjunction": 8,
+          "duplicated_aspect_marker": 8,
+          "duplicated_annotated_preposition": 8,
+          "adjacent_copula_or_aspect_repetition": 8,
+          "missing_parenthesis_closing": 1,
+          "unmatched_bracket_opening": 8,
+          "unmatched_quotation_closing": 8,
+          "unmatched_bracket_closing": 8,
+          "unmatched_parenthesis_closing": 8,
+          "unmatched_quotation_opening": 8,
+          "unmatched_parenthesis_opening": 8
+        },
+        "operator_rows_before": 267,
+        "operator_rows_after": 106,
+        "matched_clean_controls": 0,
+        "legacy_clean_replaced": 0,
+        "policy": {
+          "operator_rule_cap": 8,
+          "operator_parent_cap": 2,
+          "original_legacy_max_exposures": 4,
+          "operator_max_exposures": 2,
+          "clean_control_budget": 37,
+          "seed": 42
+        },
+        "quality_scope": "controlled repetition/mechanism mix; no measured score or human-adjudication claim"
+      }
+    },
+    "source_training_package": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/kaggle-grouped-validation-20261015",
+    "external_data": "Existing licensed human-annotated UD-VTB parents only; no new LLM-labeled external corpus admitted",
+    "scope": "Research candidate mixture; mechanical checks do not establish a model-score improvement"
+  },
+  "archive": {
+    "path": "dataset/kaggle-quality-private-20261017/VGEC26-quality-private-20261017.zip",
+    "bytes": 2814623,
+    "sha256": "411493973c0d29f4a1650a2b8bdba629cd7e2ac6eb1b778d942ad35e1131d4c3"
+  },
+  "previous_inference": {
+    "filename": "public_test.json",
+    "rows": 443,
+    "sha256": "5a0c7ca466b639a933e8f472223127ac78e418089584d6b754dd0b4b4eb836a7"
+  },
+  "models": {
+    "classifier": {
+      "models": [
+        "Qwen/Qwen2.5-7B-Instruct",
+        "sail/Sailor-7B-Chat",
+        "mistralai/Mistral-7B-Instruct-v0.3"
+      ],
+      "maximum_epochs": 5,
+      "learning_rate": 5e-05,
+      "lambda_subtype": 2,
+      "calibration": {
+        "weights": [
+          1,
+          1,
+          2
+        ],
+        "temperature": 1,
+        "phrase_scale": 1.25
+      }
+    },
+    "corrector": {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "maximum_epochs": 4,
+      "learning_rate": 2e-05,
+      "num_beams": 1,
+      "repetition_penalty": 1,
+      "checkpoint_selection": [
+        "corrections.all.gleu_plus",
+        "corrections.error_only.gleu_plus",
+        "clean_preservation.exact_source_preservation"
+      ]
+    }
+  },
+  "scope": [
+    "Fresh pretrained bases, no adapter reuse; all four fits",
+    "78 development rows retained for selection; full retrain means all components fresh, not fitting development",
+    "No additional generation, label repair or new external corpus admitted",
+    "Quality mixture is an unmeasured research candidate; restored hyperparameters and posthoc calibration were selected on older development outputs",
+    "No <=8B eligible source establishes 70-80 percent accuracy/F1 from current data",
+    "Original/derived datasets and runtime reports remain ignored and private"
+  ],
+  "verification": {
+    "tests": 225,
+    "test_log": "/tmp/vgec-private-retrain-final-tests.log",
+    "tiny_end_to_end": {
+      "status": "passed",
+      "scope": "real tiny CPU four fresh LoRA fits/reloads, quality-grouped data, calibrated soft voting, private typed IDs, all-row GLEU checkpoint selection, submission ZIP",
+      "output": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/smoke-quality-private-20261017T063229Z/outputs/tiny-quality-private-20261017T063229157143Z/run",
+      "rows": 2
+    },
+    "native_preflight": {
+      "mode": "both",
+      "classifier_reused": false,
+      "seed": 42,
+      "classification_train": 1128,
+      "validation": 78,
+      "original_data": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/preflight-quality-private-20261017/quality-private-fresh-20261017-20261017T063309449386Z/inputs/VGEC 2026_v1.json",
+      "classification_data": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/preflight-quality-private-20261017/quality-private-fresh-20261017-20261017T063309449386Z/inputs/VGEC_classifier.json",
+      "hints_enabled": false,
+      "correction_train": 1011,
+      "correction_data": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/preflight-quality-private-20261017/quality-private-fresh-20261017-20261017T063309449386Z/inputs/VGEC_balanced.json",
+      "hint_mode": "none",
+      "original_training_rows_preserved": {
+        "classification": 321,
+        "correction": 309
+      },
+      "classifier_annotation_notes_preserved": [
+        103,
+        104,
+        105,
+        108,
+        116,
+        121,
+        141,
+        143,
+        147,
+        168,
+        200
+      ],
+      "submission_rows": 2034,
+      "scope": "native data/model architecture and adapter parameter counts; no model weights loaded, no T4 placement or full-size fitting proof",
+      "model_parameters": {
+        "classification": {
+          "base": 7070637056,
+          "adapter": 40370176,
+          "saved_module_copies": 17920,
+          "padding_allowance": 3584,
+          "total_upper_bound": 7111028736,
+          "limit": 8000000000,
+          "members": {
+            "qwen7b": {
+              "base": 7070637056,
+              "adapter": 40370176,
+              "saved_module_copies": 17920,
+              "padding_allowance": 3584,
+              "total_upper_bound": 7111028736,
+              "limit": 8000000000
+            },
+            "sailor7b": {
+              "base": 7099015168,
+              "adapter": 39976960,
+              "saved_module_copies": 20480,
+              "padding_allowance": 4096,
+              "total_upper_bound": 7139016704,
+              "limit": 8000000000
+            },
+            "mistral7b": {
+              "base": 7113826304,
+              "adapter": 41943040,
+              "saved_module_copies": 20480,
+              "padding_allowance": 4096,
+              "total_upper_bound": 7155793920,
+              "limit": 8000000000
+            }
+          },
+          "total_member_parameters": 21405839360,
+          "eligibility_scope": "Each separate classifier component <=8B; bases are different and not shared."
+        },
+        "correction": {
+          "base": 7615616512,
+          "adapter": 40370176,
+          "saved_module_copies": 0,
+          "padding_allowance": 0,
+          "total_upper_bound": 7655986688,
+          "limit": 8000000000
+        }
+      },
+      "command": [
+        "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/../.venv/bin/python",
+        "-m",
+        "model.two_phase",
+        "--mode",
+        "both",
+        "--classification-config",
+        "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/preflight-quality-private-20261017/quality-private-fresh-20261017-20261017T063309449386Z/classification_config.json",
+        "--correction-config",
+        "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/preflight-quality-private-20261017/quality-private-fresh-20261017-20261017T063309449386Z/correction_config.json",
+        "--output-dir",
+        "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/preflight-quality-private-20261017/quality-private-fresh-20261017-20261017T063309449386Z/run",
+        "--submission-data",
+        "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/preflight-quality-private-20261017/quality-private-fresh-20261017-20261017T063309449386Z/inputs/private_test.json"
+      ]
+    },
+    "zip_crc": "passed",
+    "limitations": [
+      "Tiny-model execution proves wiring, not real-model accuracy",
+      "Native preflight loads model architecture on meta device, not7B weights or T4 placement",
+      "No new-score or zero-OOM guarantee"
+    ]
+  },
+  "config_sha256": {
+    "configs/experiment.json": "a7c39998319f610874d479e8fa3c817e6ef94c54cf30a61186928f30baf8296a",
+    "configs/retrain_best_classification.json": "23da261eead0b3a20ef16386adcaf23dfb0ba09f24ef518b1416a3cd986a6ff7",
+    "configs/retrain_best_correction.json": "ae776d6228b60580ef102b7c28f16e5c0aaf18c3e2ee1966ecb2b025f54709ff"
+  }
+}

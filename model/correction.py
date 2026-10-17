@@ -97,6 +97,19 @@ SELECTION_METRICS = (
 )
 
 
+ALL_SELECTION_METRICS = (
+    "corrections.all.gleu_plus", "corrections.error_only.gleu_plus",
+    "clean_preservation.exact_source_preservation",
+)
+
+
+def correction_selection_metrics(config):
+    fields = tuple(config["evaluation"]["selection_metrics"])
+    if fields not in (SELECTION_METRICS, ALL_SELECTION_METRICS):
+        raise ValueError("Unsupported correction checkpoint selection metrics")
+    return fields
+
+
 def _hint_index(records, hints):
     if not isinstance(hints, list):
         raise ValueError("Hints must be an array")
@@ -619,8 +632,7 @@ def main(*, tracking):
     if final_fit and (validation or inference["hint_mode"] != "none"):
         raise ValueError("Final fits require no validation and no hints")
     training, settings = config["training"], config["model"]
-    if tuple(config["evaluation"]["selection_metrics"]) != SELECTION_METRICS:
-        raise ValueError("Correction selects error-only GLEU+, then error-only exact, then clean preservation")
+    selection_metrics = correction_selection_metrics(config)
     if training["args"].get("gradient_checkpointing") and training["args"].get("gradient_checkpointing_kwargs", {}).get("use_reentrant") is not False:
         raise ValueError("Correction gradient checkpointing must explicitly use_reentrant=false")
     placement = placement_preflight(settings, device)
@@ -748,7 +760,7 @@ def main(*, tracking):
                     save_adapter(current, epoch_dir / "adapter")
                     tracking.model(epoch_dir / "adapter", f"corrector-epoch-{len(history) + 1}",
                                    metadata={"epoch": state.epoch}, aliases=["latest"])
-                key = selection_key(metrics, SELECTION_METRICS)
+                key = selection_key(metrics, selection_metrics)
                 history.append({"epoch": state.epoch, "optimizer_steps": state.global_step,
                                 "metrics": metrics, "selection_values": key})
                 write_json(output / "epoch_history.json", history)
@@ -852,9 +864,9 @@ def main(*, tracking):
         "train_max_tokens": max(len(row["input_ids"]) for row in encoded),
         "validation_max_tokens": max(validation_lengths, default=None), "optimizer_steps": result.global_step,
         "training_loss": result.training_loss, "best_epoch": best["epoch"],
-        "selection_metrics": [] if final_fit else list(SELECTION_METRICS),
+        "selection_metrics": [] if final_fit else list(selection_metrics),
         "selection_rule": ("fixed final epoch; no independent validation" if final_fit else
-                           "highest error-only GLEU+, then error-only exact, then clean preservation; ties keep earlier epoch"),
+                           "lexicographic maximum of selection_metrics; ties keep earlier epoch"),
         "final_fit": final_fit, "saved_adapter_reload_verified": True,
         "saved_adapter_reloaded_for_evaluation": not final_fit, "peak_allocated_vram_bytes": peak_memory,
         "versions": {name: importlib.metadata.version(name) for name in ("torch", "transformers", "peft", "accelerate", "bitsandbytes")},

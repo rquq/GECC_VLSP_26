@@ -12,9 +12,47 @@ from .runtime import write_json
 NAMES = ["qwen7b", "sailor7b", "mistral7b"]
 FORMAT = "vgec-classifier-soft-vote-v1"
 RULE = "equal-weight mean of member probabilities; exact ties use lower class ID"
+CALIBRATED_FORMAT = "vgec-calibrated-classifier-soft-vote-v1"
 
 
-def vote(predictions):
+def calibration_settings(value):
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) != {
+        "weights",
+        "temperature",
+        "phrase_scale",
+    }:
+        raise ValueError("Invalid ensemble calibration fields")
+    weights = value["weights"]
+    if (
+        not isinstance(weights, list)
+        or len(weights) != 3
+        or any(
+            type(w) not in (int, float) or not math.isfinite(w) or w < 0
+            for w in weights
+        )
+        or sum(weights) <= 0
+        or any(
+            type(value[k]) not in (int, float)
+            or not math.isfinite(value[k])
+            or value[k] <= 0
+            for k in ["temperature", "phrase_scale"]
+        )
+    ):
+        raise ValueError("Invalid ensemble calibration values")
+    return value
+
+
+def voting_rule(calibration):
+    return (
+        RULE
+        if calibration is None
+        else "weighted temperature-calibrated joint probabilities with phrase multiplier; ties use lower class ID"
+    )
+
+
+def vote(predictions, calibration=None):
     if len(predictions) != 3:
         raise ValueError("Voting requires exactly three classifier members")
     from .correction import _hint_index
@@ -36,16 +74,26 @@ def vote(predictions):
                 "votes": [counts[i] for i in range(5)],
             }
         )
+    calibration = calibration_settings(calibration)
+    if calibration is not None:
+        from .tuning import calibrated_vote
+
+        adjusted = calibrated_vote(predictions, **calibration)
+        for row, calibrated in zip(result, adjusted):
+            row.update(
+                label=calibrated["label"], probabilities=calibrated["probabilities"]
+            )
     return result
 
 
 def members(checkpoint):
     checkpoint = Path(checkpoint).resolve()
     value = json.loads((checkpoint / "ensemble.json").read_text())
+    calibration = calibration_settings(value.get("calibration"))
     if (
-        value.get("format") != FORMAT
+        value.get("format") != (FORMAT if calibration is None else CALIBRATED_FORMAT)
         or value.get("names") != NAMES
-        or value.get("rule") != RULE
+        or value.get("rule") != voting_rule(calibration)
         or len(value.get("members", [])) != 3
     ):
         raise ValueError("Invalid three-model ensemble protocol")
@@ -154,15 +202,22 @@ def build(root, config):
                 for r in rows
             ]
         )
-    predictions = vote(member_predictions)
+    calibration = calibration_settings(config["ensemble"].get("calibration"))
+    rule = voting_rule(calibration)
+    predictions = vote(member_predictions, calibration)
     write_json(
         checkpoint / "ensemble.json",
         {
-            "format": FORMAT,
+            "format": FORMAT if calibration is None else CALIBRATED_FORMAT,
             "names": NAMES,
             "members": entries,
-            "rule": RULE,
-            "probabilities": "arithmetic mean of three member joint class probability distributions; weights 1/3 each",
+            "rule": rule,
+            **({"calibration": calibration} if calibration else {}),
+            "probabilities": (
+                "calibrated member joint probabilities"
+                if calibration
+                else "arithmetic mean of three member joint class probability distributions; weights 1/3 each"
+            ),
         },
     )
     for name, value in (
@@ -180,7 +235,7 @@ def build(root, config):
         ),
         "evaluation_status": "evaluated" if validation else "unavailable_full_training",
         "ensemble_members": NAMES,
-        "voting_rule": RULE,
+        "voting_rule": rule,
     }
     write_json(root / "metrics.json", metrics)
     manifest = {
@@ -191,7 +246,7 @@ def build(root, config):
         "seed": 42,
         "split_seed": 42,
         "ensemble_members": NAMES,
-        "voting_rule": RULE,
+        "voting_rule": rule,
         "saved_classifier_reloaded_for_evaluation": bool(validation),
         "saved_classifier_reload_verified": True,
         "final_fit": not bool(validation),
@@ -253,7 +308,7 @@ def validate(root, classification=None):
             ]
         )
     if json.loads((root / "predictions.json").read_text()) != comparison_rows(
-        validation, vote(predictions)
+        validation, vote(predictions, config["ensemble"].get("calibration"))
     ):
         raise ValueError("Ensemble root votes differ from saved member predictions")
     for entry, child in zip(config["ensemble"]["members"], configs):
@@ -271,6 +326,9 @@ def validate(root, classification=None):
         )
     ):
         raise ValueError("Ensemble manifest differs from completed members")
+    descriptor = json.loads((root / "classifier/ensemble.json").read_text())
+    if descriptor.get("calibration") != config["ensemble"].get("calibration"):
+        raise ValueError("Ensemble calibration differs from saved config")
     return config
 
 
@@ -286,4 +344,7 @@ def classify(checkpoint, records, device, batch_size):
             if str(device).startswith("cuda")
             else single(path, records, device, batch_size)
         )
-    return vote(predictions)
+    calibration = json.loads((Path(checkpoint) / "ensemble.json").read_text()).get(
+        "calibration"
+    )
+    return vote(predictions, calibration)

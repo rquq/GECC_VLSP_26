@@ -57,6 +57,8 @@ def load_config(path, expected_task=None):
     split_seed(config)
     if config.get("ensemble") is not None:
         spec = config["ensemble"]
+        from .classifier_ensemble import calibration_settings
+        calibration_settings(spec.get('calibration') if isinstance(spec, dict) else None)
         entries = spec.get("members", []) if isinstance(spec, dict) else []
         expected = ["qwen7b", "sailor7b", "mistral7b"]
         if (
