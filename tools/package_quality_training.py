@@ -12,7 +12,16 @@ from model.runtime import write_json
 from model.data import load_records
 
 
-def package(source, private_test, output):
+def package(
+    source,
+    private_test,
+    output,
+    *,
+    diverse=False,
+    exposure_strategy="preserve-baseline"
+):
+    if exposure_strategy not in ("preserve-baseline", "cap-two"):
+        raise ValueError("Unknown diversity exposure strategy")
     source, private_test, output = map(Path, (source, private_test, output))
     output.mkdir(parents=True, exist_ok=False, mode=0o700)
     shutil.copy2(source / "VGEC 2026_v1.json", output / "VGEC 2026_v1.json")
@@ -26,8 +35,32 @@ def package(source, private_test, output):
         "correction": "VGEC_balanced.json",
     }
     for stage, filename in names.items():
-        b = seal(json.loads((source / filename).read_text()))
-        load_quality(b, 0.2, 42)
+        raw = json.loads((source / filename).read_text())
+        if diverse:
+            from model.diversity_data import (
+                seal_diverse,
+                load_diverse,
+                ADDITIVE_POLICY,
+                DIVERSITY_POLICY,
+            )
+
+            conllu = (
+                Path(__file__).resolve().parents[1]
+                / "dataset/external/ud-vietnamese-vtb/vi_vtb-ud-train.conllu"
+            ).read_text()
+            b = seal_diverse(
+                raw,
+                conllu,
+                policy=(
+                    ADDITIVE_POLICY
+                    if exposure_strategy == "preserve-baseline"
+                    else DIVERSITY_POLICY
+                ),
+            )
+            load_diverse(b, 0.2, 42)
+        else:
+            b = seal(raw)
+            load_quality(b, 0.2, 42)
         write_json(output / filename, b)
         bundles[stage] = b
         reports[stage] = b["report"]
@@ -70,8 +103,20 @@ def package(source, private_test, output):
         for role, name in {"original": "VGEC 2026_v1.json", **names}.items()
     }
     manifest = {
-        "format": "private-vgec-quality-upload-v1",
-        "archive": "VGEC26-quality-private-20261017.zip",
+        "format": (
+            "private-vgec-diverse-upload-v1"
+            if diverse
+            else "private-vgec-quality-upload-v1"
+        ),
+        "archive": (
+            (
+                "VGEC26-diverse-v3-private-20261017.zip"
+                if exposure_strategy == "preserve-baseline"
+                else "VGEC26-diverse-v2-private-20261017.zip"
+            )
+            if diverse
+            else "VGEC26-quality-private-20261017.zip"
+        ),
         "data_sha256": hashes,
         "submission_filename": "private_test.json",
         "submission_sha256": hashlib.sha256(private_test.read_bytes()).hexdigest(),
@@ -82,7 +127,7 @@ def package(source, private_test, output):
         "private_exact_training_overlap": overlap,
         "stages": reports,
         "source_training_package": str(source.resolve()),
-        "external_data": "Existing licensed human-annotated UD-VTB parents only; no new LLM-labeled external corpus admitted",
+        "external_data": "Pinned licensed human-annotated UD-VTB training parents and deterministic operations; no LLM-authored rows admitted",
         "scope": "Research candidate mixture; mechanical checks do not establish a model-score improvement",
     }
     write_json(output / "training_manifest.json", manifest)
@@ -117,5 +162,27 @@ if __name__ == "__main__":
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--private-test", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--diverse",
+        action="store_true",
+        help="Expand a quality bundle using pinned human UD training data and deterministic rules",
+    )
+    parser.add_argument(
+        "--exposure-strategy",
+        choices=("preserve-baseline", "cap-two"),
+        default="preserve-baseline",
+        help="Dataset build policy only; the notebook has no switches",
+    )
     a = parser.parse_args()
-    print(json.dumps(package(a.source, a.private_test, a.output), indent=2))
+    print(
+        json.dumps(
+            package(
+                a.source,
+                a.private_test,
+                a.output,
+                diverse=a.diverse,
+                exposure_strategy=a.exposure_strategy,
+            ),
+            indent=2,
+        )
+    )

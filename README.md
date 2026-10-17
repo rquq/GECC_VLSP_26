@@ -1,5 +1,7 @@
 # Fresh private-test retraining: three classifiers and Qwen correction
 
+October17 data research: larger candidates were built and tested locally, but all four-way comparisons favored retaining the existing dataset on Macro-F1. The default recipe below is unchanged. See `agents/experiments/DATA_DIVERSIFICATION_20261017.md`; candidate archives/configs are research artifacts and should not be attached in place of the default data.
+
 The committed `kaggle-linux` recipe fits Qwen2.5-7B, Sailor-7B and Mistral-7B classifiers from fresh pretrained bases, then fits the Qwen2.5-7B corrector. Experiments are controlled through chat and commits; notebooks contain only the checkout/environment/launch steps.
 
 1. Upload **VGEC26-quality-private-20261017.zip** as a PRIVATE Kaggle dataset and attach that version alone. Its extracted folder name can vary. Keep VLSP data and notebook outputs private.

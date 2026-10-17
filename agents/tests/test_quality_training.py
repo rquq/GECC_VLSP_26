@@ -206,3 +206,21 @@ class QualityTrainingTests(unittest.TestCase):
             correction_selection_metrics(
                 {"evaluation": {"selection_metrics": ["invented"]}}
             )
+
+    def test_teacher_native_audit_resolves_lazy_import_before_meta_context(self):
+        import tempfile
+        from pathlib import Path
+        from transformers import Qwen2Config
+        from tools.diversity_teacher import native_parameter_count
+
+        with tempfile.TemporaryDirectory() as folder:
+            Qwen2Config(
+                vocab_size=64,
+                hidden_size=16,
+                intermediate_size=32,
+                num_hidden_layers=1,
+                num_attention_heads=2,
+                num_key_value_heads=2,
+            ).save_pretrained(folder)
+            count = native_parameter_count({"name": folder, "revision": "main"})
+            self.assertGreater(count, 0)
