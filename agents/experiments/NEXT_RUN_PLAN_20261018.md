@@ -38,3 +38,5 @@ User approved all recommendations in THREE_DATASET_COMPARISON_20261018.md and re
 - Verified:257 regression tests, native input/model-count and actual tokenizer checks; actual tiny four-fit/reload/decoding/export; selected-model relocation/replay. Preliminary invalid toy retained-prefix fixture failed before fitting and is preserved. No native7B fitting or new teacher generation occurred.
 
 - Ruling: the final2034-row correction worker receives the remaining whole-run budget, rather than the shorter5hour fit-stage cap; beam decoding may dominate training. Whole-run41,400seconds stays enforced and native duration is unmeasured.
+
+- Completed: implementation 81cbd175a2142f5ffc158f47c6440c2465cb2a11 committed/pushed with exact remote verification. Clean committed clone:256 tests pass/1 intentional private-input integration skip; all257 pass in the original tree, and the clean clone verifies all44 actual upload members. Existing CURRENT/PRIVATE_RETRAIN user edits remain unstaged and unchanged.

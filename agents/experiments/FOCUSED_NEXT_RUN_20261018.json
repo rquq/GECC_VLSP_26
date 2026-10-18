@@ -409,7 +409,24 @@
   "verification": {
     "unittest_log": "/tmp/vgec-focused-tests-completion.log",
     "unittest_count": 257,
-    "clean_clone": "pending"
+    "clean_clone": {
+      "path": "/tmp/vgec-focused-clean-clone",
+      "commit": "81cbd175a2142f5ffc158f47c6440c2465cb2a11",
+      "dirty": false,
+      "tests_run": 257,
+      "tests_passed": 256,
+      "tests_skipped": 1,
+      "skip_reason": "Private-corpus integration fixture is intentionally absent from Git clone; original-tree suite passes all257 and separate native package/data/count/token audits pass.",
+      "package_files_sha256_verified": 44,
+      "log": "/tmp/vgec-focused-clean-clone-tests.log"
+    },
+    "original_tree_tests": {
+      "run": 257,
+      "passed": 257,
+      "skipped": 0,
+      "log": "/tmp/vgec-focused-tests-prepush.log"
+    },
+    "implementation_pushed_and_remote_verified": "81cbd175a2142f5ffc158f47c6440c2465cb2a11"
   },
   "limitations": [
     "Same78 development rows repeatedly used for checkpoint/data/decoder selection.",
@@ -431,5 +448,11 @@
     "preparation": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/focused-preparation-20261018",
     "native_preflight": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/focused-native-preflight-20261018/focused-anchored-fresh-20261018-20261018T072244250397Z/native_data_preflight.json",
     "training_review_private": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/kaggle-focused-private-20261018/training_review_not_applied.json"
+  },
+  "verified_implementation_commit": "81cbd175a2142f5ffc158f47c6440c2465cb2a11",
+  "runtime_budget": {
+    "whole_run_seconds": 41400,
+    "fit_validation_stage_seconds": 18000,
+    "final_private_corrector": "remaining whole-run budget"
   }
 }
