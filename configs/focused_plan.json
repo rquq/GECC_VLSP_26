@@ -1,0 +1,43 @@
+{
+  "format": "vgec-focused-v1",
+  "name": "focused-sailor-qwen-20261018",
+  "training_recipe": "configs/focused_training_recipe.json",
+  "package_proof": "configs/focused_package_source.json",
+  "screen_per_class": 2,
+  "finalists": 2,
+  "max_stage_seconds": 18000,
+  "max_wall_seconds": 41400,
+  "decoder_strategies": [
+    {
+      "name": "greedy_reference",
+      "generation": {}
+    },
+    {
+      "name": "beam2",
+      "generation": {
+        "do_sample": false,
+        "repetition_penalty": 1.0,
+        "num_beams": 2
+      }
+    },
+    {
+      "name": "beam4",
+      "generation": {
+        "do_sample": false,
+        "repetition_penalty": 1.0,
+        "num_beams": 4
+      }
+    },
+    {
+      "name": "beam4_edit_rerank",
+      "generation": {
+        "do_sample": false,
+        "repetition_penalty": 1.0,
+        "num_beams": 4,
+        "num_return_sequences": 4
+      },
+      "edit_rerank": true,
+      "edit_penalty": 0.15
+    }
+  ]
+}

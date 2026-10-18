@@ -1,0 +1,6 @@
+{
+  "format": "vgec-focused-package-proof-v1",
+  "manifest_sha256": "280289872c8101ce88178eb34416ae9d6c73f335f6bdd3ef9223e3bdeaaecabd",
+  "baseline_classifier_source_commit": "338293f90e664803ee3dde12e82dd5d4d5601d43",
+  "baseline_corrector_source_commit": "bb7cdf5b28e8f4f161087e819827aaae129e3e51"
+}

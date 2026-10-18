@@ -29,7 +29,32 @@ def prepare_training_inference(config):
     elif inference["hint_mode"] == "none":
         inference["prompt"] = SENTENCE_NO_HINT_PROMPT
     validate_inference(inference)
+    training_record_inference({'target': ''}, inference, config)
     return inference
+
+
+def training_record_inference(record, inference, config):
+    """Separate abbreviated-reference instruction only while encoding fit rows.
+
+    Original answers stay byte-for-byte unchanged. Generation never calls this
+    helper or receives a target-dependent instruction.
+    """
+    policy=config['training'].get('reference_format_conditioning')
+    if policy is None:
+        return inference
+    if policy!='separate_abbreviated' or inference.get('output_format')!='sentence' or inference.get('hint_mode')!='none':
+        raise ValueError('Reference-format conditioning requires independent sentence output')
+    target=record['target']
+    if '...' not in target and '…' not in target and not target.lstrip().startswith('('):
+        return inference
+    return {**inference,'prompt':(
+        'Sửa ngữ pháp Tiếng Việt. Trả đáp án rút gọn hoặc ghi chú sửa lỗi, giữ dấu lược bỏ. '
+        'Chỉ trả JSON với khóa corrected_sentence; không giải thích.'
+    )}
+
+
+def encode_training_record(tokenizer, record, hint, max_length, inference, config):
+    return encode_record(tokenizer,record,hint,max_length,training_record_inference(record,inference,config))
 
 
 def validate_inference(inference):
@@ -650,7 +675,7 @@ def main(*, tracking):
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
-    encoded = [encode_record(tokenizer, row, train_hints[_id_key(row["id"])], training["max_length"], inference) for row in train]
+    encoded = [encode_training_record(tokenizer, row, train_hints[_id_key(row["id"])], training["max_length"], inference, config) for row in train]
     validation_lengths = [len(encode_record(tokenizer, row, validation_hints[_id_key(row["id"])], training["max_length"], inference)["input_ids"]) for row in validation]
     trainer_args = dict(training["args"])
     microbatch = trainer_args["per_device_train_batch_size"]

@@ -1,0 +1,96 @@
+{
+  "task": "correction",
+  "run": {
+    "name": "qwen-organizer-anchored",
+    "output_root": "runs",
+    "device": "cuda",
+    "world_size": 1,
+    "seed": 42,
+    "archive": false
+  },
+  "tracking": {
+    "enabled": true,
+    "project": "vlsp26-gec",
+    "entity": null,
+    "mode": "online",
+    "log_models": true,
+    "log_text": false
+  },
+  "data": {
+    "path": null,
+    "filename": "VGEC_balanced.json",
+    "input_root": "/kaggle/input",
+    "validation_fraction": 0.2,
+    "split_seed": 42
+  },
+  "model": {
+    "name": "Qwen/Qwen2.5-7B-Instruct",
+    "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+    "compute_dtype": "float16",
+    "device_map": "balanced",
+    "attn_implementation": "sdpa",
+    "load_in_4bit": false
+  },
+  "lora": {
+    "r": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ],
+    "bias": "none"
+  },
+  "training": {
+    "max_length": 512,
+    "effective_batch_size": 8,
+    "fp16_initial_scale": 1.0,
+    "args": {
+      "num_train_epochs": 5,
+      "max_steps": -1,
+      "per_device_train_batch_size": 1,
+      "learning_rate": 2e-05,
+      "warmup_ratio": 0.1,
+      "weight_decay": 0.01,
+      "gradient_checkpointing": true,
+      "gradient_checkpointing_kwargs": {
+        "use_reentrant": false
+      },
+      "optim": "adamw_torch",
+      "logging_steps": 1,
+      "dataloader_num_workers": 0,
+      "lr_scheduler_type": "linear",
+      "max_grad_norm": 1.0,
+      "adam_beta1": 0.9,
+      "adam_beta2": 0.999,
+      "adam_epsilon": 1e-08
+    },
+    "reference_format_conditioning": "separate_abbreviated"
+  },
+  "inference": {
+    "output_format": "sentence",
+    "hint_mode": "none",
+    "user_role": "user",
+    "prompt": "Hãy sửa lỗi ngữ pháp Tiếng Việt. Sửa ít nhất có thể, giữ nguyên ý nghĩa và hãy giữ nguyên câu đúng. Chỉ trả lời JSON với duy nhất khóa corrected_sentence chứa câu hoàn chỉnh; không giải thích."
+  },
+  "generation": {
+    "max_new_tokens": 192,
+    "do_sample": false,
+    "use_cache": true,
+    "num_beams": 1,
+    "repetition_penalty": 1.0
+  },
+  "evaluation": {
+    "selection_metrics": [
+      "corrections.all.gleu_plus",
+      "corrections.error_only.gleu_plus",
+      "clean_preservation.exact_source_preservation"
+    ],
+    "save_epoch_adapters": false
+  }
+}

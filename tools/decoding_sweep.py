@@ -4,6 +4,7 @@ import argparse
 import gc
 import hashlib
 import json
+import os
 from pathlib import Path
 import time
 from contextlib import contextmanager, nullcontext
@@ -347,7 +348,7 @@ def sweep(
                     else None
                 ),
             }
-            publish_stage_result("decode-" + name, metrics)
+            publish_stage_result(os.environ.get("VGEC_DECODER_GROUP", "decode") + "-" + phase + "-" + name, metrics)
         except (
             torch.cuda.OutOfMemoryError,
             RuntimeError,
@@ -459,6 +460,10 @@ def main():
                 output / "progress.json",
                 {"completed": len(predictions), "total": len(records)},
             )
+            from model.tracking import publish_progress
+            publish_progress("selected-private-corrector", "decoding", {
+                "completed_rows": len(predictions), "requested_rows": len(records)
+            })
         return
     strategies = (
         json.loads(Path(args.strategies).read_text()) if args.strategies else None

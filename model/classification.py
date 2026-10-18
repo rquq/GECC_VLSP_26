@@ -23,7 +23,7 @@ from .tracking import TrackingRun, publish_stage_result, records_identity, track
 
 def _organizer_partition(path, fraction, seed, classifier_info):
     """Use the bundle's grouped holdout instead of regenerating the legacy split."""
-    if classifier_info.get("format") in ("vgec-grouped-validation-v1", "vgec-quality-mixture-v1", "vgec-diverse-mixture-v1"):
+    if classifier_info.get("format") in ("vgec-grouped-validation-v1", "vgec-quality-mixture-v1", "vgec-diverse-mixture-v1", "vgec-organizer-anchored-v1"):
         train_ids = {_id_key(i) for i in classifier_info["provenance"]["original_train_ids"]}
         return ([r for r in load_records(path) if _id_key(r["id"]) in train_ids],
                 classifier_info["validation_records"])
@@ -799,7 +799,7 @@ def main(*, tracking):
     original_train, validation = _organizer_partition(path, fraction, data_seed, classifier_info)
     preprocessing = _preprocessing(config)
     enabled = config.get("oof", {}).get("enabled", False) and not args.skip_hints
-    if enabled and classifier_info["format"] in ("vgec-grouped-validation-v1", "vgec-quality-mixture-v1", "vgec-diverse-mixture-v1"):
+    if enabled and classifier_info["format"] in ("vgec-grouped-validation-v1", "vgec-quality-mixture-v1", "vgec-diverse-mixture-v1", "vgec-organizer-anchored-v1"):
         raise ValueError("Grouped validation recipe uses one holdout without OOF hints")
     plans = []
     if final_fit and enabled:

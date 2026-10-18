@@ -1,0 +1,16 @@
+{
+  "name": "expanded-v2-tuned-fresh-20261018",
+  "mode": "both",
+  "classification_config": "configs/expanded_classification.json",
+  "correction_config": "configs/expanded_correction.json",
+  "classifier_run": null,
+  "initial_adapter": null,
+  "data_archive": "VGEC26-diverse-v2-private-20261017.zip",
+  "submission_filename": "private_test.json",
+  "data_sha256": {
+    "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+    "classification": "37c5bf46c4c95ae62e488291a82310eb01e2bd5f2c7191aa3fc13c8f761bc519",
+    "correction": "9b10bce87dbfe73feb0eae41e0d045816885c0a5d8419c9f6e44af630b7cd17c"
+  },
+  "submission_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045"
+}

@@ -377,6 +377,10 @@ def main():
             "This committed experiment requires CUDA; select Kaggle GPU T4 x2"
         )
     recipe = json.loads(Path(args.recipe).read_text())
+    if recipe.get("format") == "vgec-focused-v1":
+        from tools.run_focused import run_from_args
+        run_from_args(args, source)
+        return
     if recipe.get("format") == "vgec-tuning-v1":
         from tools.run_tuning import run_from_args
 

@@ -115,6 +115,8 @@ STAGE_EVENT = "VGEC_STAGE_RESULT "
 PROGRESS_EVENT = "VGEC_STAGE_PROGRESS "
 ROOT_HEARTBEAT_SECONDS = 30
 PROGRESS_METRICS = {
+    "completed_rows",
+    "requested_rows",
     "loss",
     "grad_norm",
     "epoch",
@@ -560,10 +562,10 @@ class TrackingRun:
     def progress(self, event):
         stage, prefix = event.get("stage", ""), event.get("prefix", "")
         if not re.fullmatch(
-            r"classifier(?:-seed-(?:42|43|44)|-(?:qwen7b|sailor7b|mistral7b))?|corrector|inference|oof",
+            r"classifier(?:-seed-(?:42|43|44)|-(?:qwen7b|sailor7b|mistral7b))?|corrector|inference|oof|(?:baseline|challenger)-decoders|selected-private-corrector",
             stage,
         ) or not re.fullmatch(
-            r"(?:train|training|validation|baseline|final)(?:/classification)?", prefix
+            r"(?:train|training|validation|baseline|final)(?:/classification)?|decoding", prefix
         ):
             return
         self.current_stage = stage

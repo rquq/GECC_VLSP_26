@@ -1,0 +1,435 @@
+{
+  "status": "implemented_and_locally_verified_native_pending",
+  "source_base_commit": "7f2cceed903adb718a84f457868ee89c75451c9b",
+  "native_training_runs": 0,
+  "local_encoder_fits": 2,
+  "local_tiny_fits_in_final_smoke": 4,
+  "package": {
+    "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/kaggle-focused-private-20261018/VGEC26-focused-private-20261018.zip",
+    "bytes": 309522373,
+    "sha256": "1c248b4786f48d25c8ecf861dfa0034feba802fc799749ba7ae5d92e2b5ad53b",
+    "manifest_sha256": "280289872c8101ce88178eb34416ae9d6c73f335f6bdd3ef9223e3bdeaaecabd",
+    "bound_files": 44
+  },
+  "data_sha256": {
+    "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+    "classification": "e02bb92935644cc44105562402f80786f363c03e14ea91f1f40df7e92ea8887a",
+    "correction": "ffa46872882ec7475a049292b8765009902cea43be10dfe5f35a1d1b872c844f"
+  },
+  "submission_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045",
+  "stages": {
+    "classification": {
+      "original_canonical_rows": 321,
+      "original_exposures": 544,
+      "canonical_counts": {
+        "0": 184,
+        "1": 88,
+        "2": 43,
+        "3": 52,
+        "4": 61
+      },
+      "exposure_counts": {
+        "0": 184,
+        "1": 165,
+        "2": 87,
+        "3": 100,
+        "4": 115
+      },
+      "unique_source_counts": {
+        "0": 184,
+        "1": 83,
+        "2": 43,
+        "3": 52,
+        "4": 61
+      },
+      "selected_synthetic_errors": 83,
+      "selected_rules": {
+        "organizer_redundant_prefix_bằng": 2,
+        "organizer_redundant_prefix_từ": 2,
+        "duplicated_copula": 4,
+        "missing_annotated_main_predicate": 5,
+        "real_parenthesis_missing_closer": 6,
+        "organizer_redundant_prefix_đối_với": 5,
+        "organizer_redundant_prefix_với": 5,
+        "unmatched_quotation_closing": 6,
+        "unmatched_bracket_opening": 6,
+        "unmatched_bracket_closing": 3,
+        "unmatched_quotation_opening": 5,
+        "unmatched_parenthesis_opening": 6,
+        "missing_main_copular_predicate": 6,
+        "duplicated_annotated_conjunction": 1,
+        "classifier_after_annotated_noun": 3,
+        "quantifier_after_nominal_head": 6,
+        "quantifier_after_annotated_noun": 6,
+        "adjacent_copula_or_aspect_repetition": 6
+      },
+      "external_clean_parents": 24,
+      "withheld_synthetic_rows": 421,
+      "maximum_synthetic_exposures": 1,
+      "labels_or_targets_rewritten": 0,
+      "scope": "Existing evidence/provenance and conservative sampling only; not human adjudication or measured improvement"
+    },
+    "correction": {
+      "original_canonical_rows": 309,
+      "original_exposures": 386,
+      "canonical_counts": {
+        "0": 184,
+        "1": 83,
+        "2": 37,
+        "3": 49,
+        "4": 59
+      },
+      "exposure_counts": {
+        "0": 184,
+        "1": 136,
+        "2": 43,
+        "3": 63,
+        "4": 63
+      },
+      "unique_source_counts": {
+        "0": 184,
+        "1": 78,
+        "2": 37,
+        "3": 49,
+        "4": 59
+      },
+      "selected_synthetic_errors": 79,
+      "selected_rules": {
+        "missing_annotated_main_predicate": 1,
+        "organizer_redundant_prefix_bằng": 2,
+        "organizer_redundant_prefix_từ": 2,
+        "duplicated_copula": 4,
+        "real_parenthesis_missing_closer": 6,
+        "organizer_redundant_prefix_đối_với": 4,
+        "organizer_redundant_prefix_với": 6,
+        "unmatched_quotation_closing": 6,
+        "unmatched_bracket_opening": 6,
+        "unmatched_bracket_closing": 3,
+        "unmatched_quotation_opening": 5,
+        "unmatched_parenthesis_opening": 6,
+        "missing_main_copular_predicate": 6,
+        "duplicated_annotated_conjunction": 1,
+        "classifier_after_annotated_noun": 3,
+        "quantifier_after_nominal_head": 6,
+        "quantifier_after_annotated_noun": 6,
+        "adjacent_copula_or_aspect_repetition": 6
+      },
+      "external_clean_parents": 24,
+      "withheld_synthetic_rows": 421,
+      "maximum_synthetic_exposures": 1,
+      "labels_or_targets_rewritten": 0,
+      "scope": "Existing evidence/provenance and conservative sampling only; not human adjudication or measured improvement"
+    }
+  },
+  "training_review": {
+    "scope": "training originals only; no inferred labels or accepted target rewrites",
+    "training_rows_reviewed": 321,
+    "flagged_rows": 95,
+    "mechanical_proposals_not_admitted": 10,
+    "accepted_repairs": 0
+  },
+  "validation_rows": 78,
+  "inference_rows": 2034,
+  "leakage_audit": {
+    "id_overlap": 0,
+    "normalized_source_or_target_overlap": 0,
+    "token_bag_overlap": 0,
+    "shared_10_token_spans": 0,
+    "direct_validation_parent_hits": 0,
+    "mixed_lineage_or_text_components": 0,
+    "passed": true,
+    "validation_rows": 78,
+    "policy": {
+      "normalization": "NFKC/casefold/word-tokens",
+      "equal_token_bags": true,
+      "shared_span_tokens": 10,
+      "near_min_tokens": 8,
+      "near_length_ratio": 0.8,
+      "near_token_jaccard": 0.8,
+      "near_sequence_ratio": 0.9
+    },
+    "scope": "Exported fit/evaluation records only; past model or human exposure is not erased."
+  },
+  "private_exact_training_overlap": {
+    "classification": 0,
+    "correction": 0
+  },
+  "native_preflight": {
+    "mode": "both",
+    "classifier_reused": false,
+    "seed": 42,
+    "classification_train": 651,
+    "validation": 78,
+    "original_data": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/focused-native-preflight-20261018/focused-anchored-fresh-20261018-20261018T072244250397Z/inputs/VGEC 2026_v1.json",
+    "classification_data": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/focused-native-preflight-20261018/focused-anchored-fresh-20261018-20261018T072244250397Z/inputs/VGEC_classifier.json",
+    "hints_enabled": false,
+    "correction_train": 489,
+    "correction_data": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/focused-native-preflight-20261018/focused-anchored-fresh-20261018-20261018T072244250397Z/inputs/VGEC_balanced.json",
+    "hint_mode": "none",
+    "model_parameters": {
+      "classification": {
+        "base": 7099015168,
+        "adapter": 39976960,
+        "saved_module_copies": 20480,
+        "padding_allowance": 4096,
+        "total_upper_bound": 7139016704,
+        "limit": 8000000000
+      },
+      "correction": {
+        "base": 7615616512,
+        "adapter": 40370176,
+        "saved_module_copies": 0,
+        "padding_allowance": 0,
+        "total_upper_bound": 7655986688,
+        "limit": 8000000000
+      }
+    }
+  },
+  "native_tokenizer_audit": {
+    "actual_qwen_tokenizer": true,
+    "train_exposures": 489,
+    "validation": 78,
+    "train_max_tokens": 183,
+    "validation_max_tokens": 222,
+    "conditioned_training_exposures": 84,
+    "validation_generation_prompt_unchanged": true,
+    "labels_or_targets_rewritten": 0
+  },
+  "bami_comparison": {
+    "quality": {
+      "classification": {
+        "macro_f1": 0.47953339763684594,
+        "micro_f1": 0.6794871794871795,
+        "confusion_matrix": [
+          [
+            39,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          [
+            4,
+            7,
+            3,
+            4,
+            1,
+            0
+          ],
+          [
+            1,
+            1,
+            1,
+            1,
+            2,
+            0
+          ],
+          [
+            1,
+            2,
+            0,
+            3,
+            0,
+            0
+          ],
+          [
+            2,
+            0,
+            1,
+            1,
+            3,
+            0
+          ]
+        ],
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "prediction_columns": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          "invalid"
+        ],
+        "per_class": {
+          "0": {
+            "precision": 0.8297872340425532,
+            "recall": 0.975,
+            "f1": 0.896551724137931,
+            "support": 40
+          },
+          "1": {
+            "precision": 0.7,
+            "recall": 0.3684210526315789,
+            "f1": 0.4827586206896552,
+            "support": 19
+          },
+          "2": {
+            "precision": 0.2,
+            "recall": 0.16666666666666666,
+            "f1": 0.18181818181818182,
+            "support": 6
+          },
+          "3": {
+            "precision": 0.3,
+            "recall": 0.5,
+            "f1": 0.375,
+            "support": 6
+          },
+          "4": {
+            "precision": 0.5,
+            "recall": 0.42857142857142855,
+            "f1": 0.46153846153846156,
+            "support": 7
+          }
+        }
+      },
+      "reload_verified": true,
+      "epochs": 5,
+      "train_exposures": 1128,
+      "seconds": 285.272873592,
+      "optimizer_steps": 705
+    },
+    "anchored": {
+      "classification": {
+        "macro_f1": 0.5892063492063493,
+        "micro_f1": 0.717948717948718,
+        "confusion_matrix": [
+          [
+            40,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            8,
+            5,
+            0,
+            6,
+            0,
+            0
+          ],
+          [
+            0,
+            2,
+            2,
+            0,
+            2,
+            0
+          ],
+          [
+            1,
+            2,
+            0,
+            3,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            0,
+            0,
+            6,
+            0
+          ]
+        ],
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "prediction_columns": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          "invalid"
+        ],
+        "per_class": {
+          "0": {
+            "precision": 0.8,
+            "recall": 1.0,
+            "f1": 0.8888888888888888,
+            "support": 40
+          },
+          "1": {
+            "precision": 0.5555555555555556,
+            "recall": 0.2631578947368421,
+            "f1": 0.35714285714285715,
+            "support": 19
+          },
+          "2": {
+            "precision": 1.0,
+            "recall": 0.3333333333333333,
+            "f1": 0.5,
+            "support": 6
+          },
+          "3": {
+            "precision": 0.3333333333333333,
+            "recall": 0.5,
+            "f1": 0.4,
+            "support": 6
+          },
+          "4": {
+            "precision": 0.75,
+            "recall": 0.8571428571428571,
+            "f1": 0.8,
+            "support": 7
+          }
+        }
+      },
+      "reload_verified": true,
+      "epochs": 5,
+      "train_exposures": 651,
+      "seconds": 175.68480334000014,
+      "optimizer_steps": 410
+    }
+  },
+  "tiny_smoke": {
+    "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/smoke-focused-20261018-final/focused_runs/tiny-focused-20261018T073057735660Z/run",
+    "status": "completed",
+    "epochs_per_fit": 5,
+    "root_screen_results": 8,
+    "root_full_results": 4,
+    "relocated_greedy_replay_exact_match": true,
+    "relocated_beam_rerank_replay_completed": true
+  },
+  "verification": {
+    "unittest_log": "/tmp/vgec-focused-tests-completion.log",
+    "unittest_count": 257,
+    "clean_clone": "pending"
+  },
+  "limitations": [
+    "Same78 development rows repeatedly used for checkpoint/data/decoder selection.",
+    "No measured native7B gain or official/private score.",
+    "Matched five epochs have different update counts on different-size mixtures.",
+    "No accepted annotation repairs or newly authored grammar samples; automated review flags remain pending.",
+    "Native T4 full-size execution/OOM behavior remains untested locally."
+  ],
+  "notebook_changed": false,
+  "training_dependency_pins_changed": false,
+  "config_sha256": {
+    "configs/focused_classification.json": "a24f0d63a5c7e868ec3a4683ee41dfa6c5e896c713559b9d61fd52e72a805be2",
+    "configs/focused_correction.json": "ceb4b39c1b6ff20adde4f2a9b743ef680f53fa335feb67a9bd4134fd84c9ecf8",
+    "configs/focused_package_source.json": "5abead3b8d41d71328de877c22dd3ab869f56cc1a2c2aec673b9b88de4d9d2a0",
+    "configs/focused_plan.json": "e9aae785e1b3527633c7ab40a642d815497e51bcbcff3290fe15be43c77b9b5f",
+    "configs/focused_training_recipe.json": "631a05111927e465b4674c7bae5f8dd2c0162eb7c13149031b2b4b5c66b7e6ad"
+  },
+  "artifacts": {
+    "preparation": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/focused-preparation-20261018",
+    "native_preflight": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/focused-native-preflight-20261018/focused-anchored-fresh-20261018-20261018T072244250397Z/native_data_preflight.json",
+    "training_review_private": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/kaggle-focused-private-20261018/training_review_not_applied.json"
+  }
+}
