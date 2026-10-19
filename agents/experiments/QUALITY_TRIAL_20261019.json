@@ -450,5 +450,13 @@
       }
     ],
     "bytes_freed": 1259752602
+  },
+  "implementation_commit": "a01b7d79fef739e5796efcdc7c250c9551d0d5a7",
+  "remote_clean_clone_verification": {
+    "status": "passed",
+    "commit": "a01b7d79fef739e5796efcdc7c250c9551d0d5a7",
+    "clone": "/tmp/vgec-quality-trial-remote-ivky17kv/source",
+    "tests": 15,
+    "scope": "Clean remote clone: quality-data config, strict inference export, notebook links/imports and1038/1039 isolation; no native training"
   }
 }
