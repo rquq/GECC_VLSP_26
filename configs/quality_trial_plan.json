@@ -1,0 +1,9 @@
+{
+  "format": "vgec-quality-trial-v1",
+  "name": "track1039-quality-controlled-20261019",
+  "training_recipe": "configs/quality_trial_training_recipe.json",
+  "package_proof": "configs/quality_trial_package_source.json",
+  "inference_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045",
+  "max_stage_seconds": 36000,
+  "max_wall_seconds": 41400
+}

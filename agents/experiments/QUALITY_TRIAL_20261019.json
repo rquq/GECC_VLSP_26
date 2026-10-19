@@ -1,0 +1,454 @@
+{
+  "date": "2026-10-19",
+  "status": "implemented, upload/native meta/tokenizer audit and actual tiny two-fit workflow passed; native dual-T4 fit pending",
+  "source_base_commit": "3aebe4a",
+  "user_steering": "Include14B corrector as an independent challenger, alongside frozen quality-system control",
+  "plan": {
+    "format": "vgec-quality-trial-v1",
+    "name": "track1039-quality-controlled-20261019",
+    "training_recipe": "configs/quality_trial_training_recipe.json",
+    "package_proof": "configs/quality_trial_package_source.json",
+    "inference_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045",
+    "max_stage_seconds": 36000,
+    "max_wall_seconds": 41400
+  },
+  "recipe": {
+    "name": "track1039-quality-controlled-20261019",
+    "mode": "both",
+    "classification_config": "configs/unconstrained_classification.json",
+    "correction_config": "configs/unconstrained_correction.json",
+    "classifier_run": null,
+    "initial_adapter": null,
+    "data_archive": "VGEC26-quality-track1039-private-20261019.zip",
+    "submission_filename": "private_test.json",
+    "data_sha256": {
+      "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+      "classification": "0120bdf836b20069ce01826c6a8c695c6deb76f6ff7c3ec1cb4f1f73b40bede2",
+      "correction": "9baa0e9ebbbb4b0c3713306462263170ec73e63bd5106ba8355452eae0890d17"
+    },
+    "submission_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045"
+  },
+  "config_and_controller_sha256": {
+    "configs/quality_trial_training_recipe.json": "d5f1340fe7c6213d2cd9c4d458061a05544e3f7b679c472b249fe3e018b8740b",
+    "configs/quality_trial_plan.json": "b8a7d15e6a8985661312daa59655a3ad2b4f17616e99fced8bb107274c178f5c",
+    "configs/quality_trial_package_source.json": "f6cd858e9b4272581cd46740013a13e592b6f8f1abc1db21335e4135ba28bb41",
+    "configs/unconstrained_classification.json": "a636ea667a908d2ac478dd421a21375f7be0690eec05c052477e56219d5c55dd",
+    "configs/unconstrained_correction.json": "5f0392237410066cd35578705c2bf4df021bbda2e5dfd80dcd4f9e9094c05630",
+    "tools/run_quality_trial.py": "c2537538a2427d21e6570dc502a5422147546a8024bd4331de46551808f8856b"
+  },
+  "upload_verification": {
+    "scope": "Actual archive/hash/quality data/native architecture/tokenizer validation; observed dual-T4 capacities simulated; no full model weights or GPU training loaded",
+    "archive_sha256": "b6c1bbaee6cdf845d1aa30954e9e9f1824f776375693d02f526656d00a6b0fe4",
+    "archive_bytes": 308302579,
+    "manifest_sha256": "513e99b206ab0e48f7c90029dc6e68b4e3ada4955abe5943093c606049164037",
+    "bound_files": 46,
+    "classifier_train": 1128,
+    "corrector_train": 1011,
+    "development_rows": 78,
+    "private_rows": 2034,
+    "class_counts_classifier": {
+      "1": 229,
+      "2": 212,
+      "3": 229,
+      "0": 229,
+      "4": 229
+    },
+    "class_counts_corrector": {
+      "1": 229,
+      "2": 149,
+      "3": 185,
+      "4": 219,
+      "0": 229
+    },
+    "max_source_tokens": 69,
+    "max_encoded_corrector_tokens": 183,
+    "max_prompt_tokens": 140,
+    "all_encoded_rows_have_response_labels": true,
+    "prepared": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/analysis-private-regression-20261019/prepared/track1039-quality-controlled-20261019-20261019T023444108176Z",
+    "command": [
+      "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/../.venv/bin/python",
+      "-m",
+      "model.two_phase",
+      "--mode",
+      "both",
+      "--classification-config",
+      "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/analysis-private-regression-20261019/prepared/track1039-quality-controlled-20261019-20261019T023444108176Z/classification_config.json",
+      "--correction-config",
+      "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/analysis-private-regression-20261019/prepared/track1039-quality-controlled-20261019-20261019T023444108176Z/correction_config.json",
+      "--output-dir",
+      "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/analysis-private-regression-20261019/prepared/track1039-quality-controlled-20261019-20261019T023444108176Z/run",
+      "--submission-data",
+      "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/analysis-private-regression-20261019/verified-upload/private_test.json"
+    ]
+  },
+  "native_preflight": {
+    "mode": "both",
+    "classifier_reused": false,
+    "seed": 42,
+    "classification_train": 1128,
+    "validation": 78,
+    "original_data": "runs/analysis-private-regression-20261019/verified-upload/VGEC 2026_v1.json",
+    "classification_data": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/analysis-private-regression-20261019/verified-upload/VGEC_classifier.json",
+    "hints_enabled": false,
+    "correction_train": 1011,
+    "correction_data": "runs/analysis-private-regression-20261019/verified-upload/VGEC_balanced.json",
+    "hint_mode": "none",
+    "classification_replicas": [
+      {
+        "device": "cuda:0",
+        "mode": "balanced",
+        "device_map": {
+          "model.embed_tokens": "cuda:0",
+          "model.rotary_emb": "cuda:0",
+          "model.norm": "cuda:1",
+          "score": "cuda:1",
+          "model.layers.0": "cuda:0",
+          "model.layers.1": "cuda:0",
+          "model.layers.2": "cuda:0",
+          "model.layers.3": "cuda:0",
+          "model.layers.4": "cuda:0",
+          "model.layers.5": "cuda:0",
+          "model.layers.6": "cuda:0",
+          "model.layers.7": "cuda:0",
+          "model.layers.8": "cuda:0",
+          "model.layers.9": "cuda:0",
+          "model.layers.10": "cuda:0",
+          "model.layers.11": "cuda:0",
+          "model.layers.12": "cuda:0",
+          "model.layers.13": "cuda:0",
+          "model.layers.14": "cuda:0",
+          "model.layers.15": "cuda:0",
+          "model.layers.16": "cuda:0",
+          "model.layers.17": "cuda:0",
+          "model.layers.18": "cuda:0",
+          "model.layers.19": "cuda:0",
+          "model.layers.20": "cuda:0",
+          "model.layers.21": "cuda:0",
+          "model.layers.22": "cuda:0",
+          "model.layers.23": "cuda:1",
+          "model.layers.24": "cuda:1",
+          "model.layers.25": "cuda:1",
+          "model.layers.26": "cuda:1",
+          "model.layers.27": "cuda:1",
+          "model.layers.28": "cuda:1",
+          "model.layers.29": "cuda:1",
+          "model.layers.30": "cuda:1",
+          "model.layers.31": "cuda:1",
+          "model.layers.32": "cuda:1",
+          "model.layers.33": "cuda:1",
+          "model.layers.34": "cuda:1",
+          "model.layers.35": "cuda:1",
+          "model.layers.36": "cuda:1",
+          "model.layers.37": "cuda:1",
+          "model.layers.38": "cuda:1",
+          "model.layers.39": "cuda:1",
+          "model.layers.40": "cuda:1",
+          "model.layers.41": "cuda:1",
+          "model.layers.42": "cuda:1",
+          "model.layers.43": "cuda:1",
+          "model.layers.44": "cuda:1",
+          "model.layers.45": "cuda:1",
+          "model.layers.46": "cuda:1",
+          "model.layers.47": "cuda:1",
+          "model.layers.48": "cuda:1",
+          "model.layers.49": "cuda:1",
+          "model.layers.50": "cuda:1",
+          "model.layers.51": "cuda:1",
+          "model.layers.52": "cuda:1",
+          "model.layers.53": "cuda:1",
+          "model.layers.54": "cuda:1",
+          "model.layers.55": "cuda:1",
+          "model.layers.56": "cuda:1",
+          "model.layers.57": "cuda:1",
+          "model.layers.58": "cuda:1",
+          "model.layers.59": "cuda:1",
+          "model.layers.60": "cuda:1",
+          "model.layers.61": "cuda:1",
+          "model.layers.62": "cuda:1",
+          "model.layers.63": "cuda:1"
+        },
+        "compute_dtype": "float16",
+        "quantized": true,
+        "memory_budget": {
+          "cuda:0": {
+            "weight_bytes": 7069986816,
+            "required_bytes": 12071952794,
+            "free_bytes": 15526068224,
+            "total_bytes": 15636037632
+          },
+          "cuda:1": {
+            "weight_bytes": 7056289792,
+            "required_bytes": 12056886068,
+            "free_bytes": 15526068224,
+            "total_bytes": 15636037632
+          }
+        },
+        "resolved_revision": "bca071eb3dedd23b4e141f63e25d9456300534eb"
+      }
+    ],
+    "correction_replicas": [
+      {
+        "device": "cuda",
+        "mode": "balanced",
+        "device_map": {
+          "model.embed_tokens": "cuda:0",
+          "model.rotary_emb": "cuda:0",
+          "model.norm": "cuda:1",
+          "lm_head": "cuda:1",
+          "model.layers.0": "cuda:0",
+          "model.layers.1": "cuda:0",
+          "model.layers.2": "cuda:0",
+          "model.layers.3": "cuda:0",
+          "model.layers.4": "cuda:0",
+          "model.layers.5": "cuda:0",
+          "model.layers.6": "cuda:0",
+          "model.layers.7": "cuda:0",
+          "model.layers.8": "cuda:0",
+          "model.layers.9": "cuda:0",
+          "model.layers.10": "cuda:0",
+          "model.layers.11": "cuda:0",
+          "model.layers.12": "cuda:0",
+          "model.layers.13": "cuda:0",
+          "model.layers.14": "cuda:0",
+          "model.layers.15": "cuda:0",
+          "model.layers.16": "cuda:0",
+          "model.layers.17": "cuda:0",
+          "model.layers.18": "cuda:0",
+          "model.layers.19": "cuda:0",
+          "model.layers.20": "cuda:0",
+          "model.layers.21": "cuda:0",
+          "model.layers.22": "cuda:0",
+          "model.layers.23": "cuda:0",
+          "model.layers.24": "cuda:1",
+          "model.layers.25": "cuda:1",
+          "model.layers.26": "cuda:1",
+          "model.layers.27": "cuda:1",
+          "model.layers.28": "cuda:1",
+          "model.layers.29": "cuda:1",
+          "model.layers.30": "cuda:1",
+          "model.layers.31": "cuda:1",
+          "model.layers.32": "cuda:1",
+          "model.layers.33": "cuda:1",
+          "model.layers.34": "cuda:1",
+          "model.layers.35": "cuda:1",
+          "model.layers.36": "cuda:1",
+          "model.layers.37": "cuda:1",
+          "model.layers.38": "cuda:1",
+          "model.layers.39": "cuda:1",
+          "model.layers.40": "cuda:1",
+          "model.layers.41": "cuda:1",
+          "model.layers.42": "cuda:1",
+          "model.layers.43": "cuda:1",
+          "model.layers.44": "cuda:1",
+          "model.layers.45": "cuda:1",
+          "model.layers.46": "cuda:1",
+          "model.layers.47": "cuda:1"
+        },
+        "compute_dtype": "torch.float16",
+        "quantized": true,
+        "memory_budget": {
+          "cuda:0": {
+            "weight_bytes": 7244709888,
+            "required_bytes": 12264148173,
+            "free_bytes": 15526068224,
+            "total_bytes": 15636037632
+          },
+          "cuda:1": {
+            "weight_bytes": 7244730368,
+            "required_bytes": 12264170701,
+            "free_bytes": 15526068224,
+            "total_bytes": 15636037632
+          }
+        },
+        "resolved_revision": "cf98f3b3bbb457ad9e2bb7baf9a0125b6b88caa8"
+      }
+    ]
+  },
+  "tiny_workflow": {
+    "status": "passed",
+    "run": "runs/quality-controlled-tiny-smoke-final-20261019/runs/tiny-quality-classifier-20261019T023314928406Z/run",
+    "log": "/tmp/vgec-quality-controlled-smoke-final.log",
+    "fresh_fits": 2,
+    "full_epochs_each": 5,
+    "device": "CPU",
+    "native_quantization": false,
+    "saved_reloads_verified": true,
+    "zip_outputs": 4,
+    "baseline_unchanged": true,
+    "typed_ids_and_pairing_invariants": true,
+    "comparison_metrics_count": 4
+  },
+  "verification_scope": "Local CPU/artificial data and native architecture/tokenizers, not native NF4 weights or actual2T4 execution",
+  "notebook_code_cells_unchanged": true,
+  "regression_tests": {
+    "status": "passed",
+    "count": 270,
+    "seconds": 32.261,
+    "log": "/tmp/vgec-quality-controlled-final-tests.log"
+  },
+  "native_training_started": false,
+  "native_score_gain_claimed": false,
+  "protected_quality_original_artifacts_rehashed": 6,
+  "training_data_changed": false,
+  "private_predictions_used_as_training_labels": false,
+  "historical_plan": "configs/anchored_unconstrained_experiment.json",
+  "harness_repairs": [
+    "Initial classifier-only smoke completed training/export; harness incorrectly expected10steps instead of20; corrected",
+    "Repeated artificial baseline export correctly refused existing artifacts; harness reuses validated existing control instead",
+    "Final actual two-fit smoke completed after four-way development comparison was added"
+  ],
+  "remaining_limits": [
+    "Native multi-GPU NF4 training/peakVRAM/time unmeasured",
+    "Raw base downloads and total41400s budget may constrain Kaggle",
+    "Same reused78dev rows are not an independent model ranking",
+    "Quality1038 score and focused1039 score are user-reported; hosted references/scorer identity unverified",
+    "Corrector-only counterfactual is input-bound; original full ensemble adapters are preserved separately"
+  ],
+  "frozen_quality_development_reproduced": {
+    "count": 78,
+    "combined_score": 0.5892628599865507,
+    "classification": {
+      "macro_f1": 0.5727738927738928,
+      "micro_f1": 0.7435897435897436,
+      "confusion_matrix": [
+        [
+          40,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          3,
+          10,
+          2,
+          3,
+          1,
+          0
+        ],
+        [
+          1,
+          1,
+          2,
+          1,
+          1,
+          0
+        ],
+        [
+          1,
+          3,
+          0,
+          2,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0,
+          0,
+          4,
+          0
+        ]
+      ],
+      "labels": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "prediction_columns": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        "invalid"
+      ],
+      "per_class": {
+        "0": {
+          "precision": 0.8333333333333334,
+          "recall": 1.0,
+          "f1": 0.9090909090909091,
+          "support": 40
+        },
+        "1": {
+          "precision": 0.7142857142857143,
+          "recall": 0.5263157894736842,
+          "f1": 0.6060606060606061,
+          "support": 19
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 0.3333333333333333,
+          "f1": 0.4,
+          "support": 6
+        },
+        "3": {
+          "precision": 0.3333333333333333,
+          "recall": 0.3333333333333333,
+          "f1": 0.3333333333333333,
+          "support": 6
+        },
+        "4": {
+          "precision": 0.6666666666666666,
+          "recall": 0.5714285714285714,
+          "f1": 0.6153846153846154,
+          "support": 7
+        }
+      }
+    },
+    "corrections": {
+      "all": {
+        "count": 78,
+        "exact_match": 0.5769230769230769,
+        "gleu_plus": 0.6057518271992086,
+        "rouge_l": 0.8828119934672386
+      },
+      "error_only": {
+        "count": 38,
+        "exact_match": 0.15789473684210525,
+        "gleu_plus": 0.20093341865806436,
+        "rouge_l": 0.7600409924386008
+      }
+    }
+  },
+  "superseded_upload_draft_cleanup": {
+    "scope": "Only redundant large files created during this turn; draft docs/manifests retained, all original/user experiments untouched",
+    "removed": [
+      {
+        "path": "dataset/kaggle-quality-classifier1039-private-20261019/baseline/classification/classifier/adapter_model.safetensors",
+        "bytes": 160049904,
+        "sha256": "d22fff11cce47eded85264b29dd48887a06e59c6c2ff96f26416339d982810f7"
+      },
+      {
+        "path": "dataset/kaggle-quality-classifier1039-private-20261019/baseline/correction/adapter/adapter_model.safetensors",
+        "bytes": 161533192,
+        "sha256": "2018ce8c426719e61d9de33384f61b992d1258bd1914c2117654abd579fe4ad7"
+      },
+      {
+        "path": "dataset/kaggle-quality-classifier1039-private-20261019/VGEC26-quality-classifier1039-private-20261019.zip",
+        "bytes": 308293252,
+        "sha256": "5e72c72fc5a133e9f30860070e2a52a89c67793cc415fbc8dfea53632b70f12b"
+      },
+      {
+        "path": "dataset/kaggle-quality-track1039-private-20261019-draft/baseline/classification/classifier/adapter_model.safetensors",
+        "bytes": 160049904,
+        "sha256": "d22fff11cce47eded85264b29dd48887a06e59c6c2ff96f26416339d982810f7"
+      },
+      {
+        "path": "dataset/kaggle-quality-track1039-private-20261019-draft/baseline/correction/adapter/adapter_model.safetensors",
+        "bytes": 161533192,
+        "sha256": "2018ce8c426719e61d9de33384f61b992d1258bd1914c2117654abd579fe4ad7"
+      },
+      {
+        "path": "dataset/kaggle-quality-track1039-private-20261019-draft/VGEC26-quality-track1039-private-20261019.zip",
+        "bytes": 308293158,
+        "sha256": "7f47e5c3ec662e707a9998cadf716fdc6451695eb8fa2d2eb673de18582c139f"
+      }
+    ],
+    "bytes_freed": 1259752602
+  }
+}

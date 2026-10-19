@@ -1,0 +1,16 @@
+{
+  "name": "track1039-quality-controlled-20261019",
+  "mode": "both",
+  "classification_config": "configs/unconstrained_classification.json",
+  "correction_config": "configs/unconstrained_correction.json",
+  "classifier_run": null,
+  "initial_adapter": null,
+  "data_archive": "VGEC26-quality-track1039-private-20261019.zip",
+  "submission_filename": "private_test.json",
+  "data_sha256": {
+    "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+    "classification": "0120bdf836b20069ce01826c6a8c695c6deb76f6ff7c3ec1cb4f1f73b40bede2",
+    "correction": "9baa0e9ebbbb4b0c3713306462263170ec73e63bd5106ba8355452eae0890d17"
+  },
+  "submission_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045"
+}

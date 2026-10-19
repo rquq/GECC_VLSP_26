@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-19",
+  "evidence": "Official metrics supplied by user; local predictions inspected; hosted reference equality across tracks unverified",
+  "quality": {
+    "track": 1038,
+    "metrics": {
+      "avg_f1_gleu": 0.5806,
+      "macro_f1": 0.4149,
+      "micro_f1": 0.6659,
+      "exact_match": 0.5237,
+      "gleu_plus": 0.7463,
+      "rouge_l": 0.8241
+    },
+    "run": "runs/18_10_2026/quality/runs/quality-private-fresh-20261017-20261017T080116892693Z/run",
+    "zip_sha256": "d9d14ac425dcc0a3ddf3e1fdd60686bbb09bf59293106845e3683dba6f859f79"
+  },
+  "focused": {
+    "track": 1039,
+    "metrics": {
+      "avg_f1_gleu": 0.5307,
+      "macro_f1": 0.3178,
+      "micro_f1": 0.4876,
+      "exact_match": 0.5147,
+      "gleu_plus": 0.7435,
+      "rouge_l": 0.8108
+    },
+    "run": "runs/19_10_2026/runs/focused-sailor-qwen-20261018-20261018T124500964626Z/run",
+    "zip_sha256": "ca1e0d9b54aa67e130d77ab48df43b166fc827aa64c97b9a1aeeeb4fd4a57344"
+  },
+  "delta_focused_minus_quality": {
+    "avg_f1_gleu": -0.0499,
+    "macro_f1": -0.0971,
+    "micro_f1": -0.1783,
+    "exact_match": -0.009,
+    "gleu_plus": -0.0028,
+    "rouge_l": -0.0133
+  },
+  "classification_share_of_unrounded_combined_drop": 0.9719719719719728,
+  "same_private_rows": 2034,
+  "inference_input_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045",
+  "label_counts": {
+    "quality": [
+      1029,
+      842,
+      63,
+      41,
+      59
+    ],
+    "focused": [
+      381,
+      1121,
+      201,
+      211,
+      120
+    ]
+  },
+  "label_disagreements": 902,
+  "transition_quality_rows_focused_columns": [
+    [
+      344,
+      353,
+      139,
+      132,
+      61
+    ],
+    [
+      32,
+      726,
+      24,
+      36,
+      24
+    ],
+    [
+      5,
+      14,
+      22,
+      18,
+      4
+    ],
+    [
+      0,
+      11,
+      11,
+      14,
+      5
+    ],
+    [
+      0,
+      17,
+      5,
+      11,
+      26
+    ]
+  ],
+  "unchanged_correction_strings": 1560,
+  "protected_original_artifacts_verified": 6,
+  "private_gold_available": false,
+  "new_large_models_evaluated": false,
+  "status": "official scores reported; saved predictions and preservation hashes verified; next trial prepared, native training not started",
+  "source_base_commit": "3aebe4a",
+  "interpretation": [
+    "97.2percent of the rounded-metric combined regression is classification, not correction",
+    "Clean predictions drop from1029 to381; this is a distribution shift, not proven false positives without gold",
+    "Training data and single-versus-ensemble classification changed together; no isolated dataset causal claim",
+    "Same local2034 inputs do not prove hosted1038 and1039 gold/scorer equality",
+    "68.99percent on the reused78 development rows did not establish a private winner"
+  ],
+  "next_recipe": "configs/quality_trial_plan.json"
+}

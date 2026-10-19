@@ -76,7 +76,8 @@ def review_training(rows):
     }
 
 
-def package(source, classifier, corrector, output, *, archive_name=ARCHIVE, description=None):
+def package(source, classifier, corrector, output, *, archive_name=ARCHIVE,
+            description=None, control_submission=None):
     if Path(archive_name).name != archive_name or not archive_name.endswith(".zip"):
         raise ValueError("archive_name must be a ZIP basename")
     source, classifier, corrector, output = map(
@@ -92,9 +93,16 @@ def package(source, classifier, corrector, output, *, archive_name=ARCHIVE, desc
         ("classification", "VGEC_classifier.json"),
         ("correction", "VGEC_balanced.json"),
     ]:
-        b = seal(json.loads((source / name).read_text()))
-        load_anchored(b, 0.2, 42)
-        write_json(output / name, b)
+        raw = json.loads((source / name).read_text())
+        if control_submission is None:
+            b = seal(raw)
+            load_anchored(b, 0.2, 42)
+            write_json(output / name, b)
+        else:
+            from model.quality_data import load_quality
+            load_quality(raw, 0.2, 42)
+            b = raw
+            shutil.copy2(source / name, output / name)
         bundles[stage] = b
     validation = bundles["classification"]["validation"]
     if bundles["correction"]["validation"] != validation:
@@ -141,6 +149,25 @@ def package(source, classifier, corrector, output, *, archive_name=ARCHIVE, desc
     ]:
         if (corrector / name).is_file():
             shutil.copy2(corrector / name, output / "baseline/correction" / name)
+    if control_submission is not None:
+        from model.prediction_export import read_submission_archive
+        if Path(control_submission).resolve() != (corrector.parent / "results.zip").resolve():
+            raise ValueError("Quality control must come from the preserved corrector's own pipeline output")
+        if json.loads((corrector / "adapter/inference.json").read_text()).get("hint_mode") != "none":
+            raise ValueError("Frozen corrections require an independent no-hint corrector")
+        read_submission_archive(control_submission, test)
+        shutil.copy2(control_submission, output / "baseline/quality_control.zip")
+        from model.data import _id_key
+        from model.metrics import _load_predictions
+        from model.prediction_export import _indexed_predictions
+        saved = json.loads((corrector.parent / "classification/predictions.json").read_text())
+        classes = [{"id": r["id"], "label": r["predicted_class"]} for r in saved]
+        labels = _indexed_predictions(gold, classes)
+        corrections = _load_predictions(corrector / "predictions.json")
+        _indexed_predictions(gold, corrections)
+        write_json(output / "baseline/quality_control_validation.json", [
+            {**r, "label": labels[_id_key(r["id"])]["label"]} for r in corrections
+        ])
     licenses = source / "external-ud-vtb"
     if licenses.is_dir():
         shutil.copytree(licenses, output / "external-ud-vtb")
@@ -204,6 +231,13 @@ def package(source, classifier, corrector, output, *, archive_name=ARCHIVE, desc
         "privacy": "Private research derivatives/checkpoints; do not publish",
         "scope": "Development selection; no measured gain claimed for this new mixture",
     }
+    if control_submission is not None:
+        manifest["control_submission"] = {
+            "path": "baseline/quality_control.zip",
+            "validation_predictions": "baseline/quality_control_validation.json",
+            "input_sha256": manifest["submission_sha256"],
+            "role": "Frozen quality-system predictions, inference only; never training labels",
+        }
     write_json(output / MANIFEST, manifest)
     with zipfile.ZipFile(
         output / archive_name, "w", zipfile.ZIP_DEFLATED, compresslevel=1
@@ -221,8 +255,10 @@ def main():
     for name in ["source", "classifier", "corrector", "output"]:
         p.add_argument("--" + name, required=True, type=Path)
     p.add_argument("--archive-name", default=ARCHIVE)
+    p.add_argument("--control-submission", type=Path)
     a = p.parse_args()
-    m = package(a.source, a.classifier, a.corrector, a.output, archive_name=a.archive_name)
+    m = package(a.source, a.classifier, a.corrector, a.output,
+                archive_name=a.archive_name, control_submission=a.control_submission)
     print(
         json.dumps(
             {

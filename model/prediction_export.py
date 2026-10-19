@@ -62,6 +62,30 @@ def write_submission(path, rows):
     return archive
 
 
+def read_submission_archive(path, records):
+    """Read frozen predictions only for their exact typed inference IDs/order."""
+    with zipfile.ZipFile(path) as archive:
+        if archive.namelist() != ["results.json"] or archive.testzip() is not None:
+            raise SubmissionExportError("Control ZIP must contain only valid root results.json")
+        rows = json.loads(archive.read("results.json"))
+    if not isinstance(rows, list):
+        raise SubmissionExportError("Control predictions must be a JSON array")
+    predictions = []
+    for row in rows:
+        if (not isinstance(row, dict) or set(row) != {"ID", "Output"}
+                or not isinstance(row["Output"], dict)
+                or set(row["Output"]) != {"Error_Type_Id", "Fixed Sentence"}):
+            raise SubmissionExportError("Invalid control prediction fields")
+        output = row["Output"]
+        if not isinstance(output["Fixed Sentence"], list) or len(output["Fixed Sentence"]) != 1:
+            raise SubmissionExportError("Control predictions require one corrected string per ID")
+        predictions.append({"id": row["ID"], "label": output["Error_Type_Id"],
+                            "target": output["Fixed Sentence"][0]})
+    if submission_rows(records, predictions) != rows:
+        raise SubmissionExportError("Control predictions must preserve typed input order")
+    return predictions
+
+
 def comparison_rows(records, predictions):
     """Join diagnostics and gold by exact typed ID in input order."""
     indexed = _indexed_predictions(records, predictions)

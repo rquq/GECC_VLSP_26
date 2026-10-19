@@ -9,6 +9,19 @@ import shutil
 MARKER = ".vgec-owned-cache"
 
 
+def temporary_cache_environment(resources):
+    """Keep task-owned base downloads outside saved notebook output."""
+    import tempfile
+    parent = Path("/kaggle/temp")
+    cache = Path(resources.enter_context(tempfile.TemporaryDirectory(
+        prefix="vgec-track1039-base-cache-",
+        dir=parent if parent.is_dir() else None))).resolve()
+    (cache / MARKER).write_text("vgec-temporary-base-cache-v1\n")
+    return {"HF_HOME": str(cache), "HF_HUB_CACHE": str(cache),
+            "HF_XET_CACHE": str(cache / "xet"),
+            "HF_XET_CHUNK_CACHE_SIZE_BYTES": "0", "VGEC_WEIGHT_CACHE_ROOT": str(cache)}
+
+
 def prepare_weight_cache(settings):
     """Keep one base in the controller-owned cache; saved adapters live elsewhere."""
     value = os.environ.get("VGEC_WEIGHT_CACHE_ROOT")

@@ -388,20 +388,11 @@ def run(
     }
     config = _json(training / "classification_config.json")
     from contextlib import ExitStack
-    import tempfile
 
     with TrackingRun() as tracking, ExitStack() as resources:
         if device == "cuda" and config.get("competition_id", 1038) == 1039:
-            from model.weight_cache import MARKER
-            temporary_parent = Path("/kaggle/temp")
-            cache = Path(resources.enter_context(tempfile.TemporaryDirectory(
-                prefix="vgec-track1039-base-cache-",
-                dir=temporary_parent if temporary_parent.is_dir() else None))).resolve()
-            (cache / MARKER).write_text("vgec-temporary-base-cache-v1\n")
-            environment.update(HF_HOME=str(cache), HF_HUB_CACHE=str(cache),
-                               HF_XET_CACHE=str(cache / "xet"),
-                               HF_XET_CHUNK_CACHE_SIZE_BYTES="0",
-                               VGEC_WEIGHT_CACHE_ROOT=str(cache))
+            from model.weight_cache import temporary_cache_environment
+            environment.update(temporary_cache_environment(resources))
         tracking.start(
             config,
             output,
