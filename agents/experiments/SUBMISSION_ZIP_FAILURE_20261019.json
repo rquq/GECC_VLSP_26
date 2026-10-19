@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-19",
+  "status": "local_archives_valid_remote_cause_unconfirmed",
+  "source_commit": "fe15be855fda7c5472ade421e5bcce334477b122",
+  "competition": 1039,
+  "user_report": {
+    "account": "KANO",
+    "filename": "results+(1).zip",
+    "submission_date_as_displayed": "10/18/2026 18:53:38",
+    "status": "Failed",
+    "exception": "BadZipfile: File is not a zip file",
+    "origin": "User downloaded from notebook and submitted on phone; exact phone/stored-upload bytes unavailable"
+  },
+  "checks": {
+    "focused_october19": {
+      "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/19_10_2026/runs/focused-sailor-qwen-20261018-20261018T124500964626Z/run/results.zip",
+      "bytes": 92433,
+      "sha256": "ca1e0d9b54aa67e130d77ab48df43b166fc827aa64c97b9a1aeeeb4fd4a57344",
+      "members": [
+        "results.json"
+      ],
+      "rows": 2034,
+      "crc": "passed",
+      "strict_schema_typed_ids_private_input_match": true,
+      "compression_method": 8,
+      "required_zip_version": 20,
+      "encrypted": false
+    },
+    "quality": {
+      "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/18_10_2026/quality/runs/quality-private-fresh-20261017-20261017T080116892693Z/run/results.zip",
+      "bytes": 92604,
+      "sha256": "d9d14ac425dcc0a3ddf3e1fdd60686bbb09bf59293106845e3683dba6f859f79",
+      "members": [
+        "results.json"
+      ],
+      "rows": 2034,
+      "crc": "passed",
+      "strict_schema_typed_ids_private_input_match": true,
+      "compression_method": 8,
+      "required_zip_version": 20,
+      "encrypted": false
+    },
+    "diverse": {
+      "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/18_10_2026/diverse/runs/expanded-v2-tuned-fresh-20261018-20261017T195610782762Z/run/results.zip",
+      "bytes": 92760,
+      "sha256": "6d597f900606f9e505485d8a0d4b52e7450330551f4587b53ac95bb15e04ff9e",
+      "members": [
+        "results.json"
+      ],
+      "rows": 2034,
+      "crc": "passed",
+      "strict_schema_typed_ids_private_input_match": true,
+      "compression_method": 8,
+      "required_zip_version": 20,
+      "encrypted": false
+    }
+  },
+  "verified_current_copy": "/mnt/c/Users/Lenovo/Downloads/VLSP26-track1039-verified-20261019/results.zip",
+  "remote_actions_taken": [],
+  "new_submission_attempts_used": 0,
+  "pipeline_or_model_changes": false,
+  "findings": {
+    "confirmed": "Trace fails in recursive worker bundle retrieval/unpacking before scoring; all3local notebook archives pass independent integrity/schema/typed-ID checks.",
+    "unconfirmed": "Which server bundle failed and whether the stored submitted bytes equal a local original. Truncation/non-ZIP HTTP responses are hypotheses, not proven causes.",
+    "quota": "Upstream CodaLab save() excludes status failed from BOTH max_submissions and max_submissions_per_day. Failed row#1 is a sequence number, not evidence that quota was consumed. AIHub fork/deployment behavior and account remaining quota unverified.",
+    "recovery": "Organizer can investigate worker bundle URL/download and rerun the existing entry in upstream CodaLab. Request local quota confirmation/restoration if different."
+  },
+  "primary_sources": [
+    "https://aihub.ml/competitions/1039#learn_the_details-evaluation",
+    "https://github.com/codalab/competitions-v1-compute-worker/blob/master/worker.py#L112-L182",
+    "https://github.com/codalab/codalab-competitions/blob/develop/codalab/apps/web/models.py#L1557-L1607",
+    "https://github.com/codalab/codalab-competitions/blob/develop/codalab/apps/web/tasks.py#L458-L489",
+    "https://github.com/codalab/codalab-competitions/blob/develop/codalab/apps/web/tests/test_submission_re_run.py#L59-L74"
+  ]
+}
