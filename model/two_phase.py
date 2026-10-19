@@ -342,6 +342,8 @@ def _run_stage(command, env, tracking, timeout_seconds=None):
                     next_heartbeat = time.monotonic() + HEARTBEAT_SECONDS
                 if line is None:
                     break
+                if line and getattr(tracking, "console_line", None):
+                    tracking.console_line(line)
                 result, progress = _event(line, STAGE_EVENT), _event(
                     line, PROGRESS_EVENT
                 )

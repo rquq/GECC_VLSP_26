@@ -23,6 +23,7 @@ DEFAULTS = {
     "mode": "online",
     "log_models": True,
     "log_text": False,
+    "log_console": False,
 }
 _PRIVATE_KEYS = {
     "source",
@@ -219,6 +220,8 @@ class TrackingRun:
         self.started_at = time.monotonic()
         self.current_stage = "starting"
         self.task = None
+        self._console_private_texts = set()
+        self._console_warning = False
         self._heartbeat_lock = threading.RLock()
         self._heartbeat_stop = threading.Event()
         self._heartbeat_thread = None
@@ -357,6 +360,53 @@ class TrackingRun:
         """Write only internally constructed, text-free progress to the Logs tab."""
         if self.run is not None:
             self.run.write_logs(text)
+
+    def protect_console_file(self, path):
+        """Register input/reference strings locally; never upload the registry."""
+        def visit(value, private=False):
+            if isinstance(value, dict):
+                for key, item in value.items():
+                    visit(item, private or str(key).lower() in _PRIVATE_KEYS)
+            elif isinstance(value, list):
+                for item in value:
+                    visit(item, private)
+            elif private and isinstance(value, str) and len(value) >= 8:
+                self._console_private_texts.add(value)
+                self._console_private_texts.add(json.dumps(value, ensure_ascii=True)[1:-1])
+                self._console_private_texts.add(json.dumps(value, ensure_ascii=False)[1:-1])
+        visit(json.loads(Path(path).read_text()))
+
+    def console_line(self, text):
+        """Mirror child stdout/stderr to root Logs, withholding corpus and secrets.
+
+        Explicit write_logs forwarding avoids automatic capture of unchecked
+        stdout. Notebook/local console remains the complete process transcript.
+        """
+        if self.task != "pipeline" or not self.settings.get("log_console", False) or not text:
+            return
+        sensitive = r"[\"'](?:" + "|".join(re.escape(key) for key in _PRIVATE_KEYS) + r")[\"']\s*[:=]"
+        clean = []
+        for line in text.splitlines():
+            for key, value in os.environ.items():
+                if value and len(value) >= 8 and any(part in key.upper() for part in ("TOKEN", "API_KEY", "PASSWORD", "SECRET")):
+                    line = line.replace(value, "[REDACTED]")
+            line = re.sub(r"(?i)(authorization\s*[:=]\s*bearer\s+)\S+", r"\1[REDACTED]", line)
+            line = re.sub(r"https?://[^\s/@]+:[^\s/@]+@", "https://[REDACTED]@", line)
+            line = re.sub(r"\b(?:hf_|ghp_|github_pat_)[A-Za-z0-9_]{10,}\b", "[REDACTED]", line)
+            if (re.search(sensitive, line, re.IGNORECASE)
+                    or any(value in line for value in self._console_private_texts)):
+                line = "[corpus-bearing console line withheld; complete line remains in local console.log]"
+            clean.append(line)
+        safe_text = "\n".join(clean)
+        with (self.output / "wandb_console.log").open("a", encoding="utf-8") as output:
+            output.write(safe_text + "\n")
+        if self.run is not None:
+            try:
+                self.run.write_logs(safe_text)
+            except Exception:
+                if not self._console_warning:
+                    warnings.warn("W&B console forwarding failed; sanitized log remains in wandb_console.log", RuntimeWarning)
+                    self._console_warning = True
 
     def log(self, values, prefix="train", *, optimizer_step=None):
         publish_progress(
@@ -562,7 +612,7 @@ class TrackingRun:
     def progress(self, event):
         stage, prefix = event.get("stage", ""), event.get("prefix", "")
         if not re.fullmatch(
-            r"classifier(?:-seed-(?:42|43|44)|-(?:qwen7b|sailor7b|mistral7b))?|corrector|inference|oof|(?:baseline|challenger)-decoders|selected-private-corrector",
+            r"classifier-training|corrector-training|private-classifier|private-corrector|classifier(?:-seed-(?:42|43|44)|-(?:qwen7b|sailor7b|mistral7b))?|corrector|inference|oof|(?:baseline|challenger)-decoders|selected-private-corrector",
             stage,
         ) or not re.fullmatch(
             r"(?:train|training|validation|baseline|final)(?:/classification)?|decoding", prefix

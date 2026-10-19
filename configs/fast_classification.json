@@ -13,7 +13,8 @@
     "entity": null,
     "mode": "online",
     "log_models": false,
-    "log_text": false
+    "log_text": false,
+    "log_console": true
   },
   "data": {
     "path": null,

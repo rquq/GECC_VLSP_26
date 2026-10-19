@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import shutil
 import sys
+import traceback
 
 from model.runtime import PROJECT_ROOT, resolve_output, write_json
 from tools.run_focused import materialize_package, merge_export
@@ -70,12 +71,20 @@ def run(plan, input_root, output_root, *, source_identity=None):
     with TrackingRun() as tracking, ExitStack() as resources:
         from model.weight_cache import temporary_cache_environment
         environment.update(temporary_cache_environment(resources))
+        for item in inputs.values():
+            tracking.protect_console_file(item["path"])
         tracking.start(config, output, "pipeline", group=work.name,
                        metadata={"competition_id": 1039, "kind": "fresh five-epoch quality-data retrain"})
 
         def stage(command, name):
             # No wall/stage timeout. Kaggle's external session limit still applies.
+            message = "Starting stage: " + name
+            print(message, flush=True)
+            tracking.console_line(message)
             _run_stage(command, {**environment, "VGEC_STAGE_NAME": name}, tracking)
+            message = "Finished stage: " + name
+            print(message, flush=True)
+            tracking.console_line(message)
 
         try:
             stage([sys.executable, "-m", "model.classification", "--config",
@@ -109,9 +118,13 @@ def run(plan, input_root, output_root, *, source_identity=None):
                 "verification_status": "skipped_user_request", "controller_deadline": None,
                 "classifier": "classification/classifier", "corrector": "correction/adapter",
                 "selected_metrics": metrics, "submission": {"status": "completed", "path": "results.zip"}})
+            message = "Submission ready: " + str(output / "results.zip")
+            print(message, flush=True)
+            tracking.console_line(message)
             tracking.complete("pipeline", metrics)
             record(work, "completed", kind="fast-training")
         except BaseException as error:
+            tracking.console_line(traceback.format_exc())
             record(work, "failed", kind="fast-training", error_type=type(error).__name__)
             raise
     return output

@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-20",
+  "status": "implemented_not_run",
+  "request": "Use memory chart evidence and show notebook-like console in root W&B run.",
+  "image": {
+    "path": "/mnt/c/Users/Lenovo/AppData/Local/Temp/codex-clipboard-8deb4faf-8571-44d9-b7e7-33c855eb88c0.png",
+    "inspected": true,
+    "approximate_plateau_allocated_percent": [
+      55,
+      70
+    ],
+    "interpretation": "Room to try the existing larger batches; graph alone does not establish safe peak allocation, higher-batch fit, utilization or standard-LoRA eligibility."
+  },
+  "changes": [
+    "Explicit root Run.write_logs forwarding from child merged stdout/stderr, no metric-only console substitution.",
+    "Stage lifecycle/final submission/failure traceback forwarded.",
+    "Root metric progress accepts new fast-training/private stage names.",
+    "Local input/reference string registry and structured corpus-field suppression; credential redaction.",
+    "Sanitized local run/wandb_console.log; existing full local console.log preserved.",
+    "Existing batches/models/epochs/precision unchanged."
+  ],
+  "limits": [
+    "Pre-root bootstrap/pip output is not replayed.",
+    "Old W&B runs are not modified retroactively.",
+    "Tracking log_text stays false; unchecked SDK console capture stays off.",
+    "No tests, SDK live trial or model run performed per user request."
+  ],
+  "sources": [
+    "https://docs.wandb.ai/guides/track/log/",
+    "Existing TrackingRun.message uses the public Run.write_logs API."
+  ]
+}
