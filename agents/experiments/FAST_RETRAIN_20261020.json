@@ -1,0 +1,131 @@
+{
+  "date": "2026-10-20",
+  "status": "prepared_not_executed",
+  "competition_id": 1039,
+  "request": "Fresh full classifier/corrector/inference, no artificial runtime cap; tune from recorded histories; skip verification runs.",
+  "source_run": "runs/20_10_2026/runs/track1039-quality-controlled-20261019-20261019T064115932070Z",
+  "failure": {
+    "type": "TimeoutError",
+    "stage": "selected-private-corrector",
+    "controller_wall_seconds": 41400,
+    "controller_stage_seconds": 36000,
+    "private_rows_completed": 856,
+    "private_rows_total": 2034,
+    "training_completed": true
+  },
+  "private_rows_scope": "Unlabeled private-test inference only, not synthesis; no private data in fitting or checkpoint selection.",
+  "measured_training_runtime_seconds": {
+    "classification": 12462.8913,
+    "correction": 15066.0566
+  },
+  "old_epoch_evidence": {
+    "classification_macro_f1": [
+      0.4341480881803463,
+      0.5505555555555556,
+      0.5941224356887007,
+      0.5635403151065802,
+      0.5730113245775896
+    ],
+    "classification_mean_logged_loss": [
+      3.2895785714,
+      0.6011928571,
+      0.1672214286,
+      0.0477714286,
+      0.0088714286
+    ],
+    "classification_best_epoch": 3,
+    "correction_all_gleu": [
+      0.5833140261122034,
+      0.6065021158849737,
+      0.6305950984874757,
+      0.6485707692031399,
+      0.6638517795670329
+    ],
+    "correction_error_gleu": [
+      0.13481027331837242,
+      0.21694567446750546,
+      0.2551059762560352,
+      0.28530122071894315,
+      0.3086054158663492
+    ],
+    "correction_clean_preservation": [
+      1,
+      0.925,
+      0.925,
+      0.975,
+      0.95
+    ],
+    "correction_mean_logged_loss": [
+      0.2496409449,
+      0.0711354331,
+      0.0366496063,
+      0.0160574803,
+      0.0069897638
+    ],
+    "correction_best_epoch": 5,
+    "correction_peak_allocated_bytes": [
+      8137598464,
+      9160131584
+    ]
+  },
+  "same_reused_78_dev": {
+    "quality_control": {
+      "macro_f1": 0.5727738927738928,
+      "gleu": 0.6057518271992086,
+      "combined": 0.5892628599865507
+    },
+    "both_new": {
+      "macro_f1": 0.5941224356887007,
+      "gleu": 0.6638517795670329,
+      "combined": 0.6289871076278668
+    },
+    "scope": "Reused development, not independent private/official scoring."
+  },
+  "new_configs": {
+    "classifier": "configs/fast_classification.json",
+    "corrector": "configs/fast_correction.json",
+    "recipe": "configs/fast_training_recipe.json",
+    "plan": "configs/fast_training_plan.json"
+  },
+  "new_run": {
+    "controller_wall_timeout": null,
+    "controller_stage_timeout": null,
+    "epochs_each": 5,
+    "seed": 42,
+    "effective_batch": 8,
+    "classifier_microbatch": 4,
+    "corrector_microbatch": 2,
+    "private_generation_batch": 4,
+    "corrector_eval_epochs": [
+      2,
+      4,
+      5
+    ],
+    "baseline_generation": false,
+    "saved_model_evaluation_replay": false,
+    "decoder_sweep": false,
+    "preflight": false,
+    "private_input_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045"
+  },
+  "precision_decision": {
+    "native_classifier_base_parameters": 18395133952,
+    "native_corrector_base_parameters": 14770033664,
+    "fp16_base_gib": {
+      "classifier": 34.263607025146484,
+      "corrector": 27.51133155822754
+    },
+    "decision": "Retain NF4 QLoRA. Classifier FP16 base exceeds combined T4 VRAM; corrector leaves insufficient training headroom. Packed NF4 numel is not native parameter count."
+  },
+  "preservation": [
+    "Original1038 archive/source/docs/data/weights remain untouched.",
+    "October20 adapters and partial outputs remain untouched.",
+    "Three preexisting edited experiment files excluded from this commit.",
+    "Old four-way default preserved in configs/controlled_quality_experiment.json."
+  ],
+  "verification": {
+    "tests_run": false,
+    "smoke_training_run": false,
+    "native_t4_run": false,
+    "reason": "User explicitly requested no verification runs. New speed, memory fit and score are unmeasured."
+  }
+}
