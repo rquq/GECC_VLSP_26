@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-19",
+  "status": "implemented;279regression tests,9Python3.13compatibility tests, actual full-package migration/materialization and CPU two-fit export workflow passed; native rerun pending",
+  "source_base_commit": "19934c1",
+  "user_request": "No nested ZIP/TAR in dataset uploads; do not validate ZIP-container hashes; retain JSON and model-file integrity",
+  "input_log": "/mnt/c/Users/Lenovo/.codex/attachments/f4d97022-96b8-4bdd-bd2d-794d781bfd1e/Pasted text.txt",
+  "input_log_sha256": "10d33bccea098f6a63370535a32b65def54306fa37bffbceaae7b31d664b6d2c",
+  "user_confirmed": "baseline/quality_control.zip appears as extracted folder/results.json in Kaggle",
+  "failure": "Legacy manifest referenced ZIP that Kaggle had expanded; error happened during package materialization, before training",
+  "upload": "dataset/kaggle-quality-track1039-private-20261019-json/VGEC26-quality-track1039-private-20261019.zip",
+  "package_proof": {
+    "format": "vgec-focused-package-proof-v1",
+    "manifest_sha256": "d4377bec8104a07d32fcbea785ec2981eae905cdfbb6fb3f3d1203c7b02b9aaf",
+    "baseline_classifier_source_commit": "338293f90e664803ee3dde12e82dd5d4d5601d43",
+    "baseline_corrector_source_commit": "338293f90e664803ee3dde12e82dd5d4d5601d43",
+    "legacy_manifest_sha256": "513e99b206ab0e48f7c90029dc6e68b4e3ada4955abe5943093c606049164037",
+    "legacy_control_json_sha256": "7d09f2696a00a6472fd84d2624dc36fb93b52f3b9e0e24e32d8cb02d3def5568"
+  },
+  "verification": {
+    "user_confirmed_kaggle_expanded_nested_zip": true,
+    "source_input_manifest": "513e99b206ab0e48f7c90029dc6e68b4e3ada4955abe5943093c606049164037",
+    "new_manifest": "d4377bec8104a07d32fcbea785ec2981eae905cdfbb6fb3f3d1203c7b02b9aaf",
+    "control_json_sha256": "7d09f2696a00a6472fd84d2624dc36fb93b52f3b9e0e24e32d8cb02d3def5568",
+    "actual_legacy_materialization": {
+      "status": "passed",
+      "verified_files": 46,
+      "nested_archives": 0,
+      "input_unchanged": true
+    },
+    "actual_modern_materialization": {
+      "status": "passed",
+      "verified_files": 46,
+      "nested_archives": 0,
+      "same_quality_json_bytes": true,
+      "upload_bytes": 308325776
+    },
+    "protected_original_artifacts_unchanged": 6
+  },
+  "changes": [
+    "Plain control JSON in new package; builder rejects nested archives",
+    "Output-only submission ZIP generation preserves exact JSON payload bytes",
+    "Exact legacy upload manifest is whitelisted; recursive JSON discovery plus committed payload hash replaces nested-ZIP hash",
+    "All other data, model and JSON hashes remain required; source mounts remain unchanged",
+    "Missing/changed JSON, modified weights, ambiguous controls and path escapes remain errors"
+  ],
+  "unchanged": [
+    "Original quality experiment and6protected artifacts",
+    "Original labels/targets, data hashes,78dev/2034private inference-only",
+    "20B/14B models, NF4 settings, fullfive epochs, four-way comparison",
+    "Notebook executable cells, dependency pins, CUDA bootstrap",
+    "Three existing user-edited experiment files"
+  ],
+  "tests": {
+    "status": "passed",
+    "focused_log": "/tmp/vgec-plain-control-focused.log",
+    "py313_log": "/tmp/vgec-plain-control-py313.log",
+    "full_log": "/tmp/vgec-plain-control-final-tests.log",
+    "full_count": 279,
+    "full_seconds": 36.054,
+    "python313_count": 9
+  },
+  "tiny_runtime": {
+    "status": "passed",
+    "log": "/tmp/vgec-plain-control-smoke.log",
+    "fresh_fits": 2,
+    "full_epochs_each": 5,
+    "reloaded": true,
+    "submission_zips": 4,
+    "scope": "CPU artificial data; not native20B/14B NF4 training"
+  },
+  "required_user_action": "Keep current attached dataset; fetch latest committed launcher via Save Version / Run All. New plain package is optional for later uploads.",
+  "native_training_rerun": false,
+  "reverted_cuda_checks_reintroduced": false
+}

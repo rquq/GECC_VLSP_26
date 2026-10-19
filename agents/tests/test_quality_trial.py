@@ -41,7 +41,7 @@ class ClassifierTrialTests(unittest.TestCase):
         output = self.root / "challenger"
         output.mkdir()
         classes = [{"id": "1", "label": 2}, {"id": 1, "label": 4}]
-        export_frozen_corrector(self.records, classes, self.control, output)
+        export_frozen_corrector(self.records, classes, self.control.with_suffix(".json"), output)
         rows = json.loads((output / "results.json").read_text())
         self.assertEqual([r["Output"]["Error_Type_Id"] for r in rows], [4, 2])
         self.assertEqual([r["Output"]["Fixed Sentence"] for r in rows],
@@ -56,7 +56,7 @@ class ClassifierTrialTests(unittest.TestCase):
         for values in [[{"id": 2, "label": 0}, {"id": "1", "label": 0}],
                        [{"id": 1, "label": 0}, {"id": 1, "label": 0}]]:
             with self.assertRaisesRegex(ValueError, "IDs"):
-                export_frozen_corrector(self.records, values, self.control, output)
+                export_frozen_corrector(self.records, values, self.control.with_suffix(".json"), output)
         self.assertFalse((output / "results.zip").exists())
 
     def test_committed_trial_has_two_five_epoch_fits_and_quality_hashes(self):

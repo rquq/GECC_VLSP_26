@@ -156,7 +156,10 @@ def package(source, classifier, corrector, output, *, archive_name=ARCHIVE,
         if json.loads((corrector / "adapter/inference.json").read_text()).get("hint_mode") != "none":
             raise ValueError("Frozen corrections require an independent no-hint corrector")
         read_submission_archive(control_submission, test)
-        shutil.copy2(control_submission, output / "baseline/quality_control.zip")
+        control_json = output / "baseline/quality_control/results.json"
+        control_json.parent.mkdir()
+        with zipfile.ZipFile(control_submission) as archive:
+            control_json.write_bytes(archive.read("results.json"))
         from model.data import _id_key
         from model.metrics import _load_predictions
         from model.prediction_export import _indexed_predictions
@@ -208,6 +211,8 @@ def package(source, classifier, corrector, output, *, archive_name=ARCHIVE,
         for p in sorted(output.rglob("*"))
         if p.is_file()
     }
+    if any(Path(name).suffix.lower() in {".zip", ".tar", ".gz", ".tgz"} for name in files):
+        raise ValueError("Dataset uploads must not contain nested ZIP/TAR archives")
     manifest = {
         "format": "vgec-focused-package-v1",
         "archive": archive_name,
@@ -233,7 +238,7 @@ def package(source, classifier, corrector, output, *, archive_name=ARCHIVE,
     }
     if control_submission is not None:
         manifest["control_submission"] = {
-            "path": "baseline/quality_control.zip",
+            "path": "baseline/quality_control/results.json",
             "validation_predictions": "baseline/quality_control_validation.json",
             "input_sha256": manifest["submission_sha256"],
             "role": "Frozen quality-system predictions, inference only; never training labels",

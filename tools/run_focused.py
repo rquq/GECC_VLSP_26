@@ -1,6 +1,7 @@
 """Two fresh fits versus preserved baselines; bounded decoding and private export."""
 
 import hashlib
+import io
 import json
 import math
 import os
@@ -27,9 +28,58 @@ def _safe(name):
     return path
 
 
-def materialize_package(inputs, destination, archive_name, manifest_sha256):
+def _migrate_legacy_control(root, destination, manifest, json_sha256):
+    """Accept the known old upload after Kaggle expands its nested control ZIP."""
+    old = "baseline/quality_control.zip"
+    new = "baseline/quality_control/results.json"
+    if old not in manifest["file_sha256"] or not json_sha256:
+        raise ValueError("Legacy control JSON proof is missing")
+    candidates = []
+    for control in (root / "baseline").rglob("results.json"):
+        if not control.resolve().is_relative_to(root.resolve()):
+            raise ValueError("Legacy control JSON path escapes package")
+        if control.is_file() and sha256(control) == json_sha256:
+            candidates.append(control)
+    if len(candidates) != 1:
+        raise ValueError("Legacy control JSON payload hash needs exactly one matching expanded results.json; found "
+                         + str(len(candidates)))
+    raw = candidates[0].read_bytes()
+    # All non-archive files retain their original manifest verification.
+    for name, digest in manifest["file_sha256"].items():
+        if name == old:
+            continue
+        path = root / _safe(name)
+        if (not path.resolve().is_relative_to(root.resolve()) or not path.is_file()
+                or sha256(path) != digest):
+            raise ValueError("Focused package file hash differs: " + name)
+    source_manifest_sha256 = sha256(root / MANIFEST)
+    if destination != root:
+        destination.mkdir(parents=True, exist_ok=False)
+        for name in manifest["file_sha256"]:
+            if name == old:
+                continue
+            path = destination / _safe(name)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(root / name, path)
+    path = destination / new
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(raw)
+    migrated = json.loads(json.dumps(manifest))
+    del migrated["file_sha256"][old]
+    migrated["file_sha256"][new] = json_sha256
+    migrated.setdefault("control_submission", {})["path"] = new
+    migrated["upload_migration"] = {"original_manifest_sha256": source_manifest_sha256,
+                                    "control_json_sha256": json_sha256, "nested_archive_hash_checked": False}
+    write_json(destination / MANIFEST, migrated)
+    print("Using verified plain control JSON from the existing Kaggle upload", flush=True)
+    return destination, migrated
+
+
+def materialize_package(inputs, destination, archive_name, manifest_sha256, *,
+                        legacy_manifest_sha256=None, legacy_control_json_sha256=None):
     """Support one ZIP or arbitrary Kaggle extraction prefixes, with pinned hashes."""
     inputs, destination = Path(inputs), Path(destination)
+    accepted_hashes = {manifest_sha256, legacy_manifest_sha256} - {None}
     archives = list(inputs.rglob(archive_name))
     if len(archives) > 1:
         raise ValueError("Attach exactly one focused package archive")
@@ -44,7 +94,8 @@ def materialize_package(inputs, destination, archive_name, manifest_sha256):
                 raise ValueError("Expected exactly one focused package manifest")
             entry = candidates[0]
             raw = z.read(entry)
-            if hashlib.sha256(raw).hexdigest() != manifest_sha256:
+            raw_sha256 = hashlib.sha256(raw).hexdigest()
+            if raw_sha256 not in accepted_hashes:
                 raise ValueError("Focused package manifest hash differs")
             m = json.loads(raw)
             prefix = Path(entry.filename).parent
@@ -61,21 +112,35 @@ def materialize_package(inputs, destination, archive_name, manifest_sha256):
                 info = z.getinfo(member)
                 if stat.S_ISLNK(info.external_attr >> 16):
                     raise ValueError("Symlink package path is forbidden")
+                if raw_sha256 == legacy_manifest_sha256 and name == "baseline/quality_control.zip":
+                    # Backward compatibility only: unwrap JSON, never hash the old ZIP container.
+                    with zipfile.ZipFile(io.BytesIO(z.read(info))) as control:
+                        if control.namelist() != ["results.json"]:
+                            raise ValueError("Legacy control archive must contain only results.json")
+                        path = destination / "baseline/quality_control/results.json"
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_bytes(control.read("results.json"))
+                    continue
                 path = destination / tail
                 path.parent.mkdir(parents=True, exist_ok=True)
                 with z.open(info) as source, path.open("wb") as out:
                     shutil.copyfileobj(source, out, 1024 * 1024)
         root = destination
+        if raw_sha256 == legacy_manifest_sha256:
+            root, m = _migrate_legacy_control(root, destination, m, legacy_control_json_sha256)
     else:
         candidates = list(inputs.rglob(MANIFEST))
         if len(candidates) != 1:
             raise ValueError(
                 "Attach exactly one focused package with its bundled baselines"
             )
-        if sha256(candidates[0]) != manifest_sha256:
+        actual_manifest_sha256 = sha256(candidates[0])
+        if actual_manifest_sha256 not in accepted_hashes:
             raise ValueError("Focused package manifest hash differs")
         root = candidates[0].parent
         m = _json(candidates[0])
+        if actual_manifest_sha256 == legacy_manifest_sha256:
+            root, m = _migrate_legacy_control(root, destination, m, legacy_control_json_sha256)
     if m.get("format") != "vgec-focused-package-v1":
         raise ValueError("Unknown focused package format")
     for name, digest in m["file_sha256"].items():

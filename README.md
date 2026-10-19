@@ -2,7 +2,7 @@
 
 Current configs/experiment.json selects configs/quality_trial_plan.json. The user-reported October19 7B result is0.5307, versus0.5806 for the preserved quality system on1038. Most of this difference comes from classification. The20B/14B challengers have not yet been trained at full size.
 
-1. Upload dataset/kaggle-quality-track1039-private-20261019/VGEC26-quality-track1039-private-20261019.zip as a PRIVATE Kaggle dataset. Attach that version alone; its extraction folder name may vary. No older notebook output is needed.
+1. Upload dataset/kaggle-quality-track1039-private-20261019-json/VGEC26-quality-track1039-private-20261019.zip as a PRIVATE Kaggle dataset. Attach that version alone; its extraction folder name may vary. No older notebook output is needed. The upload contains plain JSON and model files, with no nested ZIP/TAR archives. If the previous quality package is already attached and Kaggle expanded its inner ZIP, keep it: the loader accepts its verified extracted JSON without checking ZIP-container hashes.
 2. Import notebooks/kaggle_two_phase.ipynb, enable Internet and GPU T4 x2. Provide repository-read GITHUB_TOKEN; HF_TOKEN is optional and WANDB_API_KEY enables monitoring.
 3. Save Version / Run All. Choices are committed in code/configs, with no notebook toggles. Retain the entire output and choose among the four labeled submission ZIPs below. Nothing is automatically submitted.
 
@@ -22,7 +22,7 @@ The training dataset is byte-identical to the quality run:1128 classifier and101
 |corrector_challenger/results.zip|Exact quality ensemble predictions|New Qwen14B|
 |both_challengers/results.zip|New Sailor20B|New Qwen14B|
 
-The first control ZIP is byte-identical to the original quality submission. Its0.5806 report belongs to1038; the same ZIP on1039 has not been independently scored. comparison_metrics.json compares allfour pairings on the same reused78-row development set; these scores do not automatically promote a private winner. Root results.zip is the classifier-only challenger. Private corrections are generated once by the14B model and joined by exact typed IDs. Frozen control predictions are bound to the exact private input hash and never enter fitting.
+The control results.json is byte-identical to the original quality predictions; its ZIP is generated only in the run output. Its0.5806 report belongs to1038; the same ZIP on1039 has not been independently scored. comparison_metrics.json compares allfour pairings on the same reused78-row development set; these scores do not automatically promote a private winner. Root results.zip is the classifier-only challenger. Private corrections are generated once by the14B model and joined by exact typed IDs. Frozen control predictions are bound to the exact private input hash and never enter fitting.
 
 Root selected.json/selected_models contains20B + quality7B. both_challengers/selected.json and its selected_models contain20B +14B. Use tools.replay_focused with the corresponding selection for portable replay. The corrector-only ZIP is an input-bound comparison using frozen full-ensemble labels, not a portable three-model ensemble bundle. Preserve all original quality adapters for that historical system.
 

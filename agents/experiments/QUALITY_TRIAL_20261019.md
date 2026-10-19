@@ -1,3 +1,5 @@
+**Upload packaging superseded on2026-10-19:** follow PLAIN_CONTROL_UPLOAD_20261019.md. Controls are plain JSON inside datasets; ZIPs exist only in run outputs. Legacy extracted uploads work without reupload. Original prediction JSON bytes remain identical; output ZIP-wrapper byte identity is no longer required. Historical package/hash evidence below belongs to the original implementation.
+
 # Quality-data controlled track1039 trial — 2026-10-19
 
 Intent: respond to the official private classification regression, preserve the exact0.5806 quality experiment, and include the user's explicitly requested14B corrector. Source base3aebe4a. Status: implementation and local verification recorded in paired JSON; native two-T4 fitting remains pending. The earlier anchored20B/14B controller is preserved as configs/anchored_unconstrained_experiment.json.

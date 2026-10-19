@@ -9,7 +9,7 @@ import time
 import zipfile
 
 from model.data import _id_key, load_records
-from model.prediction_export import read_submission_archive
+from model.prediction_export import read_submission_json
 from model.runtime import PROJECT_ROOT, load_config, resolve_output, write_json
 from tools.package_focused_training import sha256
 from tools.run_focused import materialize_package, bundle_selected, merge_export, stage_timeout
@@ -47,7 +47,7 @@ def validate(plan):
 
 def export_frozen_corrector(records, classes, control, output):
     """Change only predictions of class; correction text never enters fitting."""
-    corrections = read_submission_archive(control, records)
+    corrections = read_submission_json(control, records)
     merge_export(records, classes, corrections, output)
 
 
@@ -65,11 +65,13 @@ def run(plan, input_root, output_root, *, device="cuda", preflight_only=False,
     output.mkdir(parents=True)
     print("VGEC_RUN_DIR:" + str(output), flush=True)
     proof = read(PROJECT_ROOT / plan["package_proof"])
-    package, packet = materialize_package(input_root, work / "package", recipe["data_archive"], proof["manifest_sha256"])
+    package, packet = materialize_package(input_root, work / "package", recipe["data_archive"], proof["manifest_sha256"],
+                                          legacy_manifest_sha256=proof.get("legacy_manifest_sha256"),
+                                          legacy_control_json_sha256=proof.get("legacy_control_json_sha256"))
     if packet["data_sha256"] != recipe["data_sha256"]:
         raise ValueError("Quality training hashes differ from recipe")
     control_info = packet.get("control_submission", {})
-    if (control_info.get("path") != "baseline/quality_control.zip"
+    if (control_info.get("path") != "baseline/quality_control/results.json"
             or control_info.get("validation_predictions") != "baseline/quality_control_validation.json"
             or control_info.get("input_sha256") != plan["inference_sha256"]
             or sha256(package / "private_test.json") != plan["inference_sha256"]):
@@ -78,16 +80,16 @@ def run(plan, input_root, output_root, *, device="cuda", preflight_only=False,
     if any(r["label"] is not None or r["target"] is not None for r in private):
         raise ValueError("Private input must remain inference-only")
     control = package / control_info["path"]
-    read_submission_archive(control, private)
+    read_submission_json(control, private)
     destination = output / "quality_control"
     destination.mkdir()
-    shutil.copy2(control, destination / "results.zip")
-    with zipfile.ZipFile(control) as archive:
-        (destination / "results.json").write_bytes(archive.read("results.json"))
+    shutil.copy2(control, destination / "results.json")
+    with zipfile.ZipFile(destination / "results.zip", "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.write(destination / "results.json", "results.json")
     training, command = prepare_run(PROJECT_ROOT / plan["training_recipe"], package,
                                     work / "training", world_size=1, device=device)
     write_json(work / "experiment_manifest.json", {"plan": plan, "source": source_identity,
-               "package_manifest_sha256": proof["manifest_sha256"], "training": str(training),
+               "package_manifest_sha256": sha256(package / "focused_package_manifest.json"), "training": str(training),
                "model_parameters": read(training / "experiment_manifest.json")["model_parameters"]})
     config = read(training / "classification_config.json")
     environment = {**process_environment(42), "VGEC_CUDA_STAGE": str(int(device == "cuda")),
@@ -175,10 +177,10 @@ def run(plan, input_root, output_root, *, device="cuda", preflight_only=False,
             correction_only.mkdir()
             write_json(correction_only / "selected_metrics.json", comparison["corrector_challenger"])
             write_json(correction_only / "selected_validation_predictions.json", correction_only_validation)
-            control_predictions = read_submission_archive(control, private)
+            control_predictions = read_submission_json(control, private)
             merge_export(private, control_predictions, corrections, correction_only)
             write_json(output / "submission_candidates.json", {
-                "quality_control": {"path": "quality_control/results.zip", "sha256": sha256(control),
+                "quality_control": {"path": "quality_control/results.zip", "sha256": sha256(destination / "results.zip"),
                                     "scope": "Exact original quality-system output; report0.5806 was on1038, same-track1039 score unverified"},
                 "classifier_challenger": {"path": "results.zip", "sha256": sha256(output / "results.zip"),
                                          "scope": "New classifier only, exact quality-corrector outputs; private quality unknown"},

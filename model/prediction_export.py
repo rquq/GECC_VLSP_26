@@ -68,6 +68,15 @@ def read_submission_archive(path, records):
         if archive.namelist() != ["results.json"] or archive.testzip() is not None:
             raise SubmissionExportError("Control ZIP must contain only valid root results.json")
         rows = json.loads(archive.read("results.json"))
+    return _submission_predictions(rows, records)
+
+
+def read_submission_json(path, records):
+    """Dataset controls are plain JSON; ZIPs are output-only containers."""
+    return _submission_predictions(json.loads(Path(path).read_bytes()), records)
+
+
+def _submission_predictions(rows, records):
     if not isinstance(rows, list):
         raise SubmissionExportError("Control predictions must be a JSON array")
     predictions = []

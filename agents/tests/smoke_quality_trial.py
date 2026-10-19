@@ -48,7 +48,8 @@ def main():
                  source_identity={"commit": "artificial-classifier-trial", "dirty": True})
     manifest = json.loads((result / "pipeline_manifest.json").read_text())
     assert manifest["status"] == "completed" and manifest["new_classifier_fits"] == 1 and manifest["new_corrector_fits"] == 1
-    assert (result / "quality_control/results.zip").read_bytes() == (baseline / "results.zip").read_bytes()
+    with zipfile.ZipFile(baseline / "results.zip") as original_archive:
+        assert (result / "quality_control/results.json").read_bytes() == original_archive.read("results.json")
     assert sha256(baseline / "correction/adapter/adapter_model.safetensors") == adapter_hash
     training = Path(json.loads((result.parent / "experiment_manifest.json").read_text())["training"])
     fit = json.loads((training / "run/classification/run_manifest.json").read_text())
