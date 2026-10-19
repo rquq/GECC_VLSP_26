@@ -381,6 +381,10 @@ def main():
             "This committed experiment requires CUDA; select Kaggle GPU T4 x2"
         )
     recipe = json.loads(Path(args.recipe).read_text())
+    if recipe.get("format") == "vgec-fast-training-v1":
+        from tools.run_fast_training import run_from_args
+        run_from_args(args, source)
+        return
     if recipe.get("format") == "vgec-quality-trial-v1":
         from tools.run_quality_trial import run_from_args
         run_from_args(args, source)

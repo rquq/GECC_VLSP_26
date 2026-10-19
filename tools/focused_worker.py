@@ -24,7 +24,10 @@ def main():
         p.add_argument("--" + name, required=True, type=Path)
     p.add_argument("--expected-metrics", type=Path)
     p.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
+    p.add_argument("--batch-size", type=int, default=1)
     a = p.parse_args()
+    if a.batch_size < 1:
+        p.error("batch-size must be positive")
     from model.classification import classify, _classification_metrics
     from model.tracking import publish_stage_result
 
@@ -33,7 +36,7 @@ def main():
         {"id": r["id"], "source": r["source"], "label": None, "target": None}
         for r in records
     ]
-    predictions = classify(a.classifier, inference, a.device, 1)
+    predictions = classify(a.classifier, inference, a.device, a.batch_size)
     if a.expected_metrics:
         metrics = _classification_metrics(records, predictions)
         expected = json.loads(a.expected_metrics.read_text())["classification"]

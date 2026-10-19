@@ -500,7 +500,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
     history = []
     best = {"epoch": None, "macro_f1": None}
     batch_size = args.get("per_device_eval_batch_size", 8)
-    if rank == 0 and validation is not None:
+    if rank == 0 and validation is not None and config.get("evaluation", {}).get("baseline", True):
         baseline = _classification_metrics(validation, _predict(model, tokenizer, validation, preprocessing, device, batch_size))
         tracking.evaluation(baseline, "baseline/classification")
         model.train()
@@ -531,6 +531,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
                     if best["macro_f1"] is None or metrics["macro_f1"] > best["macro_f1"]:
                         best.update(epoch=state.epoch, macro_f1=metrics["macro_f1"])
                         save_model()
+                        write_json(artifact_dir / "selected_epoch_predictions.json", comparison_rows(validation, predictions))
                 history.append(entry)
                 write_json(artifact_dir / "epoch_history.json", history)
                 print(json.dumps(entry, ensure_ascii=False), flush=True)

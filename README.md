@@ -1,33 +1,30 @@
-# Track1039: controlled quality-data comparison
+# Track1039: fresh20B/14B quality-data retrain
 
-Current configs/experiment.json selects configs/quality_trial_plan.json. The user-reported October19 7B result is0.5307, versus0.5806 for the preserved quality system on1038. Most of this difference comes from classification. The20B/14B challengers have not yet been trained at full size.
+The default `configs/experiment.json` now selects `configs/fast_training_plan.json`: fresh Sailor2-20B classifier and Qwen2.5-14B corrector, five full epochs each, one final private submission. The earlier four-way trial remains in `configs/controlled_quality_experiment.json`.
 
-1. Upload dataset/kaggle-quality-track1039-private-20261019-json/VGEC26-quality-track1039-private-20261019.zip as a PRIVATE Kaggle dataset. Attach that version alone; its extraction folder name may vary. No older notebook output is needed. The upload contains plain JSON and model files, with no nested ZIP/TAR archives. If the previous quality package is already attached and Kaggle expanded its inner ZIP, keep it: the loader accepts its verified extracted JSON without checking ZIP-container hashes.
-2. Import notebooks/kaggle_two_phase.ipynb, enable Internet and GPU T4 x2. Provide repository-read GITHUB_TOKEN; HF_TOKEN is optional and WANDB_API_KEY enables monitoring.
-3. Save Version / Run All. Choices are committed in code/configs, with no notebook toggles. Retain the entire output and choose among the four labeled submission ZIPs below. Nothing is automatically submitted.
+1. Keep the existing PRIVATE quality-track1039 Kaggle dataset attached. Its extraction folder name may vary; old expanded-control uploads remain supported. For a new upload, use `dataset/kaggle-quality-track1039-private-20261019-json/VGEC26-quality-track1039-private-20261019.zip`. It contains plain data/model files, no nested ZIP/TAR archives.
+2. Import `notebooks/kaggle_two_phase.ipynb`, enable Internet and GPU T4 x2. Repository-read GITHUB_TOKEN is required; WANDB_API_KEY enables monitoring; HF_TOKEN is optional.
+3. Save Version / Run All. Download `run/results.zip`; it now means BOTH newly trained20B/14B models. Keep the entire output. Nothing is automatically submitted. No notebook toggles or previous notebook output required.
 
-| Fresh model | Precision | Epochs | LR |
-|---|---|---:|---:|
-| Sailor2-20B-Chat classifier |NF4 QLoRA / FP16 compute|5 full|3e-5|
-| Qwen2.5-14B-Instruct corrector |NF4 QLoRA / FP16 compute|5 full|2e-5|
-
-Both use seed/split42, LoRA rank16/alpha32/dropout.05, max512, microbatch1/effective8, nonreentrant gradient checkpointing and AdamW. Complete allfive epochs, retain the best checkpoint and verify reload. Classifier supervision remains weighted detection + lambda2 subtype loss. Correction uses minimal edits / preserve clean, no hints, greedy192-token decoding. No folds or decoder sweep.
-
-The training dataset is byte-identical to the quality run:1128 classifier and1011 corrector exposures, shared78 development rows excluded from fitting,2034 private inputs inference-only. No synthetic generation, annotation repair or private-test supervision is added. This trial changes model/precision/training recipe, not dataset quality. Existing repeated exposures should not be described as independent new examples.
-
-| ZIP relative to run/ | Classifier | Corrector |
+|Setting|Sailor2-20B classifier|Qwen2.5-14B corrector|
 |---|---|---|
-|quality_control/results.zip|Exact original quality ensemble predictions|Exact original quality Qwen7B predictions|
-|results.zip|New Sailor20B|Frozen quality Qwen7B predictions|
-|corrector_challenger/results.zip|Exact quality ensemble predictions|New Qwen14B|
-|both_challengers/results.zip|New Sailor20B|New Qwen14B|
+|Precision|NF4 double-quant QLoRA, FP16 compute|NF4 double-quant QLoRA, FP16 compute|
+|Epochs|5 full, best development Macro-F1|5 full, best development all-GLEU then error-GLEU and clean preservation|
+|Learning rate|2e-5, cosine|2e-5, linear|
+|LoRA rank / alpha / dropout|16 /32 /.10|16 /32 /.075|
+|Weight decay|.05|.02|
+|Warmup|20 steps|.05 ratio|
+|Training microbatch / accumulation / effective|4 /2 /8|2 /4 /8|
+|Evaluation|Every epoch, batch8|Epochs2/4/5, generation batch4|
 
-The control results.json is byte-identical to the original quality predictions; its ZIP is generated only in the run output. Its0.5806 report belongs to1038; the same ZIP on1039 has not been independently scored. comparison_metrics.json compares allfour pairings on the same reused78-row development set; these scores do not automatically promote a private winner. Root results.zip is the classifier-only challenger. Private corrections are generated once by the14B model and joined by exact typed IDs. Frozen control predictions are bound to the exact private input hash and never enter fitting.
+Both use pinned revisions, seed/split42, max512, AdamW and nonreentrant gradient checkpointing. Classifier remains weighted binary + lambda2 conditional subtype loss, argmax joint probabilities. Corrector remains minimal-edit/no-hint, deterministic greedy192, with constrained retry only for malformed JSON. Private correction uses left-padded batches up to4 with smaller-batch fallback on OOM. Batched generation and larger microbatches have not been tested on T4s for this change.
 
-Root selected.json/selected_models contains20B + quality7B. both_challengers/selected.json and its selected_models contain20B +14B. Use tools.replay_focused with the corresponding selection for portable replay. The corrector-only ZIP is an input-bound comparison using frozen full-ensemble labels, not a portable three-model ensemble bundle. Preserve all original quality adapters for that historical system.
+Quality data is unchanged:1128 classifier and1011 corrector exposures;78 development rows stay excluded from fitting. The2034 private sentences are inference-only, not synthetic generation. There is no new annotation repair, data expansion or private supervision.
 
-Root W&B run run stays active through training, inference and export, monitoring numeric progress/quality and CPU/RAM/GPU/VRAM/temperature/power/disk/network. One process splits each model across both T4s; model stages and release gates are sequential. Only a marked controller-owned temporary1039 base cache is evicted; model changes can redownload weights. Allow about40GiB free cache space. User caches, original runs and quality backups are not cleanup targets.
+The old run completed both five-epoch fits, then our41,400-second controller cap killed private correction at856/2034. On the SAME reused78 development rows, quality control combined.5893 versus new20B/14B.6290; this is not an official/private score. Native training-loop runtimes alone were3h27m43s and4h11m6s. This next run removes controller wall/stage caps; Kaggle's own session limit still applies.
 
-Native model-placement estimates are about11.2/11.4GiB per T4 including reserves. These are architecture-based estimates with simulated observed T4 capacities, not measured native peaks or an OOM guarantee. Full native training, runtime and new scores remain pending; local CPU smoke tests prove wiring only.
+For speed, no model preflight/test fit, untrained-baseline generation, postfit saved-checkpoint score replay, decoder sweep, four-way baseline comparison or duplicate selected-model copies. Selected-epoch predictions supply development reports; reload-verification flags remain false. Classify private inputs immediately after Sailor training, before switching the owned base cache to Qwen. Append-only private prediction journals preserve progress; final output order follows exact typed IDs. Root W&B run `run` tracks numeric metrics and CPU/RAM/GPU/VRAM/temperature/power/disk/network through export. Only controller-owned temporary base caches are evicted.
 
-The quality1038 experiment is frozen at archive/track1038-quality-20261019 (338293f), with private backups under backups/track1038-quality-20261019/. Original data/configs/adapters/submission and reporting docs remain preserved. Exact new reported scores are recorded separately in agents/experiments/PRIVATE_REGRESSION_20261019.md. The previous anchored20B/14B plan remains accessible via configs/anchored_unconstrained_experiment.json. Read agents/experiments/QUALITY_TRIAL_20261019.md and its paired JSON for current evidence and limits.
+Standard LoRA does not safely fit these current models on twoT4s: Sailor classifier FP16 base alone is about34.26GiB; Qwen14B is about27.51GiB before training overhead. Keep QLoRA. No full-model training, tests, smoke checks or new score verification were run for this update, as requested. Runtime savings, higher microbatch fit and quality gains remain unmeasured.
+
+The original0.5806 track1038 quality experiment remains frozen at `archive/track1038-quality-20261019`, source338293f, with protected code/docs/data/adapter backups. All old outputs and partial inference remain intact. See `agents/experiments/FAST_RETRAIN_20261020.md` and `.json` for loss/metric evidence and exact scope.

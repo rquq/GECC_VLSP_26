@@ -338,6 +338,17 @@ def correct(model, tokenizer, records, hints, inference):
                           num_return_sequences=ranking["num_candidates"])
         reranker = FrozenReranker(model, tokenizer, ranking, inference["max_length"],
                                  user_role=inference.get("user_role", "user"))
+    if inference.get("batch_size", 1) > 1 and not ranking:
+        try:
+            return _correct_batches(model, tokenizer, records, indexed, inference, generation)
+        except torch.cuda.OutOfMemoryError:
+            pass
+        # Exit the exception block before retrying so traceback-held tensors die.
+        gc.collect()
+        torch.cuda.empty_cache()
+        reduced = max(1, inference["batch_size"] // 2)
+        print(json.dumps({"generation_batch_reduced": reduced}), flush=True)
+        return correct(model, tokenizer, records, hints, {**inference, "batch_size": reduced})
     device = model.get_input_embeddings().weight.device
     model.eval()
     predictions = []
@@ -386,6 +397,46 @@ def correct(model, tokenizer, records, hints, inference):
             if ranking:
                 prediction.update(candidates=candidates, selected_candidate=selected, reranking=ranking)
             predictions.append(prediction)
+    return predictions
+
+
+def _correct_batches(model, tokenizer, records, indexed, inference, generation):
+    """Left-pad decoder prompts; retry malformed JSON individually as before."""
+    import torch
+    batch_size = inference["batch_size"]
+    if type(batch_size) is not int or batch_size < 1:
+        raise ValueError("inference.batch_size must be a positive integer")
+    device = model.get_input_embeddings().weight.device
+    predictions = []
+    model.eval()
+    with torch.inference_mode():
+        for start in range(0, len(records), batch_size):
+            batch = records[start:start + batch_size]
+            prompts = [_prompt_ids(tokenizer, row["source"], indexed[_id_key(row["id"])]["label"], inference)
+                       for row in batch]
+            width = max(map(len, prompts))
+            if width > inference["max_length"]:
+                raise ValueError("Correction prompt exceeds max_length; truncation is forbidden")
+            ids = torch.tensor([[tokenizer.pad_token_id] * (width - len(prompt)) + prompt
+                                for prompt in prompts], device=device)
+            mask = torch.tensor([[0] * (width - len(prompt)) + [1] * len(prompt)
+                                 for prompt in prompts], device=device)
+            output = model.generate(input_ids=ids, attention_mask=mask, **generation)
+            sequences = output.sequences if hasattr(output, "sequences") else output
+            if len(sequences) != len(batch):
+                raise ValueError("Batched correction requires one generated sequence per input")
+            texts = [tokenizer.decode(seq[width:], skip_special_tokens=True).strip() for seq in sequences]
+            del output, sequences, ids, mask
+            for row, text in zip(batch, texts):
+                hint = indexed[_id_key(row["id"])]
+                target, error = _parse_correction(text, row["source"], inference.get("output_format", "sentence"))
+                if error and inference.get("output_format", "sentence") == "sentence":
+                    prediction = correct(model, tokenizer, [row], [hint], {**inference, "batch_size": 1})[0]
+                    prediction["batched_parse_retry"] = True
+                else:
+                    prediction = {"id": row["id"], "label": hint["label"], "target": target,
+                                  "raw_generation": text, "parse_error": error}
+                predictions.append(prediction)
     return predictions
 
 
@@ -716,7 +767,7 @@ def main(*, tracking):
         write_json(path / "loading.json", settings)
         write_json(path / "inference.json", inference)
 
-    if rank == 0 and not final_fit:
+    if rank == 0 and not final_fit and config["evaluation"].get("baseline", True):
         baseline_predictions = predict(model)
         baseline_metrics = experiment_report(validation, baseline_predictions)
         write_json(output / "baseline_predictions.json", comparison_rows(validation, baseline_predictions))
@@ -774,6 +825,16 @@ def main(*, tracking):
                 barrier()
                 model.train()
                 return control
+            interval = config["evaluation"].get("every_n_epochs", 1)
+            epoch_number = int(round(state.epoch))
+            if epoch_number % interval and epoch_number < math.ceil(args.num_train_epochs):
+                if rank == 0:
+                    history.append({"epoch": state.epoch, "optimizer_steps": state.global_step,
+                                    "evaluation_status": "skipped_interval"})
+                    write_json(output / "epoch_history.json", history)
+                barrier()
+                model.train()
+                return control
             if rank == 0:
                 current = trainer.accelerator.unwrap_model(model)
                 predictions = predict(current)
@@ -794,6 +855,8 @@ def main(*, tracking):
                 if best["key"] is None or key > best["key"]:
                     best.update(key=key, epoch=state.epoch)
                     save_adapter(current, adapter_path)
+                    write_json(output / "selected_epoch_predictions.json", comparison_rows(validation, predictions))
+                    write_json(output / "selected_epoch_metrics.json", metrics)
                 print(json.dumps({"epoch": state.epoch, "selection_values": key, "best_epoch": best["epoch"],
                                   "combined_score": metrics["combined_score"],
                                   "combined_score_metadata": metrics["combined_score_metadata"]}), flush=True)
@@ -845,26 +908,37 @@ def main(*, tracking):
         barrier()
         torch.distributed.destroy_process_group()
         return
-    reloaded, reloaded_tokenizer, saved_inference = _reload_selected_corrector(model, adapter_path)
-    del model
-    gc.collect()
-    if device == "cuda":
-        torch.cuda.empty_cache()
-    if final_fit:
-        # Probe saved-adapter generation on a training input, discard its result:
-        # this establishes reload mechanics, never an independent score.
-        correct(reloaded, reloaded_tokenizer, train[:1],
-                [train_hints[_id_key(train[0]["id"])]], saved_inference)
-        from .runtime import unscored_final_report
-        predictions, metrics = [], unscored_final_report()
+    verify_saved = config["evaluation"].get("verify_saved_model", True)
+    if verify_saved:
+        reloaded, reloaded_tokenizer, saved_inference = _reload_selected_corrector(model, adapter_path)
+        del model
+        gc.collect()
+        if device == "cuda":
+            torch.cuda.empty_cache()
+        if final_fit:
+            correct(reloaded, reloaded_tokenizer, train[:1],
+                    [train_hints[_id_key(train[0]["id"])]], saved_inference)
+            from .runtime import unscored_final_report
+            predictions, metrics = [], unscored_final_report()
+        else:
+            predictions = correct(reloaded, reloaded_tokenizer, validation, selected_hints, saved_inference)
+            metrics = experiment_report(validation, predictions)
+        del reloaded, reloaded_tokenizer
     else:
-        predictions = correct(reloaded, reloaded_tokenizer, validation, selected_hints, saved_inference)
-        metrics = experiment_report(validation, predictions)
+        # Use the predictions produced when the selected checkpoint was saved.
+        # No claim of a saved-model replay or independent evaluation is made.
+        del model
+        if final_fit:
+            from .runtime import unscored_final_report
+            predictions, metrics = [], unscored_final_report()
+        else:
+            from .metrics import _load_predictions
+            predictions = _load_predictions(output / "selected_epoch_predictions.json")
+            metrics = json.loads((output / "selected_epoch_metrics.json").read_text())
     write_json(output / "predictions.json", comparison_rows(validation, predictions))
     write_json(output / "metrics.json", metrics)
     tracking.model(adapter_path, "corrector", metadata={"best_epoch": best["epoch"],
                                                      "selection_values": best["key"]}, aliases=["latest", "selected"])
-    del reloaded, reloaded_tokenizer
     gc.collect()
     if device == "cuda":
         torch.cuda.empty_cache()
@@ -894,8 +968,9 @@ def main(*, tracking):
         "selection_metrics": [] if final_fit else list(selection_metrics),
         "selection_rule": ("fixed final epoch; no independent validation" if final_fit else
                            "lexicographic maximum of selection_metrics; ties keep earlier epoch"),
-        "final_fit": final_fit, "saved_adapter_reload_verified": True,
-        "saved_adapter_reloaded_for_evaluation": not final_fit, "peak_allocated_vram_bytes": peak_memory,
+        "final_fit": final_fit, "saved_adapter_reload_verified": verify_saved,
+        "saved_adapter_reloaded_for_evaluation": verify_saved and not final_fit,
+        "verification_status": "completed" if verify_saved else "skipped_user_request", "peak_allocated_vram_bytes": peak_memory,
         "versions": {name: importlib.metadata.version(name) for name in ("torch", "transformers", "peft", "accelerate", "bitsandbytes")},
         "devices": [torch.cuda.get_device_name(i) for i in range(world_size if settings["device_map"] == "single" else 2)] if device == "cuda" else ["cpu"] * world_size,
     }

@@ -1,0 +1,92 @@
+{
+  "task": "classification",
+  "run": {
+    "name": "track1039-fast-classification-20261020",
+    "output_root": "runs",
+    "device": "cuda",
+    "world_size": 1,
+    "seed": 42
+  },
+  "tracking": {
+    "enabled": true,
+    "project": "vlsp26-gec",
+    "entity": null,
+    "mode": "online",
+    "log_models": false,
+    "log_text": false
+  },
+  "data": {
+    "path": null,
+    "filename": "VGEC 2026_v1.json",
+    "correction_path": null,
+    "correction_filename": "VGEC_balanced.json",
+    "input_root": "/kaggle/input",
+    "validation_fraction": 0.2,
+    "augmentation_path": null,
+    "augmentation_filename": "VGEC_classifier.json",
+    "split_seed": 42
+  },
+  "model": {
+    "name": "sail/Sailor2-20B-Chat",
+    "revision": "bca071eb3dedd23b4e141f63e25d9456300534eb",
+    "load_in_4bit": true,
+    "compute_dtype": "float16",
+    "attn_implementation": "sdpa",
+    "device_map": "balanced",
+    "quant_type": "nf4",
+    "use_double_quant": true
+  },
+  "lora": {
+    "r": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.1,
+    "target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ],
+    "bias": "none",
+    "modules_to_save": [
+      "score"
+    ]
+  },
+  "training": {
+    "max_length": 512,
+    "effective_batch_size": 8,
+    "fp16_initial_scale": 1,
+    "class_weight_power": 0.5,
+    "args": {
+      "num_train_epochs": 5,
+      "max_steps": -1,
+      "per_device_train_batch_size": 4,
+      "per_device_eval_batch_size": 8,
+      "learning_rate": 2e-05,
+      "weight_decay": 0.05,
+      "warmup_steps": 20,
+      "gradient_checkpointing": true,
+      "gradient_checkpointing_kwargs": {
+        "use_reentrant": false
+      },
+      "optim": "adamw_torch",
+      "logging_steps": 10,
+      "dataloader_num_workers": 0,
+      "lr_scheduler_type": "cosine",
+      "max_grad_norm": 1,
+      "adam_beta1": 0.9,
+      "adam_beta2": 0.999,
+      "adam_epsilon": 1e-08
+    }
+  },
+  "oof": {
+    "enabled": false
+  },
+  "competition_id": 1039,
+  "evaluation": {
+    "baseline": false,
+    "verify_saved_model": false
+  }
+}
