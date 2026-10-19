@@ -1,0 +1,16 @@
+{
+  "name": "track1039-sailor20b-qwen14b-20261019",
+  "mode": "both",
+  "classification_config": "configs/unconstrained_classification.json",
+  "correction_config": "configs/unconstrained_correction.json",
+  "classifier_run": null,
+  "initial_adapter": null,
+  "data_archive": "VGEC26-track1039-private-20261019.zip",
+  "submission_filename": "private_test.json",
+  "data_sha256": {
+    "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+    "classification": "e02bb92935644cc44105562402f80786f363c03e14ea91f1f40df7e92ea8887a",
+    "correction": "ffa46872882ec7475a049292b8765009902cea43be10dfe5f35a1d1b872c844f"
+  },
+  "submission_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045"
+}

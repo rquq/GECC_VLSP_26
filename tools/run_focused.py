@@ -283,23 +283,28 @@ def validate_plan(plan):
     from model.runtime import load_config
 
     recipe = _json(PROJECT_ROOT / plan["training_recipe"])
+    tracks = set()
     for field in ["classification_config", "correction_config"]:
         c = load_config(PROJECT_ROOT / recipe[field])
+        track = c.get("competition_id", 1038)
+        tracks.add(track)
         if (
             c.get("ensemble")
-            or c["model"].get("load_in_4bit")
+            or (track == 1038 and c["model"].get("load_in_4bit"))
             or c["run"]["seed"] != 42
             or c["data"]["split_seed"] != 42
             or c["data"]["validation_fraction"] != 0.2
         ):
             raise ValueError(
-                "Focused trial requires single-model standard LoRA and shared split42"
+                "Focused trial requires single models, shared split42 and standard LoRA for track1038"
             )
         if (
             c["training"]["args"]["num_train_epochs"] < 5
             or c["training"]["args"].get("max_steps", -1) != -1
         ):
             raise ValueError("Fresh fits require at least five full epochs")
+    if len(tracks) != 1:
+        raise ValueError("Both focused stages must use the same competition_id")
     return recipe
 
 
@@ -382,13 +387,28 @@ def run(
         "VGEC_PIPELINE_TRACKING": "1",
     }
     config = _json(training / "classification_config.json")
-    with TrackingRun() as tracking:
+    from contextlib import ExitStack
+    import tempfile
+
+    with TrackingRun() as tracking, ExitStack() as resources:
+        if device == "cuda" and config.get("competition_id", 1038) == 1039:
+            from model.weight_cache import MARKER
+            temporary_parent = Path("/kaggle/temp")
+            cache = Path(resources.enter_context(tempfile.TemporaryDirectory(
+                prefix="vgec-track1039-base-cache-",
+                dir=temporary_parent if temporary_parent.is_dir() else None))).resolve()
+            (cache / MARKER).write_text("vgec-temporary-base-cache-v1\n")
+            environment.update(HF_HOME=str(cache), HF_HUB_CACHE=str(cache),
+                               HF_XET_CACHE=str(cache / "xet"),
+                               HF_XET_CHUNK_CACHE_SIZE_BYTES="0",
+                               VGEC_WEIGHT_CACHE_ROOT=str(cache))
         tracking.start(
             config,
             output,
             "pipeline",
             group=work.name,
-            metadata={"kind": "focused data challenger and saved baselines"},
+            metadata={"kind": "focused data challenger and saved baselines",
+                      "competition_id": config.get("competition_id", 1038)},
         )
 
         def stage(args, name):
@@ -521,6 +541,7 @@ def run(
             ]
             metrics = experiment_report(gold, selected_predictions)
             selected = {
+                "competition_id": config.get("competition_id", 1038),
                 "classifier_source": class_tag,
                 "decision_rule": "argmax",
                 "corrector_source": correction_tag,
@@ -596,6 +617,7 @@ def run(
                 },
             )
             summary = {
+                "competition_id": config.get("competition_id", 1038),
                 "selected": selected,
                 "selected_metrics": metrics,
                 "classification": diagnostics,
@@ -608,6 +630,7 @@ def run(
             write_json(
                 output / "pipeline_manifest.json",
                 {
+                    "competition_id": config.get("competition_id", 1038),
                     "mode": "tuning",
                     "experiment_kind": "focused",
                     "status": "completed",

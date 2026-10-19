@@ -1,0 +1,546 @@
+{
+  "date": "2026-10-19",
+  "status": "implemented_locally_verified_native_two_t4_pending",
+  "source_base_commit": "4876c4093d02d9a1437b73940cbfdb1546f783dc",
+  "competition_id": 1039,
+  "native_training_runs_this_turn": 0,
+  "configuration": {
+    "configs/unconstrained_classification.json": {
+      "sha256": "a636ea667a908d2ac478dd421a21375f7be0690eec05c052477e56219d5c55dd",
+      "config": {
+        "task": "classification",
+        "run": {
+          "name": "track1039-sailor2-20b",
+          "output_root": "runs",
+          "device": "cuda",
+          "world_size": 1,
+          "seed": 42
+        },
+        "tracking": {
+          "enabled": true,
+          "project": "vlsp26-gec",
+          "entity": null,
+          "mode": "online",
+          "log_models": true,
+          "log_text": false
+        },
+        "data": {
+          "path": null,
+          "filename": "VGEC 2026_v1.json",
+          "correction_path": null,
+          "correction_filename": "VGEC_balanced.json",
+          "input_root": "/kaggle/input",
+          "validation_fraction": 0.2,
+          "augmentation_path": null,
+          "augmentation_filename": "VGEC_classifier.json",
+          "split_seed": 42
+        },
+        "model": {
+          "name": "sail/Sailor2-20B-Chat",
+          "revision": "bca071eb3dedd23b4e141f63e25d9456300534eb",
+          "load_in_4bit": true,
+          "compute_dtype": "float16",
+          "attn_implementation": "sdpa",
+          "device_map": "balanced",
+          "quant_type": "nf4",
+          "use_double_quant": true
+        },
+        "lora": {
+          "r": 16,
+          "lora_alpha": 32,
+          "lora_dropout": 0.05,
+          "target_modules": [
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj"
+          ],
+          "bias": "none",
+          "modules_to_save": [
+            "score"
+          ]
+        },
+        "training": {
+          "max_length": 512,
+          "effective_batch_size": 8,
+          "fp16_initial_scale": 1,
+          "class_weight_power": 0.5,
+          "args": {
+            "num_train_epochs": 5,
+            "max_steps": -1,
+            "per_device_train_batch_size": 1,
+            "per_device_eval_batch_size": 1,
+            "learning_rate": 3e-05,
+            "weight_decay": 0.01,
+            "warmup_steps": 30,
+            "gradient_checkpointing": true,
+            "gradient_checkpointing_kwargs": {
+              "use_reentrant": false
+            },
+            "optim": "adamw_torch",
+            "logging_steps": 10,
+            "dataloader_num_workers": 0,
+            "lr_scheduler_type": "cosine",
+            "max_grad_norm": 1,
+            "adam_beta1": 0.9,
+            "adam_beta2": 0.999,
+            "adam_epsilon": 1e-08
+          }
+        },
+        "oof": {
+          "enabled": false
+        },
+        "competition_id": 1039
+      }
+    },
+    "configs/unconstrained_correction.json": {
+      "sha256": "5f0392237410066cd35578705c2bf4df021bbda2e5dfd80dcd4f9e9094c05630",
+      "config": {
+        "task": "correction",
+        "run": {
+          "name": "track1039-qwen25-14b",
+          "output_root": "runs",
+          "device": "cuda",
+          "world_size": 1,
+          "seed": 42,
+          "archive": false
+        },
+        "tracking": {
+          "enabled": true,
+          "project": "vlsp26-gec",
+          "entity": null,
+          "mode": "online",
+          "log_models": true,
+          "log_text": false
+        },
+        "data": {
+          "path": null,
+          "filename": "VGEC_balanced.json",
+          "input_root": "/kaggle/input",
+          "validation_fraction": 0.2,
+          "split_seed": 42
+        },
+        "model": {
+          "name": "Qwen/Qwen2.5-14B-Instruct",
+          "revision": "cf98f3b3bbb457ad9e2bb7baf9a0125b6b88caa8",
+          "compute_dtype": "float16",
+          "device_map": "balanced",
+          "attn_implementation": "sdpa",
+          "load_in_4bit": true,
+          "quant_type": "nf4",
+          "use_double_quant": true
+        },
+        "lora": {
+          "r": 16,
+          "lora_alpha": 32,
+          "lora_dropout": 0.05,
+          "target_modules": [
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj"
+          ],
+          "bias": "none"
+        },
+        "training": {
+          "max_length": 512,
+          "effective_batch_size": 8,
+          "fp16_initial_scale": 1.0,
+          "args": {
+            "num_train_epochs": 5,
+            "max_steps": -1,
+            "per_device_train_batch_size": 1,
+            "learning_rate": 2e-05,
+            "warmup_ratio": 0.1,
+            "weight_decay": 0.01,
+            "gradient_checkpointing": true,
+            "gradient_checkpointing_kwargs": {
+              "use_reentrant": false
+            },
+            "optim": "adamw_torch",
+            "logging_steps": 1,
+            "dataloader_num_workers": 0,
+            "lr_scheduler_type": "linear",
+            "max_grad_norm": 1.0,
+            "adam_beta1": 0.9,
+            "adam_beta2": 0.999,
+            "adam_epsilon": 1e-08
+          }
+        },
+        "inference": {
+          "output_format": "sentence",
+          "hint_mode": "none",
+          "user_role": "user",
+          "prompt": "H\u00e3y s\u1eeda l\u1ed7i ng\u1eef ph\u00e1p Ti\u1ebfng Vi\u1ec7t. S\u1eeda \u00edt nh\u1ea5t c\u00f3 th\u1ec3, gi\u1eef nguy\u00ean \u00fd ngh\u0129a v\u00e0 h\u00e3y gi\u1eef nguy\u00ean c\u00e2u \u0111\u00fang. Ch\u1ec9 tr\u1ea3 l\u1eddi JSON v\u1edbi duy nh\u1ea5t kh\u00f3a corrected_sentence ch\u1ee9a c\u00e2u ho\u00e0n ch\u1ec9nh; kh\u00f4ng gi\u1ea3i th\u00edch."
+        },
+        "generation": {
+          "max_new_tokens": 192,
+          "do_sample": false,
+          "use_cache": true,
+          "num_beams": 1,
+          "repetition_penalty": 1.0
+        },
+        "evaluation": {
+          "selection_metrics": [
+            "corrections.all.gleu_plus",
+            "corrections.error_only.gleu_plus",
+            "clean_preservation.exact_source_preservation"
+          ],
+          "save_epoch_adapters": false
+        },
+        "competition_id": 1039
+      }
+    },
+    "configs/unconstrained_package_source.json": {
+      "sha256": "5fb0bfd5c2f7b7aa113acef2ec005eb69531a88a61088efc1bdfdc3c9758cf77",
+      "config": {
+        "format": "vgec-focused-package-proof-v1",
+        "manifest_sha256": "49ef98e411c031d2c28be39ec52e92a484fea33c67fcc8a37e79ace7513c9caf",
+        "baseline_classifier_source_commit": "4876c4093d02d9a1437b73940cbfdb1546f783dc",
+        "baseline_corrector_source_commit": "bb7cdf5b28e8f4f161087e819827aaae129e3e51"
+      }
+    },
+    "configs/unconstrained_plan.json": {
+      "sha256": "bb77191b5a5cbc9ee77a017d03f6652dfd5f8aa88d2889bb73a810ffb8ea7fe3",
+      "config": {
+        "format": "vgec-focused-v1",
+        "name": "track1039-sailor20b-qwen14b-20261019",
+        "training_recipe": "configs/unconstrained_training_recipe.json",
+        "package_proof": "configs/unconstrained_package_source.json",
+        "screen_per_class": 2,
+        "finalists": 1,
+        "max_stage_seconds": 36000,
+        "max_wall_seconds": 41400,
+        "decoder_strategies": [
+          {
+            "name": "greedy_reference",
+            "generation": {}
+          }
+        ]
+      }
+    },
+    "configs/unconstrained_training_recipe.json": {
+      "sha256": "58e5d6c48da588aa4a1303ba74d92ae48cc32ff3673ee8e13dc93823b7f3ab2d",
+      "config": {
+        "name": "track1039-sailor20b-qwen14b-20261019",
+        "mode": "both",
+        "classification_config": "configs/unconstrained_classification.json",
+        "correction_config": "configs/unconstrained_correction.json",
+        "classifier_run": null,
+        "initial_adapter": null,
+        "data_archive": "VGEC26-track1039-private-20261019.zip",
+        "submission_filename": "private_test.json",
+        "data_sha256": {
+          "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+          "classification": "e02bb92935644cc44105562402f80786f363c03e14ea91f1f40df7e92ea8887a",
+          "correction": "ffa46872882ec7475a049292b8765009902cea43be10dfe5f35a1d1b872c844f"
+        },
+        "submission_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045"
+      }
+    }
+  },
+  "package": {
+    "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/kaggle-track1039-private-20261019/VGEC26-track1039-private-20261019.zip",
+    "status": "passed",
+    "bound_package_files": 44,
+    "manifest_sha256": "49ef98e411c031d2c28be39ec52e92a484fea33c67fcc8a37e79ace7513c9caf",
+    "archive_bytes": 309540559,
+    "archive_sha256": "0b7809c2fdc5729fb46390521fb24701cde1c1e27e4830b04d426804bd3918c8",
+    "private_rows": 2034,
+    "development_rows": 78,
+    "original_quality_artifacts_rehashed_unchanged": 6,
+    "original_quality_config_files_unchanged": true,
+    "prepared_native_recipe": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/analysis-track1039-20261019/prepared_recipe/track1039-sailor20b-qwen14b-20261019-20261019T014617743457Z",
+    "scope": "Actual upload extraction, hashes and native architecture preparation; no native training"
+  },
+  "native_memory_preflight": {
+    "classification": {
+      "model": {
+        "name": "sail/Sailor2-20B-Chat",
+        "revision": "bca071eb3dedd23b4e141f63e25d9456300534eb",
+        "load_in_4bit": true,
+        "compute_dtype": "float16",
+        "attn_implementation": "sdpa",
+        "device_map": "balanced",
+        "quant_type": "nf4",
+        "use_double_quant": true
+      },
+      "parameters": {
+        "base": 18395133952,
+        "adapter": 91750400,
+        "saved_module_copies": 25600,
+        "padding_allowance": 5120,
+        "total_upper_bound": 18486915072,
+        "competition_id": 1039,
+        "limit": null
+      },
+      "placement": {
+        "device": "cuda",
+        "mode": "balanced",
+        "device_map": {
+          "model.embed_tokens": "cuda:0",
+          "model.rotary_emb": "cuda:0",
+          "model.norm": "cuda:1",
+          "score": "cuda:1",
+          "model.layers.0": "cuda:0",
+          "model.layers.1": "cuda:0",
+          "model.layers.2": "cuda:0",
+          "model.layers.3": "cuda:0",
+          "model.layers.4": "cuda:0",
+          "model.layers.5": "cuda:0",
+          "model.layers.6": "cuda:0",
+          "model.layers.7": "cuda:0",
+          "model.layers.8": "cuda:0",
+          "model.layers.9": "cuda:0",
+          "model.layers.10": "cuda:0",
+          "model.layers.11": "cuda:0",
+          "model.layers.12": "cuda:0",
+          "model.layers.13": "cuda:0",
+          "model.layers.14": "cuda:0",
+          "model.layers.15": "cuda:0",
+          "model.layers.16": "cuda:0",
+          "model.layers.17": "cuda:0",
+          "model.layers.18": "cuda:0",
+          "model.layers.19": "cuda:0",
+          "model.layers.20": "cuda:0",
+          "model.layers.21": "cuda:0",
+          "model.layers.22": "cuda:0",
+          "model.layers.23": "cuda:1",
+          "model.layers.24": "cuda:1",
+          "model.layers.25": "cuda:1",
+          "model.layers.26": "cuda:1",
+          "model.layers.27": "cuda:1",
+          "model.layers.28": "cuda:1",
+          "model.layers.29": "cuda:1",
+          "model.layers.30": "cuda:1",
+          "model.layers.31": "cuda:1",
+          "model.layers.32": "cuda:1",
+          "model.layers.33": "cuda:1",
+          "model.layers.34": "cuda:1",
+          "model.layers.35": "cuda:1",
+          "model.layers.36": "cuda:1",
+          "model.layers.37": "cuda:1",
+          "model.layers.38": "cuda:1",
+          "model.layers.39": "cuda:1",
+          "model.layers.40": "cuda:1",
+          "model.layers.41": "cuda:1",
+          "model.layers.42": "cuda:1",
+          "model.layers.43": "cuda:1",
+          "model.layers.44": "cuda:1",
+          "model.layers.45": "cuda:1",
+          "model.layers.46": "cuda:1",
+          "model.layers.47": "cuda:1",
+          "model.layers.48": "cuda:1",
+          "model.layers.49": "cuda:1",
+          "model.layers.50": "cuda:1",
+          "model.layers.51": "cuda:1",
+          "model.layers.52": "cuda:1",
+          "model.layers.53": "cuda:1",
+          "model.layers.54": "cuda:1",
+          "model.layers.55": "cuda:1",
+          "model.layers.56": "cuda:1",
+          "model.layers.57": "cuda:1",
+          "model.layers.58": "cuda:1",
+          "model.layers.59": "cuda:1",
+          "model.layers.60": "cuda:1",
+          "model.layers.61": "cuda:1",
+          "model.layers.62": "cuda:1",
+          "model.layers.63": "cuda:1"
+        },
+        "compute_dtype": "torch.float16",
+        "quantized": true,
+        "memory_budget": {
+          "cuda:0": {
+            "weight_bytes": 7069986816,
+            "required_bytes": 12071952794,
+            "free_bytes": 15526068224,
+            "total_bytes": 15636037632
+          },
+          "cuda:1": {
+            "weight_bytes": 7056289792,
+            "required_bytes": 12056886068,
+            "free_bytes": 15526068224,
+            "total_bytes": 15636037632
+          }
+        },
+        "resolved_revision": "bca071eb3dedd23b4e141f63e25d9456300534eb"
+      },
+      "scope": "Real native meta architecture; observed Kaggle T4 capacities simulated; no native weights/training loaded"
+    },
+    "correction": {
+      "model": {
+        "name": "Qwen/Qwen2.5-14B-Instruct",
+        "revision": "cf98f3b3bbb457ad9e2bb7baf9a0125b6b88caa8",
+        "compute_dtype": "float16",
+        "device_map": "balanced",
+        "attn_implementation": "sdpa",
+        "load_in_4bit": true,
+        "quant_type": "nf4",
+        "use_double_quant": true
+      },
+      "parameters": {
+        "base": 14770033664,
+        "adapter": 68812800,
+        "saved_module_copies": 0,
+        "padding_allowance": 0,
+        "total_upper_bound": 14838846464,
+        "competition_id": 1039,
+        "limit": null
+      },
+      "placement": {
+        "device": "cuda",
+        "mode": "balanced",
+        "device_map": {
+          "model.embed_tokens": "cuda:0",
+          "model.rotary_emb": "cuda:0",
+          "model.norm": "cuda:1",
+          "lm_head": "cuda:1",
+          "model.layers.0": "cuda:0",
+          "model.layers.1": "cuda:0",
+          "model.layers.2": "cuda:0",
+          "model.layers.3": "cuda:0",
+          "model.layers.4": "cuda:0",
+          "model.layers.5": "cuda:0",
+          "model.layers.6": "cuda:0",
+          "model.layers.7": "cuda:0",
+          "model.layers.8": "cuda:0",
+          "model.layers.9": "cuda:0",
+          "model.layers.10": "cuda:0",
+          "model.layers.11": "cuda:0",
+          "model.layers.12": "cuda:0",
+          "model.layers.13": "cuda:0",
+          "model.layers.14": "cuda:0",
+          "model.layers.15": "cuda:0",
+          "model.layers.16": "cuda:0",
+          "model.layers.17": "cuda:0",
+          "model.layers.18": "cuda:0",
+          "model.layers.19": "cuda:0",
+          "model.layers.20": "cuda:0",
+          "model.layers.21": "cuda:0",
+          "model.layers.22": "cuda:0",
+          "model.layers.23": "cuda:0",
+          "model.layers.24": "cuda:1",
+          "model.layers.25": "cuda:1",
+          "model.layers.26": "cuda:1",
+          "model.layers.27": "cuda:1",
+          "model.layers.28": "cuda:1",
+          "model.layers.29": "cuda:1",
+          "model.layers.30": "cuda:1",
+          "model.layers.31": "cuda:1",
+          "model.layers.32": "cuda:1",
+          "model.layers.33": "cuda:1",
+          "model.layers.34": "cuda:1",
+          "model.layers.35": "cuda:1",
+          "model.layers.36": "cuda:1",
+          "model.layers.37": "cuda:1",
+          "model.layers.38": "cuda:1",
+          "model.layers.39": "cuda:1",
+          "model.layers.40": "cuda:1",
+          "model.layers.41": "cuda:1",
+          "model.layers.42": "cuda:1",
+          "model.layers.43": "cuda:1",
+          "model.layers.44": "cuda:1",
+          "model.layers.45": "cuda:1",
+          "model.layers.46": "cuda:1",
+          "model.layers.47": "cuda:1"
+        },
+        "compute_dtype": "torch.float16",
+        "quantized": true,
+        "memory_budget": {
+          "cuda:0": {
+            "weight_bytes": 7244709888,
+            "required_bytes": 12264148173,
+            "free_bytes": 15526068224,
+            "total_bytes": 15636037632
+          },
+          "cuda:1": {
+            "weight_bytes": 7244730368,
+            "required_bytes": 12264170701,
+            "free_bytes": 15526068224,
+            "total_bytes": 15636037632
+          }
+        },
+        "resolved_revision": "cf98f3b3bbb457ad9e2bb7baf9a0125b6b88caa8"
+      },
+      "scope": "Real native meta architecture; observed Kaggle T4 capacities simulated; no native weights/training loaded"
+    }
+  },
+  "native_tokenizer_preflight": {
+    "classification": {
+      "name": "sail/Sailor2-20B-Chat",
+      "revision": "bca071eb3dedd23b4e141f63e25d9456300534eb",
+      "train_exposures": 651,
+      "development_rows": 78,
+      "dedicated_pad_added": false,
+      "pad_distinct_from_eos": true,
+      "max_source_tokens": 74,
+      "sources_over512": 0
+    },
+    "correction": {
+      "name": "Qwen/Qwen2.5-14B-Instruct",
+      "revision": "cf98f3b3bbb457ad9e2bb7baf9a0125b6b88caa8",
+      "train_exposures": 489,
+      "development_rows": 78,
+      "encoded_train_rows": 489,
+      "max_encoded_tokens": 183,
+      "max_prompt_tokens": 140,
+      "prompts_over512": 0,
+      "all_encoded_rows_have_response_labels": true,
+      "reference_format_conditioning": null
+    }
+  },
+  "local_tiny_workflow": {
+    "status": "passed",
+    "fits": 4,
+    "epochs_per_fit": 5,
+    "device": "CPU",
+    "quantized": false,
+    "log": "/tmp/vgec-track1039-smoke-final.log",
+    "scope": "actual fits/reloads/full controller/export on artificial data; not native QLoRA"
+  },
+  "regression_tests": {
+    "status": "passed",
+    "count": 263,
+    "log": "/tmp/vgec-track1039-tests-verified.log"
+  },
+  "baseline_fallback": {
+    "classification": "October19 anchored Sailor7B, Macro0.6898735475051264",
+    "correction": "October16 Qwen7B, greedy GLEU0.6313346044635398"
+  },
+  "guidelines": {
+    "original_labels_and_targets_changed": false,
+    "development_rows": 78,
+    "private_inference_rows": 2034,
+    "seed": 42,
+    "teacher_generated_rows_added": 0,
+    "private_test_training_rows": 0,
+    "native_architecture_counts_not_packed_storage": true
+  },
+  "hardware_scope": "2separate Kaggle T4 banks, observed15,636,037,632bytes total/card simulated for native preflight. No local20B/14B base loading or dual-T4 training benchmark.",
+  "cache_policy": "One frozen base at a time in marked controller-owned temporary HF cache outside saved output; adapters/user caches/backups untouched; model changes may redownload weights.",
+  "quality_experiment_preservation": "archive/track1038-quality-20261019 and backups/track1038-quality-20261019; original artifacts independently rehashed unchanged",
+  "official_sources": [
+    "https://aihub.ml/competitions/1039#learn_the_details-overview",
+    "https://huggingface.co/sail/Sailor2-20B-Chat",
+    "https://huggingface.co/Qwen/Qwen2.5-14B-Instruct",
+    "https://huggingface.co/docs/transformers/quantization/bitsandbytes",
+    "https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables"
+  ],
+  "remaining_limits": [
+    "Native multi-GPU NF4 training/runtime/peak memory unmeasured",
+    "New model size, precision, classifierLR and corrector instruction changes confounded",
+    "Repeated78-row development selection is not an independent/private score",
+    "Kaggle Internet/base download availability and session wall time remain external limits"
+  ],
+  "additional_final_focused_tests": {
+    "status": "passed",
+    "count": 29,
+    "log": "/tmp/vgec-track1039-final-focused.log"
+  }
+}

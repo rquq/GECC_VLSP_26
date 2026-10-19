@@ -1,0 +1,1162 @@
+{
+  "source_run": "runs/19_10_2026/runs/focused-sailor-qwen-20261018-20261018T124500964626Z/run",
+  "source_commit": "4876c4093d02d9a1437b73940cbfdb1546f783dc",
+  "selected": {
+    "classifier_source": "challenger",
+    "decision_rule": "argmax",
+    "corrector_source": "baseline",
+    "strategy": {
+      "name": "greedy_reference",
+      "generation": {}
+    },
+    "scope": "selected on reused78-row development set; official/private score unknown",
+    "classifier_path": "selected_models/classification/classifier",
+    "adapter": "selected_models/correction/adapter",
+    "file_manifest": "selected_models/file_manifest.json",
+    "file_manifest_sha256": "ceca156bebe07b7b2b9f9cb35cbcf2d6ec6ff9cdf531f4733f73952ba1aea897",
+    "replay_entrypoint": "python -m tools.replay_focused --selection <run>/selected.json --data <input.json> --output <new-directory>"
+  },
+  "selected_metrics": {
+    "count": 78,
+    "classification": {
+      "macro_f1": 0.6898735475051263,
+      "micro_f1": 0.8333333333333334,
+      "confusion_matrix": [
+        [
+          39,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          15,
+          1,
+          2,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          3,
+          3,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          5,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          3,
+          3,
+          0
+        ]
+      ],
+      "labels": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "prediction_columns": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        "invalid"
+      ],
+      "per_class": {
+        "0": {
+          "precision": 0.975,
+          "recall": 0.975,
+          "f1": 0.975,
+          "support": 40
+        },
+        "1": {
+          "precision": 0.9375,
+          "recall": 0.7894736842105263,
+          "f1": 0.8571428571428571,
+          "support": 19
+        },
+        "2": {
+          "precision": 0.6,
+          "recall": 0.5,
+          "f1": 0.5454545454545454,
+          "support": 6
+        },
+        "3": {
+          "precision": 0.38461538461538464,
+          "recall": 0.8333333333333334,
+          "f1": 0.5263157894736842,
+          "support": 6
+        },
+        "4": {
+          "precision": 0.75,
+          "recall": 0.42857142857142855,
+          "f1": 0.5454545454545454,
+          "support": 7
+        }
+      }
+    },
+    "corrections": {
+      "all": {
+        "count": 78,
+        "exact_match": 0.5512820512820513,
+        "gleu_plus": 0.6313346044635397,
+        "rouge_l": 0.8782934693810389
+      },
+      "error_only": {
+        "count": 38,
+        "exact_match": 0.07894736842105263,
+        "gleu_plus": 0.23771644653437812,
+        "rouge_l": 0.7501813318873957
+      }
+    },
+    "combined_score": 0.660604075984333,
+    "combined_score_metadata": {
+      "official": false,
+      "formula": "0.5 * classification.macro_f1 + 0.5 * corrections.all.gleu_plus",
+      "scope": "Macro-F1 over all five classes; GLEU+ over all scored rows, including clean rows",
+      "version": 2,
+      "reference": "https://aihub.ml/competitions/1038#learn_the_details-evaluation",
+      "implementation": "Local GLEU+ approximation; official scoring remains authoritative",
+      "checkpoint_selection": "Unchanged; combined_score is a local reporting metric only"
+    },
+    "invalid_prediction_rate": 0.0,
+    "clean_preservation": {
+      "count": 40,
+      "exact_source_preservation": 1.0,
+      "overcorrection_rate": 0.0
+    },
+    "invalid_json_rate": 0.0,
+    "reference_slices": {
+      "annotation_like": {
+        "count": 26,
+        "metrics": {
+          "count": 26,
+          "classification": {
+            "macro_f1": 0.4818181818181818,
+            "micro_f1": 0.6538461538461539,
+            "confusion_matrix": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                9,
+                1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                3,
+                3,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                2,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                1,
+                3,
+                3,
+                0
+              ]
+            ],
+            "labels": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "prediction_columns": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              "invalid"
+            ],
+            "per_class": {
+              "0": {
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "support": 0
+              },
+              "1": {
+                "precision": 1.0,
+                "recall": 0.8181818181818182,
+                "f1": 0.9,
+                "support": 11
+              },
+              "2": {
+                "precision": 0.6,
+                "recall": 0.5,
+                "f1": 0.5454545454545454,
+                "support": 6
+              },
+              "3": {
+                "precision": 0.2222222222222222,
+                "recall": 1.0,
+                "f1": 0.36363636363636365,
+                "support": 2
+              },
+              "4": {
+                "precision": 1.0,
+                "recall": 0.42857142857142855,
+                "f1": 0.6,
+                "support": 7
+              }
+            }
+          },
+          "corrections": {
+            "all": {
+              "count": 26,
+              "exact_match": 0.038461538461538464,
+              "gleu_plus": 0.0,
+              "rouge_l": 0.6769487250634479
+            },
+            "error_only": {
+              "count": 26,
+              "exact_match": 0.038461538461538464,
+              "gleu_plus": 0.0,
+              "rouge_l": 0.6769487250634479
+            }
+          },
+          "combined_score": 0.2409090909090909,
+          "combined_score_metadata": {
+            "official": false,
+            "formula": "0.5 * classification.macro_f1 + 0.5 * corrections.all.gleu_plus",
+            "scope": "Macro-F1 over all five classes; GLEU+ over all scored rows, including clean rows",
+            "version": 2,
+            "reference": "https://aihub.ml/competitions/1038#learn_the_details-evaluation",
+            "implementation": "Local GLEU+ approximation; official scoring remains authoritative",
+            "checkpoint_selection": "Unchanged; combined_score is a local reporting metric only"
+          },
+          "invalid_prediction_rate": 0.0
+        }
+      },
+      "standalone_error": {
+        "count": 12,
+        "metrics": {
+          "count": 12,
+          "classification": {
+            "macro_f1": 0.32142857142857145,
+            "micro_f1": 0.75,
+            "confusion_matrix": [
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                6,
+                0,
+                1,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                1,
+                0,
+                0,
+                3,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "labels": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "prediction_columns": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              "invalid"
+            ],
+            "per_class": {
+              "0": {
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "support": 0
+              },
+              "1": {
+                "precision": 1.0,
+                "recall": 0.75,
+                "f1": 0.8571428571428571,
+                "support": 8
+              },
+              "2": {
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "support": 0
+              },
+              "3": {
+                "precision": 0.75,
+                "recall": 0.75,
+                "f1": 0.75,
+                "support": 4
+              },
+              "4": {
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "support": 0
+              }
+            }
+          },
+          "corrections": {
+            "all": {
+              "count": 12,
+              "exact_match": 0.16666666666666666,
+              "gleu_plus": 0.7422089112941275,
+              "rouge_l": 0.9088519800059488
+            },
+            "error_only": {
+              "count": 12,
+              "exact_match": 0.16666666666666666,
+              "gleu_plus": 0.7422089112941275,
+              "rouge_l": 0.9088519800059488
+            }
+          },
+          "combined_score": 0.5318187413613494,
+          "combined_score_metadata": {
+            "official": false,
+            "formula": "0.5 * classification.macro_f1 + 0.5 * corrections.all.gleu_plus",
+            "scope": "Macro-F1 over all five classes; GLEU+ over all scored rows, including clean rows",
+            "version": 2,
+            "reference": "https://aihub.ml/competitions/1038#learn_the_details-evaluation",
+            "implementation": "Local GLEU+ approximation; official scoring remains authoritative",
+            "checkpoint_selection": "Unchanged; combined_score is a local reporting metric only"
+          },
+          "invalid_prediction_rate": 0.0
+        }
+      }
+    },
+    "annotation_audit": [
+      {
+        "id": 15,
+        "source": "M\u0169i vu h\u1ed3i t\u00e1o b\u1ea1o c\u1ee7a t\u1ed5 chi\u1ebfn \u0111\u1ea5u do P\u00f9ng d\u1eabn \u0111\u00e3 t\u1ea1o ra b\u01b0\u1edbc ngo\u1eb7t chuy\u1ec3n b\u1ea1i th\u00e0nh th\u1eafng \u0111\u01b0\u1ee3c.",
+        "reference": "M\u0169i vu h\u1ed3i t\u00e1o b\u1ea1o... \u0111\u00e3 t\u1ea1o ra \u0111\u01b0\u1ee3c b\u01b0\u1edbc ngo\u1eb7t chuy\u1ec3n b\u1ea1i th\u00e0nh th\u1eafng.",
+        "prediction": "M\u0169i vu h\u1ed3i t\u00e1o b\u1ea1o c\u1ee7a t\u1ed5 chi\u1ebfn \u0111\u1ea5u do P\u00f9ng d\u1eabn \u0111\u00e3 t\u1ea1o ra b\u01b0\u1edbc ngo\u1eb7t chuy\u1ec3n b\u1ea1i th\u00e0nh th\u1eafng.",
+        "label": 1,
+        "predicted_label": 1,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 16,
+        "source": "Ta ph\u1ea3i tranh ch\u1ea5p v\u00f9ng \u0111\u1ed3ng b\u1eb1ng v\u1edbi \u0111\u1ecbch, \u0111\u1ed9ng vi\u00ean \u0111\u01b0\u1ee3c ngu\u1ed3n nh\u00e2n v\u1eadt l\u1ef1c h\u00f9ng h\u1eadu \u1edf \u0111\u00f3 \u0111\u1ec3 \u0111\u00e1nh b\u1ea1i \u0111\u01b0\u1ee3c k\u1ebb \u0111\u1ecbch.",
+        "reference": "Ta ph\u1ea3i tranh ch\u1ea5p... \u0111\u1ed9ng vi\u00ean cho \u0111\u01b0\u1ee3c ngu\u1ed3n nh\u00e2n v\u1eadt l\u1ef1c... \u0111\u1ec3 \u0111\u00e1nh b\u1ea1i \u0111\u01b0\u1ee3c k\u1ebb \u0111\u1ecbch.",
+        "prediction": "Ta ph\u1ea3i tranh ch\u1ea5p v\u00f9ng \u0111\u1ed3ng b\u1eb1ng v\u1edbi \u0111\u1ecbch, \u0111\u1ed9ng vi\u00ean \u0111\u01b0\u1ee3c ngu\u1ed3n nh\u00e2n v\u1eadt l\u1ef1c h\u00f9ng h\u1eadu \u1edf \u0111\u00f3 \u0111\u1ec3 \u0111\u00e1nh b\u1ea1i \u0111\u01b0\u1ee3c k\u1ebb \u0111\u1ecbch.",
+        "label": 1,
+        "predicted_label": 1,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 24,
+        "source": "\u0110\u1ecdc tin tr\u00ean, ai c\u0169ng ph\u1ea3i lo ng\u1ea1i kh\u00f4ng bi\u1ebft m\u1ed9t ng\u00e0y n\u00e0o \u0111\u00f3, tai n\u1ea1n \u0111au bu\u1ed3n n\u00f3i tr\u00ean s\u1ebd \u1eadp xu\u1ed1ng gia \u0111\u00ecnh m\u00ecnh.",
+        "reference": "\u0110\u1ecdc tin tr\u00ean, ai c\u0169ng ph\u1ea3i lo ng\u1ea1i r\u1eb1ng m\u1ed9t ng\u00e0y n\u00e0o \u0111\u00f3, tai n\u1ea1n \u0111au bu\u1ed3n... s\u1ebd \u1eadp xu\u1ed1ng gia \u0111\u00ecnh m\u00ecnh.",
+        "prediction": "\u0110\u1ecdc tin tr\u00ean, ai c\u0169ng ph\u1ea3i lo ng\u1ea1i kh\u00f4ng bi\u1ebft m\u1ed9t ng\u00e0y n\u00e0o \u0111\u00f3, tai n\u1ea1n \u0111au bu\u1ed3n n\u00f3i tr\u00ean s\u1ebd \u1eadp xu\u1ed1ng gia \u0111\u00ecnh m\u00ecnh.",
+        "label": 1,
+        "predicted_label": 2,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 26,
+        "source": "V\u00e0o l\u00fac \u0111\u00f3, ch\u00ednh quy\u1ec1n \u0111\u00f4 h\u1ed9 \u1edf n\u01b0\u1edbc ta sau nh\u1eefng cu\u1ed9c kh\u1edfi ngh\u0129a c\u1ee7a nh\u00e2n d\u00e2n ta v\u00e0 c\u1ee7a binh s\u0129 ng\u01b0\u1eddi Vi\u1ec7t l\u00e0m cho n\u1ec1n t\u1ea3ng c\u1ee7a s\u1ef1 \u0111\u00f4 h\u1ed9 b\u1ecb lung lay d\u1eef d\u1ed9i.",
+        "reference": "V\u00e0o l\u00fac \u0111\u00f3, ch\u00ednh quy\u1ec1n \u0111\u00f4 h\u1ed9 \u1edf n\u01b0\u1edbc ta, sau nh\u1eefng cu\u1ed9c kh\u1edfi ngh\u0129a... \u0111\u00e3 b\u1ecb lung lay d\u1eef d\u1ed9i.",
+        "prediction": "V\u00e0o l\u00fac \u0111\u00f3, ch\u00ednh quy\u1ec1n \u0111\u00f4 h\u1ed9 \u1edf n\u01b0\u1edbc ta (v\u1edbi nh\u1eefng cu\u1ed9c kh\u1edfi ngh\u0129a c\u1ee7a nh\u00e2n d\u00e2n ta v\u00e0 c\u1ee7a binh s\u0129 ng\u01b0\u1eddi Vi\u1ec7t) \u0111\u00e3 l\u00e0m cho n\u1ec1n t\u1ea3ng c\u1ee7a s\u1ef1 \u0111\u00f4 h\u1ed9 b\u1ecb lung lay d\u1eef d\u1ed9i.",
+        "label": 1,
+        "predicted_label": 1,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 33,
+        "source": "Trong l\u00fac \u0111\u1eddi s\u1ed1ng nh\u00e2n d\u00e2n ta c\u00f2n nhi\u1ec1u kh\u00f3 kh\u0103n, cho n\u00ean ch\u00fang ta ph\u1ea3i t\u00edch c\u1ef1c lao \u0111\u1ed9ng...",
+        "reference": "Trong l\u00fac \u0111\u1eddi s\u1ed1ng nh\u00e2n d\u00e2n ta c\u00f2n nhi\u1ec1u kh\u00f3 kh\u0103n, ch\u00fang ta ph\u1ea3i t\u00edch c\u1ef1c lao \u0111\u1ed9ng...",
+        "prediction": "V\u00ec \u0111\u1eddi s\u1ed1ng nh\u00e2n d\u00e2n ta c\u00f2n nhi\u1ec1u kh\u00f3 kh\u0103n, ch\u00fang ta ph\u1ea3i t\u00edch c\u1ef1c lao \u0111\u1ed9ng...",
+        "label": 1,
+        "predicted_label": 1,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 38,
+        "source": "Trong t\u00ecnh h\u00ecnh kinh t\u1ebf hi\u1ec7n t\u1ea1i \u0111\u00f2i h\u1ecfi ch\u00fang ta ph\u1ea3i ki\u00ean quy\u1ebft x\u00f3a b\u1ecf ch\u1ebf \u0111\u1ed9 quan li\u00eau...",
+        "reference": "T\u00ecnh h\u00ecnh kinh t\u1ebf hi\u1ec7n t\u1ea1i \u0111\u00f2i h\u1ecfi ch\u00fang ta ph\u1ea3i ki\u00ean quy\u1ebft x\u00f3a b\u1ecf ch\u1ebf \u0111\u1ed9 quan li\u00eau...",
+        "prediction": "Trong t\u00ecnh h\u00ecnh kinh t\u1ebf hi\u1ec7n t\u1ea1i, vi\u1ec7c \u0111\u00f2i h\u1ecfi ch\u00fang ta l\u00e0 ph\u1ea3i ki\u00ean quy\u1ebft x\u00f3a b\u1ecf...",
+        "label": 1,
+        "predicted_label": 1,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 40,
+        "source": "Ph\u00e2n t\u00edch \u0111o\u1ea1n v\u0103n tr\u00ean c\u00f3 ba \u00fd ch\u00ednh : t\u1ea3 h\u00ecnh d\u00e1ng con m\u00e8o...",
+        "reference": "\u0110o\u1ea1n v\u0103n tr\u00ean c\u00f3 ba \u00fd ch\u00ednh : t\u1ea3 h\u00ecnh d\u00e1ng con m\u00e8o...",
+        "prediction": "Ph\u00e2n t\u00edch \u0111o\u1ea1n v\u0103n tr\u00ean c\u00f3 ba \u00fd ch\u00ednh : t\u1ea3 h\u00ecnh d\u00e1ng con m\u00e8o...",
+        "label": 1,
+        "predicted_label": 1,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 53,
+        "source": "V\u1eadt t\u01b0 ch\u1ea1y l\u00f2ng v\u00f2ng t\u1eeb c\u01a1 quan n\u00e0y sang c\u01a1 quan kh\u00e1c; l\u00fac c\u1ea7n th\u00ec kh\u00f4ng c\u00f3, l\u00fac c\u00f3 \u0111\u01b0\u1ee3c th\u00ec gi\u00e1 \u0111\u00e3 t\u0103ng v\u1ecdt...",
+        "reference": "V\u1eadt t\u01b0 ch\u1ea1y l\u00f2ng v\u00f2ng... \u0110\u1ebfn n\u1ed7i l\u00fac c\u1ea7n th\u00ec kh\u00f4ng c\u00f3, l\u00fac c\u00f3 \u0111\u01b0\u1ee3c th\u00ec gi\u00e1 \u0111\u00e3 t\u0103ng v\u1ecdt.",
+        "prediction": "V\u1eadt t\u01b0 ch\u1ea1y l\u00f2ng v\u00f2ng t\u1eeb c\u01a1 quan n\u00e0y sang c\u01a1 quan kh\u00e1c; l\u00fac c\u1ea7n th\u00ec kh\u00f4ng c\u00f3, l\u00fac c\u00f3 \u0111\u01b0\u1ee3c th\u00ec gi\u00e1 \u0111\u00e3 t\u0103ng v\u1ecdt...",
+        "label": 1,
+        "predicted_label": 1,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 89,
+        "source": "N\u01a1i n\u00e0o c\u00f3 phong tr\u00e0o l\u00e0m th\u1ee7y l\u1ee3i theo ph\u01b0\u01a1ng ch\u00e2m Nh\u00e0 n\u01b0\u1edbc v\u00e0 nh\u00e2n d\u00e2n c\u00f9ng l\u00e0m gi\u1ecfi l\u00e0 n\u01a1i \u0111\u00f3 c\u00f3 c\u1ea5p huy\u1ec7n m\u1ea1nh.",
+        "reference": "N\u01a1i n\u00e0o c\u00f3 phong tr\u00e0o l\u00e0m th\u1ee7y l\u1ee3i gi\u1ecfi theo ph\u01b0\u01a1ng ch\u00e2m... l\u00e0 n\u01a1i \u0111\u00f3 c\u00f3 c\u1ea5p huy\u1ec7n m\u1ea1nh.",
+        "prediction": "N\u01a1i n\u00e0o c\u00f3 phong tr\u00e0o l\u00e0m th\u1ee7y l\u1ee3i theo ph\u01b0\u01a1ng ch\u00e2m Nh\u00e0 n\u01b0\u1edbc v\u00e0 nh\u00e2n d\u00e2n c\u00f9ng l\u00e0m th\u00ec n\u01a1i \u0111\u00f3 m\u1edbi th\u1ef1c s\u1ef1 c\u00f3 c\u1ea5p huy\u1ec7n m\u1ea1nh.",
+        "label": 1,
+        "predicted_label": 1,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 92,
+        "source": "V\u00e0o l\u00fac \u0111\u00f3, ch\u00ednh quy\u1ec1n \u0111\u00f4 h\u1ed9 \u1edf n\u01b0\u1edbc ta sau nh\u1eefng cu\u1ed9c kh\u1edfi ngh\u0129a... l\u00e0m cho n\u1ec1n t\u1ea3ng c\u1ee7a s\u1ef1 \u0111\u00f4 h\u1ed9 b\u1ecb lung lay d\u1eef d\u1ed9i.",
+        "reference": "V\u00e0o l\u00fac \u0111\u00f3, ch\u00ednh quy\u1ec1n \u0111\u00f4 h\u1ed9 \u1edf n\u01b0\u1edbc ta... \u0111\u00e3 b\u1ecb lung lay d\u1eef d\u1ed9i.",
+        "prediction": "V\u00e0o l\u00fac \u0111\u00f3, ch\u00ednh quy\u1ec1n \u0111\u00f4 h\u1ed9... \u0111\u00e3 l\u00e0m cho n\u1ec1n t\u1ea3ng c\u1ee7a s\u1ef1 \u0111\u00f4 h\u1ed9 b\u1ecb lung lay d\u1eef d\u1ed9i.",
+        "label": 1,
+        "predicted_label": 1,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 95,
+        "source": "Trong qu\u00e1 tr\u00ecnh khai kh\u1ea9n m\u1ea3nh \u0111\u1ea5t hoang s\u01a1... \u0111\u1ec3 bi\u1ebfn th\u00e0nh nh\u1eefng c\u00e1nh \u0111\u1ed3ng m\u00e0u m\u1ee1...",
+        "reference": "Trong qu\u00e1 tr\u00ecnh khai kh\u1ea9n... nh\u00e2n d\u00e2n ta \u0111\u00e3 \u0111\u1ed5 ra kh\u00f4ng \u00edt m\u1ed3 h\u00f4i.",
+        "prediction": "Trong qu\u00e1 tr\u00ecnh khai kh\u1ea9n m\u1ea3nh \u0111\u1ea5t hoang s\u01a1... ng\u01b0\u1eddi d\u00e2n \u0111\u00e3 bi\u1ebfn n\u00f3 th\u00e0nh nh\u1eefng c\u00e1nh \u0111\u1ed3ng m\u00e0u m\u1ee1...",
+        "label": 1,
+        "predicted_label": 3,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 102,
+        "source": "Trong kh\u00f3i cay m\u00f9 m\u1ecbt ti\u1ebfng s\u00fang t\u1eeb tay Ch\u1ee9c n\u1ed5 kh\u00f4 kh\u1ed1c vang l\u00ean c\u00f9ng ti\u1ebfng h\u00e9t l\u1edbn c\u1ee7a t\u00ean c\u01b0\u1edbp v\u1eeba tr\u00fang \u0111\u1ea1n v\u00e0o c\u1ed5.",
+        "reference": "Trong kh\u00f3i cay m\u00f9 m\u1ecbt, ti\u1ebfng s\u00fang t\u1eeb tay Ch\u1ee9c n\u1ed5 kh\u00f4 kh\u1ed1c vang l\u00ean c\u00f9ng ti\u1ebfng h\u00e9t l\u1edbn...",
+        "prediction": "Trong kh\u00f3i cay m\u00f9 m\u1ecbt, ti\u1ebfng s\u00fang t\u1eeb tay Ch\u1ee9c n\u1ed5 kh\u00f4 kh\u1ed1c vang l\u00ean c\u00f9ng ti\u1ebfng h\u00e9t l\u1edbn c\u1ee7a t\u00ean c\u01b0\u1edbp v\u1eeba tr\u00fang \u0111\u1ea1n v\u00e0o c\u1ed5.",
+        "label": 2,
+        "predicted_label": 2,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 110,
+        "source": "[M\u1edbi \u0111\u00e2y, t\u1ea1i th\u00e0nh ph\u1ed1 H\u1ed3 Ch\u00ed Minh, Ban Ch\u1ea5p h\u00e0nh Hi\u1ec7p h\u1ed9i Bao b\u00ec Vi\u1ec7t Nam \u0111\u00e3 nh\u00f3m h\u1ecdp sau khi ra Hi\u1ec7p h\u1ed9i \u0111\u01b0\u1ee3c th\u00e0nh l\u1eadp c\u00e1ch \u0111\u00e2y 5 th\u00e1ng t\u1ea1i H\u00e0 N\u1ed9i.]",
+        "reference": "M\u1edbi \u0111\u00e2y... Ban Ch\u1ea5p h\u00e0nh Hi\u1ec7p h\u1ed9i Bao b\u00ec Vi\u1ec7t Nam \u0111\u00e3 nh\u00f3m h\u1ecdp sau khi Hi\u1ec7p h\u1ed9i n\u00e0y \u0111\u01b0\u1ee3c th\u00e0nh l\u1eadp...",
+        "prediction": "M\u1edbi \u0111\u00e2y, t\u1ea1i th\u00e0nh ph\u1ed1 H\u1ed3 Ch\u00ed Minh, Ban Ch\u1ea5p h\u00e0nh Hi\u1ec7p h\u1ed9i Bao b\u00ec Vi\u1ec7t Nam \u0111\u00e3 nh\u00f3m h\u1ecdp sau khi ra Hi\u1ec7p h\u1ed9i \u0111\u01b0\u1ee3c th\u00e0nh l\u1eadp c\u00e1ch \u0111\u00e2y 5 th\u00e1ng t\u1ea1i H\u00e0 N\u1ed9i.",
+        "label": 2,
+        "predicted_label": 2,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 113,
+        "source": "Ch\u00fang t\u00f4i \u0111\u00e3 th\u1ed1ng nh\u1ea5t th\u1ef1c hi\u1ec7n l\u00e0 c\u1ea3i c\u00e1ch, n\u00e2ng cao c\u00f4ng v\u1ee5, kh\u1eafc ph\u1ee5c quan li\u00eau...",
+        "reference": "Ch\u00fang t\u00f4i \u0111\u00e3 th\u1ed1ng nh\u1ea5t th\u1ef1c hi\u1ec7n c\u1ea3i c\u00e1ch, n\u00e2ng cao c\u00f4ng v\u1ee5...",
+        "prediction": "Ch\u00fang t\u00f4i \u0111\u00e3 th\u1ed1ng nh\u1ea5t th\u1ef1c hi\u1ec7n c\u1ea3i c\u00e1ch, n\u00e2ng cao c\u00f4ng v\u1ee5, kh\u1eafc ph\u1ee5c quan li\u00eau...",
+        "label": 2,
+        "predicted_label": 3,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 114,
+        "source": "C\u00e1c th\u00e0nh vi\u00ean trong khu v\u1ef1c mi\u1ec1n \u0110\u00f4ng c\u0169ng \u0111\u00e3 ki\u1ebfn ngh\u1ecb v\u1edbi c\u00e1c \u0111\u1ecba ph\u01b0\u01a1ng c\u1ea7n xem x\u00e9t h\u1ed7 tr\u1ee3 t\u1ea1o v\u00f9ng nguy\u00ean li\u1ec7u \u1ed5n \u0111\u1ecbnh.",
+        "reference": "C\u00e1c th\u00e0nh vi\u00ean... ki\u1ebfn ngh\u1ecb: c\u00e1c \u0111\u1ecba ph\u01b0\u01a1ng c\u1ea7n xem x\u00e9t...",
+        "prediction": "C\u00e1c th\u00e0nh vi\u00ean trong khu v\u1ef1c mi\u1ec1n \u0110\u00f4ng \u0111\u00e3 ki\u1ebfn ngh\u1ecb v\u1edbi c\u00e1c \u0111\u1ecba ph\u01b0\u01a1ng c\u1ea7n xem x\u00e9t h\u1ed7 tr\u1ee3 \u0111\u1ec3 t\u1ea1o v\u00f9ng nguy\u00ean li\u1ec7u \u1ed5n \u0111\u1ecbnh.",
+        "label": 2,
+        "predicted_label": 3,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 124,
+        "source": "Nh\u1eefng n\u0103m g\u1ea7n \u0111\u00e2y \u0110\u00e0i PTTH Ki\u00ean Giang \u0111\u01b0\u1ee3c \u0111\u1ea7u t\u01b0 tr\u00ean 23 t\u1ef7 \u0111\u1ed3ng \u0111\u1ec3 x\u00e2y d\u1ef1ng trung t\u00e2m PTTH.",
+        "reference": "Nh\u1eefng n\u0103m g\u1ea7n \u0111\u00e2y \u0110\u00e0i PTTH Ki\u00ean Giang \u0111\u00e3 \u0111\u01b0\u1ee3c \u0111\u1ea7u t\u01b0...",
+        "prediction": "Nh\u1eefng n\u0103m g\u1ea7n \u0111\u00e2y \u0110\u00e0i PTTH Ki\u00ean Giang \u0111\u01b0\u1ee3c \u0111\u1ea7u t\u01b0 tr\u00ean 23 t\u1ef7 \u0111\u1ed3ng \u0111\u1ec3 x\u00e2y d\u1ef1ng trung t\u00e2m PTTH.",
+        "label": 2,
+        "predicted_label": 2,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 130,
+        "source": "\u0110\u1ed3ng ch\u00ed D\u01b0\u01a1ng Ng\u1ecdc S\u01a1n nh\u1eadn \u0111\u1ecbnh: \u201cC\u00e1c qu\u1eadn huy\u1ec7n c\u1ee7a th\u00e0nh ph\u1ed1 \u0111\u00e3 r\u1ea5t t\u00edch c\u1ef1c trong vi\u1ec7c x\u1eed l\u00fd nh\u1eefng v\u1ea5n \u0111\u1ec1 m\u00e0 ng\u01b0\u1eddi d\u00e2n khi\u1ebfu ki\u1ec7n...",
+        "reference": "\u0110\u1ed3ng ch\u00ed D\u01b0\u01a1ng Ng\u1ecdc S\u01a1n nh\u1eadn \u0111\u1ecbnh r\u1eb1ng c\u00e1c qu\u1eadn huy\u1ec7n...",
+        "prediction": "\u0110\u1ed3ng ch\u00ed D\u01b0\u01a1ng Ng\u1ecdc S\u01a1n nh\u1eadn \u0111\u1ecbnh: C\u00e1c qu\u1eadn huy\u1ec7n c\u1ee7a th\u00e0nh ph\u1ed1 \u0111\u00e3 r\u1ea5t t\u00edch c\u1ef1c...",
+        "label": 2,
+        "predicted_label": 3,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 149,
+        "source": "D\u01b0 lu\u1eadn v\u00e0 c\u00f4ng lu\u1eadn \u0111\u00e3 l\u00ean ti\u1ebfng b\u00e1o \u0111\u1ed9ng v\u1ec1 vi\u1ec7c xu\u1ed1ng c\u1ea5p c\u1ee7a th\u01a1 v\u00e0 nh\u1ea1c... k\u1ec3 c\u1ea3 phim \u1ea3nh...",
+        "reference": "C\u00f4ng lu\u1eadn \u0111\u00e3 l\u00ean ti\u1ebfng b\u00e1o \u0111\u1ed9ng v\u1ec1 vi\u1ec7c xu\u1ed1ng c\u1ea5p c\u1ee7a th\u01a1 v\u00e0 nh\u1ea1c... v\u00e0 c\u1ea3 phim \u1ea3nh...",
+        "prediction": "...v\u1ec1 vi\u1ec7c xu\u1ed1ng c\u1ea5p c\u1ee7a th\u01a1 v\u00e0 nh\u1ea1c... v\u00e0 c\u1ee7a phim \u1ea3nh...",
+        "label": 3,
+        "predicted_label": 3,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 158,
+        "source": "...s\u1ef1 ch\u00e2n t\u00ecnh, c\u1edfi m\u1edf kh\u00f4ng nh\u01b0 nh\u1eefng n\u0103m tr\u01b0\u1edbc.",
+        "reference": "...s\u1ef1 ch\u00e2n t\u00ecnh, c\u1edfi m\u1edf kh\u00f4ng c\u00f2n nh\u01b0 nh\u1eefng n\u0103m tr\u01b0\u1edbc.",
+        "prediction": "...s\u1ef1 ch\u00e2n t\u00ecnh, c\u1edfi m\u1edf kh\u00f4ng c\u00f2n nh\u01b0 nh\u1eefng n\u0103m tr\u01b0\u1edbc.",
+        "label": 3,
+        "predicted_label": 3,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 170,
+        "source": "V\u1ec1 ti\u1ebfn \u0111\u1ed9 thi c\u00f4ng m\u1eb7t b\u1eb1ng, C\u00f4ng ty D\u1ecbch v\u1ee5 c\u00f4ng \u00edch huy\u1ec7n B\u00ecnh Ch\u00e1nh th\u1eeba nh\u1eadn ti\u1ebfn \u0111\u1ed9 thi c\u00f4ng c\u01a1 s\u1edf h\u1ea1 t\u1ea7ng c\u00f2n ch\u1eadm cho \u0111\u1ebfn nay c\u00f4ng ty \u0111\u00e3 \u0111\u1ec1n b\u00f9...",
+        "reference": "...th\u1eeba nh\u1eadn ti\u1ebfn \u0111\u1ed9 thi c\u00f4ng c\u01a1 s\u1edf h\u1ea1 t\u1ea7ng c\u00f2n ch\u1eadm; cho \u0111\u1ebfn nay, c\u00f4ng ty \u0111\u00e3 \u0111\u1ec1n b\u00f9...",
+        "prediction": "...cho \u0111\u1ebfn nay, c\u00f4ng ty \u0111\u00e3 \u0111\u1ec1n b\u00f9...",
+        "label": 4,
+        "predicted_label": 3,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 184,
+        "source": "C\u00f4 Lisa Hall, 19 tu\u1ed5i, \u1edf Essex, Anh, cao 1,9m, hi\u1ec7n l\u00e0 ng\u01b0\u1eddi ph\u1ee5 n\u1eef c\u00f3 \u0111\u00f4i ch\u00e2n d\u00e0i nh\u1ea5t th\u1ebf gi\u1edbi (1,2m) (\u1ea3nh) k\u1ef7 l\u1ee5c Guinness th\u1ebf gi\u1edbi tr\u01b0\u1edbc \u0111\u00e2y thu\u1ed9c v\u1ec1 c\u00f4 Nadja Auermann...",
+        "reference": "...c\u00f3 \u0111\u00f4i ch\u00e2n d\u00e0i nh\u1ea5t th\u1ebf gi\u1edbi (1,2m) (\u1ea3nh); k\u1ef7 l\u1ee5c Guinness th\u1ebf gi\u1edbi tr\u01b0\u1edbc \u0111\u00e2y thu\u1ed9c v\u1ec1 c\u00f4 Nadja Auermann...",
+        "prediction": "C\u00f4 Lisa Hall, 19 tu\u1ed5i, \u1edf Essex, Anh, cao 1,9m, hi\u1ec7n l\u00e0 ng\u01b0\u1eddi ph\u1ee5 n\u1eef c\u00f3 \u0111\u00f4i ch\u00e2n d\u00e0i nh\u1ea5t th\u1ebf gi\u1edbi (1,2m). (\u1ea2nh) K\u1ef7 l\u1ee5c Guinness th\u1ebf gi\u1edbi tr\u01b0\u1edbc \u0111\u00e2y thu\u1ed9c v\u1ec1 c\u00f4 Nadja Auermann...",
+        "label": 4,
+        "predicted_label": 4,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 189,
+        "source": "S\u1ea3n xu\u1ea5t ph\u00e2n b\u00f3n trong n\u01b0\u1edbc hi\u1ec7n nay gi\u1ea3m so v\u1edbi t\u1ed5ng l\u01b0\u1ee3ng ph\u00e2n b\u00f3n s\u1eed d\u1ee5ng ch\u1ec9 kho\u1ea3ng 13%-14% so v\u1edbi tr\u01b0\u1edbc \u0111\u00e2y l\u00e0 18%.",
+        "reference": "S\u1ea3n xu\u1ea5t ph\u00e2n b\u00f3n trong n\u01b0\u1edbc hi\u1ec7n nay gi\u1ea3m, ch\u1ec9 chi\u1ebfm kho\u1ea3ng 13% - 14% t\u1ed5ng l\u01b0\u1ee3ng ph\u00e2n b\u00f3n s\u1eed d\u1ee5ng...",
+        "prediction": "S\u1ea3n xu\u1ea5t ph\u00e2n b\u00f3n trong n\u01b0\u1edbc hi\u1ec7n nay gi\u1ea3m so v\u1edbi t\u1ed5ng l\u01b0\u1ee3ng ph\u00e2n b\u00f3n s\u1eed d\u1ee5ng ch\u1ec9 kho\u1ea3ng 13%-14% so v\u1edbi tr\u01b0\u1edbc \u0111\u00e2y (s\u1ed1 li\u1ec7u l\u00e0 18%).",
+        "label": 4,
+        "predicted_label": 3,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 192,
+        "source": "Tuy nhi\u00ean c\u00f3 s\u1ef1 l\u1ed9n x\u1ed9n theo l\u1ebd th\u01b0\u1eddng, \u0111\u00e1ng l\u00fd quy tr\u00ecnh s\u1ebd l\u00e0 c\u00f3 g\u00e1nh h\u00e1t, c\u00f3 r\u1ea1p h\u00e1t v\u00e0 nh\u00e0 h\u00e1t (nh\u00e0 h\u00e1t v\u1eeba l\u00e0 n\u01a1i t\u1ed5 ch\u1ee9c bi\u1ec3u di\u1ec5n, v\u1eeba l\u00e0 m\u1ed9t \u0111\u01a1n v\u1ecb ngh\u1ec7 thu\u1eadt).",
+        "reference": "Tuy nhi\u00ean c\u00f3 s\u1ef1 l\u1ed9n x\u1ed9n: theo l\u1ebd th\u01b0\u1eddng, \u0111\u00e1ng l\u00fd quy tr\u00ecnh s\u1ebd l\u00e0 c\u00f3 g\u00e1nh h\u00e1t, c\u00f3 r\u1ea1p h\u00e1t v\u00e0 nh\u00e0 h\u00e1t...",
+        "prediction": "Tuy nhi\u00ean c\u00f3 s\u1ef1 l\u1ed9n x\u1ed9n theo l\u1ebd th\u01b0\u1eddng, \u0111\u00e1ng l\u00fd quy tr\u00ecnh s\u1ebd l\u00e0: c\u00f3 g\u00e1nh h\u00e1t, c\u00f3 r\u1ea1p h\u00e1t v\u00e0 nh\u00e0 h\u00e1t (nh\u00e0 h\u00e1t v\u1eeba l\u00e0 n\u01a1i t\u1ed5 ch\u1ee9c bi\u1ec3u di\u1ec5n, v\u1eeba l\u00e0 m\u1ed9t \u0111\u01a1n v\u1ecb ngh\u1ec7 thu\u1eadt).",
+        "label": 4,
+        "predicted_label": 4,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 194,
+        "source": "Trong v\u0103n h\u00f3a c\u1ed9ng \u0111\u1ed3ng l\u00e0ng x\u00e3 c\u1ee7a n\u1ec1n kinh t\u1ebf n\u00f4ng nghi\u1ec7p - s\u00e2n \u0111\u00ecnh, s\u00e2n ch\u00f9a l\u00e0 nh\u1eefng \u0111i\u1ec3m t\u1ed5 ch\u1ee9c l\u1ec5 h\u1ed9i...",
+        "reference": "Trong v\u0103n h\u00f3a c\u1ed9ng \u0111\u1ed3ng l\u00e0ng x\u00e3 c\u1ee7a n\u1ec1n kinh t\u1ebf n\u00f4ng nghi\u1ec7p, s\u00e2n \u0111\u00ecnh, s\u00e2n ch\u00f9a l\u00e0 nh\u1eefng \u0111i\u1ec3m...",
+        "prediction": "...trong v\u0103n h\u00f3a c\u1ed9ng \u0111\u1ed3ng l\u00e0ng x\u00e3 c\u1ee7a n\u1ec1n kinh t\u1ebf n\u00f4ng nghi\u1ec7p, s\u00e2n \u0111\u00ecnh, s\u00e2n ch\u00f9a l\u00e0 nh\u1eefng \u0111i\u1ec3m t\u1ed5 ch\u1ee9c l\u1ec5 h\u1ed9i...",
+        "label": 4,
+        "predicted_label": 2,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 196,
+        "source": "Cho \u0111\u1ebfn gi\u1edd ph\u00fat n\u00e0y - t\u1ea5t c\u1ea3 nh\u1eefng thi\u1ec7t h\u1ea1i do 2 \u0111\u1ee3t l\u0169 g\u00e2y ra - v\u1eabn ch\u01b0a th\u1ec3 th\u1ed1ng k\u00ea m\u1ed9t c\u00e1ch \u0111\u1ea7y \u0111\u1ee7, m\u00e0 ph\u1ea3i ch\u1edd \u0111\u1ebfn khi l\u0169 r\u00fat.",
+        "reference": "Cho \u0111\u1ebfn gi\u1edd ph\u00fat n\u00e0y, t\u1ea5t c\u1ea3 nh\u1eefng thi\u1ec7t h\u1ea1i do 2 \u0111\u1ee3t l\u0169 g\u00e2y ra v\u1eabn ch\u01b0a th\u1ec3 th\u1ed1ng k\u00ea m\u1ed9t c\u00e1ch \u0111\u1ea7y \u0111\u1ee7...",
+        "prediction": "Cho \u0111\u1ebfn gi\u1edd ph\u00fat n\u00e0y, t\u1ea5t c\u1ea3 nh\u1eefng thi\u1ec7t h\u1ea1i do 2 \u0111\u1ee3t l\u0169 g\u00e2y ra v\u1eabn ch\u01b0a th\u1ec3 th\u1ed1ng k\u00ea m\u1ed9t c\u00e1ch \u0111\u1ea7y \u0111\u1ee7, m\u00e0 ph\u1ea3i ch\u1edd \u0111\u1ebfn khi l\u0169 r\u00fat.",
+        "label": 4,
+        "predicted_label": 3,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      },
+      {
+        "id": 197,
+        "source": "Trong d\u1ef1 th\u1ea3o B\u00e1o c\u00e1o Ch\u00ednh tr\u1ecb c\u1ee7a Ban Ch\u1ea5p h\u00e0nh Trung \u01b0\u01a1ng \u0110\u1ea3ng kh\u00f3a 8 tr\u00ecnh \u0110\u1ea1i h\u1ed9i \u0111\u1ea1i bi\u1ec3u to\u00e0n qu\u1ed1c l\u1ea7n th\u1ee9 9 \u0111\u00e3 \u0111\u1ec1 ra m\u1ee5c ti\u00eau: \u201cGi\u1ea3i quy\u1ebft vi\u1ec7c l\u00e0m l\u00e0 y\u1ebfu t\u1ed1 quy\u1ebft \u0111\u1ecbnh...\u201d",
+        "reference": "B\u1ea3n B\u00e1o c\u00e1o Ch\u00ednh tr\u1ecb... \u0111\u00e3 \u0111\u1ec1 ra m\u1ee5c ti\u00eau: \u201cGi\u1ea3i quy\u1ebft vi\u1ec7c l\u00e0m l\u00e0 y\u1ebfu t\u1ed1 quy\u1ebft \u0111\u1ecbnh...\u201d",
+        "prediction": "D\u1ef1 th\u1ea3o B\u00e1o c\u00e1o Ch\u00ednh tr\u1ecb c\u1ee7a Ban Ch\u1ea5p h\u00e0nh Trung \u01b0\u01a1ng \u0110\u1ea3ng kh\u00f3a 8 tr\u00ecnh \u0110\u1ea1i h\u1ed9i \u0111\u1ea1i bi\u1ec3u to\u00e0n qu\u1ed1c l\u1ea7n th\u1ee9 9 \u0111\u00e3 \u0111\u1ec1 ra m\u1ee5c ti\u00eau: \u201cGi\u1ea3i quy\u1ebft vi\u1ec7c l\u00e0m l\u00e0 y\u1ebfu t\u1ed1 quy\u1ebft \u0111\u1ecbnh...\u201d",
+        "label": 4,
+        "predicted_label": 4,
+        "flags": [
+          "contains_ellipsis"
+        ]
+      }
+    ]
+  },
+  "selected_files_hash_verified": 29,
+  "scores_match_tolerance": 1e-12,
+  "same_validation_as_both_previous_baselines": true,
+  "validation_rows": 78,
+  "submission_rows": 2034,
+  "submission_crc_typed_ids_schema_verified": true,
+  "scope": "Repeated 78-row development selection; private labels/official score unavailable.",
+  "classification_comparison": {
+    "baseline": {
+      "argmax": {
+        "macro_f1": 0.5901960784313726,
+        "micro_f1": 0.7692307692307693,
+        "confusion_matrix": [
+          [
+            39,
+            1,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            3,
+            12,
+            0,
+            1,
+            3,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            3,
+            2,
+            0
+          ],
+          [
+            2,
+            0,
+            0,
+            4,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            1,
+            1,
+            4,
+            0
+          ]
+        ],
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "prediction_columns": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          "invalid"
+        ],
+        "per_class": {
+          "0": {
+            "precision": 0.8666666666666667,
+            "recall": 0.975,
+            "f1": 0.9176470588235294,
+            "support": 40
+          },
+          "1": {
+            "precision": 0.9230769230769231,
+            "recall": 0.631578947368421,
+            "f1": 0.75,
+            "support": 19
+          },
+          "2": {
+            "precision": 0.5,
+            "recall": 0.16666666666666666,
+            "f1": 0.25,
+            "support": 6
+          },
+          "3": {
+            "precision": 0.4444444444444444,
+            "recall": 0.6666666666666666,
+            "f1": 0.5333333333333333,
+            "support": 6
+          },
+          "4": {
+            "precision": 0.4444444444444444,
+            "recall": 0.5714285714285714,
+            "f1": 0.5,
+            "support": 7
+          }
+        }
+      },
+      "binary_first_05": {
+        "macro_f1": 0.5868253968253969,
+        "micro_f1": 0.7692307692307693,
+        "confusion_matrix": [
+          [
+            39,
+            1,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            2,
+            12,
+            1,
+            1,
+            3,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            3,
+            2,
+            0
+          ],
+          [
+            2,
+            0,
+            0,
+            4,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            1,
+            1,
+            4,
+            0
+          ]
+        ],
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "prediction_columns": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          "invalid"
+        ],
+        "per_class": {
+          "0": {
+            "precision": 0.8863636363636364,
+            "recall": 0.975,
+            "f1": 0.9285714285714286,
+            "support": 40
+          },
+          "1": {
+            "precision": 0.9230769230769231,
+            "recall": 0.631578947368421,
+            "f1": 0.75,
+            "support": 19
+          },
+          "2": {
+            "precision": 0.3333333333333333,
+            "recall": 0.16666666666666666,
+            "f1": 0.2222222222222222,
+            "support": 6
+          },
+          "3": {
+            "precision": 0.4444444444444444,
+            "recall": 0.6666666666666666,
+            "f1": 0.5333333333333333,
+            "support": 6
+          },
+          "4": {
+            "precision": 0.4444444444444444,
+            "recall": 0.5714285714285714,
+            "f1": 0.5,
+            "support": 7
+          }
+        }
+      },
+      "export_rule": "argmax",
+      "scope": "Fixed diagnostic only; no threshold fitting"
+    },
+    "challenger": {
+      "argmax": {
+        "macro_f1": 0.6898735475051264,
+        "micro_f1": 0.8333333333333334,
+        "confusion_matrix": [
+          [
+            39,
+            1,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            15,
+            1,
+            2,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            3,
+            3,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            0,
+            5,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            3,
+            3,
+            0
+          ]
+        ],
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "prediction_columns": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          "invalid"
+        ],
+        "per_class": {
+          "0": {
+            "precision": 0.975,
+            "recall": 0.975,
+            "f1": 0.975,
+            "support": 40
+          },
+          "1": {
+            "precision": 0.9375,
+            "recall": 0.7894736842105263,
+            "f1": 0.8571428571428571,
+            "support": 19
+          },
+          "2": {
+            "precision": 0.6,
+            "recall": 0.5,
+            "f1": 0.5454545454545454,
+            "support": 6
+          },
+          "3": {
+            "precision": 0.38461538461538464,
+            "recall": 0.8333333333333334,
+            "f1": 0.5263157894736842,
+            "support": 6
+          },
+          "4": {
+            "precision": 0.75,
+            "recall": 0.42857142857142855,
+            "f1": 0.5454545454545454,
+            "support": 7
+          }
+        }
+      },
+      "binary_first_05": {
+        "macro_f1": 0.6781877017053566,
+        "micro_f1": 0.8205128205128205,
+        "confusion_matrix": [
+          [
+            38,
+            1,
+            1,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            15,
+            1,
+            2,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            3,
+            3,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            0,
+            5,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            3,
+            3,
+            0
+          ]
+        ],
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "prediction_columns": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          "invalid"
+        ],
+        "per_class": {
+          "0": {
+            "precision": 0.9743589743589743,
+            "recall": 0.95,
+            "f1": 0.9620253164556962,
+            "support": 40
+          },
+          "1": {
+            "precision": 0.9375,
+            "recall": 0.7894736842105263,
+            "f1": 0.8571428571428571,
+            "support": 19
+          },
+          "2": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "support": 6
+          },
+          "3": {
+            "precision": 0.38461538461538464,
+            "recall": 0.8333333333333334,
+            "f1": 0.5263157894736842,
+            "support": 6
+          },
+          "4": {
+            "precision": 0.75,
+            "recall": 0.42857142857142855,
+            "f1": 0.5454545454545454,
+            "support": 7
+          }
+        }
+      },
+      "export_rule": "argmax",
+      "scope": "Fixed diagnostic only; no threshold fitting"
+    }
+  },
+  "decoder_comparison": [
+    {
+      "source": "baseline",
+      "phase": "screen",
+      "strategy": "greedy_reference",
+      "gleu_plus": 0.42543309487543396,
+      "error_gleu_plus": 0.29730585352681316
+    },
+    {
+      "source": "baseline",
+      "phase": "screen",
+      "strategy": "beam2",
+      "gleu_plus": 0.3270931140466124,
+      "error_gleu_plus": 0.19528087381498474
+    },
+    {
+      "source": "baseline",
+      "phase": "screen",
+      "strategy": "beam4",
+      "gleu_plus": 0.3270931140466124,
+      "error_gleu_plus": 0.19528087381498474
+    },
+    {
+      "source": "baseline",
+      "phase": "screen",
+      "strategy": "beam4_edit_rerank",
+      "gleu_plus": 0.3242124347230772,
+      "error_gleu_plus": 0.1914738133578985
+    },
+    {
+      "source": "baseline",
+      "phase": "full",
+      "strategy": "greedy_reference",
+      "gleu_plus": 0.6313346044635398,
+      "error_gleu_plus": 0.23771644653437812
+    },
+    {
+      "source": "baseline",
+      "phase": "full",
+      "strategy": "beam2",
+      "gleu_plus": 0.6174336077959904,
+      "error_gleu_plus": 0.21748569426304565
+    },
+    {
+      "source": "challenger",
+      "phase": "screen",
+      "strategy": "greedy_reference",
+      "gleu_plus": 0.3757871292360841,
+      "error_gleu_plus": 0.2589161288411578
+    },
+    {
+      "source": "challenger",
+      "phase": "screen",
+      "strategy": "beam2",
+      "gleu_plus": 0.3757871292360841,
+      "error_gleu_plus": 0.2589161288411578
+    },
+    {
+      "source": "challenger",
+      "phase": "screen",
+      "strategy": "beam4",
+      "gleu_plus": 0.3757871292360841,
+      "error_gleu_plus": 0.2589161288411578
+    },
+    {
+      "source": "challenger",
+      "phase": "screen",
+      "strategy": "beam4_edit_rerank",
+      "gleu_plus": 0.3757871292360841,
+      "error_gleu_plus": 0.2589161288411578
+    },
+    {
+      "source": "challenger",
+      "phase": "full",
+      "strategy": "greedy_reference",
+      "gleu_plus": 0.6169514776778707,
+      "error_gleu_plus": 0.2230496541747733
+    },
+    {
+      "source": "challenger",
+      "phase": "full",
+      "strategy": "beam2",
+      "gleu_plus": 0.6193594910357126,
+      "error_gleu_plus": 0.23069759700334663
+    }
+  ],
+  "date": "2026-10-19",
+  "status": "completed_saved_artifact_analysis",
+  "native_training_runs_this_turn": 0
+}

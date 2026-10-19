@@ -1,0 +1,16 @@
+{
+  "format": "vgec-focused-v1",
+  "name": "track1039-sailor20b-qwen14b-20261019",
+  "training_recipe": "configs/unconstrained_training_recipe.json",
+  "package_proof": "configs/unconstrained_package_source.json",
+  "screen_per_class": 2,
+  "finalists": 1,
+  "max_stage_seconds": 36000,
+  "max_wall_seconds": 41400,
+  "decoder_strategies": [
+    {
+      "name": "greedy_reference",
+      "generation": {}
+    }
+  ]
+}

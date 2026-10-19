@@ -1,0 +1,80 @@
+{
+  "format": "vgec-preserved-experiment-v1",
+  "date": "2026-10-19",
+  "competition_id": 1038,
+  "source_commit": "338293f90e664803ee3dde12e82dd5d4d5601d43",
+  "git_tag": "archive/track1038-quality-20261019",
+  "run": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/18_10_2026/quality/runs/quality-private-fresh-20261017-20261017T080116892693Z",
+  "dataset": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/kaggle-quality-private-20261017/VGEC26-quality-private-20261017.zip",
+  "leaderboard_combined_score": {
+    "value": 0.58,
+    "evidence": "User reported approximately0.58; no new official screenshot independently checked"
+  },
+  "protected_original_artifacts": [
+    {
+      "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/18_10_2026/quality/runs/quality-private-fresh-20261017-20261017T080116892693Z/run/classification/members/mistral7b/classifier/adapter_model.safetensors",
+      "bytes": 436358032,
+      "sha256": "e4a776f41e4905f5e26f3d88de1554f2644c4f56507872b8249cc44989421eb7"
+    },
+    {
+      "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/18_10_2026/quality/runs/quality-private-fresh-20261017-20261017T080116892693Z/run/classification/members/qwen7b/classifier/adapter_model.safetensors",
+      "bytes": 161604976,
+      "sha256": "041b666c807f33f2cbaa715e99642cdd1c438fd13b3300447e523d65ccab07ce"
+    },
+    {
+      "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/18_10_2026/quality/runs/quality-private-fresh-20261017-20261017T080116892693Z/run/classification/members/sailor7b/classifier/adapter_model.safetensors",
+      "bytes": 160049904,
+      "sha256": "d22fff11cce47eded85264b29dd48887a06e59c6c2ff96f26416339d982810f7"
+    },
+    {
+      "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/18_10_2026/quality/runs/quality-private-fresh-20261017-20261017T080116892693Z/run/correction/adapter/adapter_model.safetensors",
+      "bytes": 161533192,
+      "sha256": "2018ce8c426719e61d9de33384f61b992d1258bd1914c2117654abd579fe4ad7"
+    },
+    {
+      "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/18_10_2026/quality/runs/quality-private-fresh-20261017-20261017T080116892693Z/run/results.zip",
+      "bytes": 92604,
+      "sha256": "d9d14ac425dcc0a3ddf3e1fdd60686bbb09bf59293106845e3683dba6f859f79"
+    },
+    {
+      "path": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/kaggle-quality-private-20261017/VGEC26-quality-private-20261017.zip",
+      "bytes": 2814623,
+      "sha256": "411493973c0d29f4a1650a2b8bdba629cd7e2ac6eb1b778d942ad35e1131d4c3"
+    }
+  ],
+  "backup_files": {
+    "classification_config.json": {
+      "bytes": 3564,
+      "sha256": "961679c4f58ea994a6b4eb60013e85b3a3679b1a676938a2af7198fa0703af88"
+    },
+    "correction_config.json": {
+      "bytes": 2518,
+      "sha256": "6598f139f22740dcaf2eed006772d5bd2f41183df620a71511439302e82f4870"
+    },
+    "experiment_manifest.json": {
+      "bytes": 3868,
+      "sha256": "7f86edd3141c05d1f47133c241b3d272bc52cdc650d9bb004a255cdcc8b0ea4b"
+    },
+    "pipeline_manifest.json": {
+      "bytes": 29768,
+      "sha256": "452b55fbc834b7d39055af29afcaef6cf279fc5bac70762a87dbcd48bc2e6b1e"
+    },
+    "quality-source-338293f.zip": {
+      "bytes": 622709,
+      "sha256": "e0dace5160ba1b80af18f4dd2819296ef7c339a04cc087a23efa9b4a090e1ecc"
+    },
+    "report-docs-as-of-20261019.zip": {
+      "bytes": 577045,
+      "sha256": "7423f1ca7293d26b300fcda01a771c037e970e2924212fb02829e500b3b7b861"
+    },
+    "results.evaluation.json": {
+      "bytes": 1165,
+      "sha256": "ed48c686597e085d50a385c3f3e50d2a0d1db91fe3f8cb6034353471c8e04d2e"
+    },
+    "results.zip": {
+      "bytes": 92604,
+      "sha256": "d9d14ac425dcc0a3ddf3e1fdd60686bbb09bf59293106845e3683dba6f859f79"
+    }
+  },
+  "scope": "Historical code/docs backed up, original run/data/weights untouched; source archive requires pinned external base downloads."
+}

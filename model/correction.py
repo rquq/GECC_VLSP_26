@@ -509,6 +509,8 @@ def placement_preflight(settings, device="cuda", *, local_rank=None, training=Tr
 
 
 def _load_base(settings, device, placement=None):
+    from .weight_cache import prepare_weight_cache
+    prepare_weight_cache(settings)
     from transformers import AutoModelForCausalLM, BitsAndBytesConfig
     placement = placement or placement_preflight(settings, device)
     dtype = _dtype(settings, device)

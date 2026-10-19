@@ -1,4 +1,4 @@
 {
   "format": "vgec-focused-v1",
-  "plan": "configs/focused_plan.json"
+  "plan": "configs/unconstrained_plan.json"
 }

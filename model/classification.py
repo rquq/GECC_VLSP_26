@@ -90,8 +90,6 @@ def placement_preflight(settings, device="cuda", *, training=True):
 
     device = torch.device(device)
     if settings.get("device_map", "single") == "balanced":
-        if settings.get("load_in_4bit"):
-            raise ValueError("Balanced classifier placement supports nonquantized LoRA")
         from .correction import placement_preflight as decoder_placement
         placement = decoder_placement(settings, device.type, task="classification", training=training)
         return {**placement, "device": "cuda:0",
@@ -182,6 +180,8 @@ def _load_tokenizer(path, **kwargs):
 
 
 def _load_base(settings, tokenizer, placement):
+    from .weight_cache import prepare_weight_cache
+    prepare_weight_cache(settings)
     import torch
     from transformers import AutoModelForSequenceClassification, BitsAndBytesConfig
 
@@ -204,6 +204,12 @@ def _load_base(settings, tokenizer, placement):
     if placement.get("mode") == "balanced":
         kwargs.update(device_map=placement["device_map"], low_cpu_mem_usage=True)
     model = AutoModelForSequenceClassification.from_pretrained(settings["name"], **kwargs)
+    if bool(getattr(model, "is_loaded_in_4bit", False)) != placement["quantized"]:
+        raise RuntimeError("Loaded classifier quantization differs from its configuration")
+    if placement.get("mode") == "balanced":
+        expected_devices = set(placement["device_map"].values())
+        if any(str(p.device) not in expected_devices for p in model.parameters()):
+            raise RuntimeError("Classifier weights do not match the explicit map; offload is forbidden")
     model.config.classifier_embeddings_resized = len(tokenizer) > model.get_input_embeddings().num_embeddings
     if model.config.classifier_embeddings_resized:
         model.resize_token_embeddings(len(tokenizer))

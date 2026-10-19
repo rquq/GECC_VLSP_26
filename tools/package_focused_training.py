@@ -76,7 +76,9 @@ def review_training(rows):
     }
 
 
-def package(source, classifier, corrector, output):
+def package(source, classifier, corrector, output, *, archive_name=ARCHIVE, description=None):
+    if Path(archive_name).name != archive_name or not archive_name.endswith(".zip"):
+        raise ValueError("archive_name must be a ZIP basename")
     source, classifier, corrector, output = map(
         Path, (source, classifier, corrector, output)
     )
@@ -144,17 +146,21 @@ def package(source, classifier, corrector, output):
         shutil.copytree(licenses, output / "external-ud-vtb")
     review = review_training(bundles["classification"]["source_bundle"]["train"])
     write_json(output / "training_review_not_applied.json", review)
+    if description is None:
+        description = (
+            "The committed plan fits one Sailor classifier and one Qwen corrector for five full epochs, "
+            "retains their best checkpoints, compares the bundled quality Sailor / old Qwen baselines, "
+            "screens greedy, beam2, beam4 and beam4 edit reranking, and fully evaluates greedy plus one finalist per corrector. "
+            "The best observed development components are selected; new challengers are not forced to win. "
+            "The shared78 development rows and2034 private inference inputs never enter fitting. "
+            "Original annotations are preserved; automated repair proposals are not admitted.\n\n"
+        )
     (output / "README.md").write_text(
         "# Private focused Kaggle upload\n\n"
         "Use the existing kaggle-linux notebook launcher with Internet enabled and GPU T4 x2. "
         "Attach this package only; its Kaggle dataset name and extraction prefix may vary. "
         "No older notebook output or notebook toggles are needed. Save Version / Run All.\n\n"
-        "The committed plan fits one Sailor classifier and one Qwen corrector for five full epochs, "
-        "retains their best checkpoints, compares the bundled quality Sailor / old Qwen baselines, "
-        "screens greedy, beam2, beam4 and beam4 edit reranking, and fully evaluates greedy plus one finalist per corrector. "
-        "The best observed development components are selected; new challengers are not forced to win. "
-        "The shared78 development rows and2034 private inference inputs never enter fitting. "
-        "Original annotations are preserved; automated repair proposals are not admitted.\n\n"
+        + description +
         "Download results.zip for submission and retain the whole run output. selected_models/ and selected.json "
         "contain the selected adapters and exact decoder contract. Use tools.replay_focused to replay a relocated selection; "
         "ordinary greedy pipeline_predict does not reproduce a beam/reranking selection. "
@@ -177,7 +183,7 @@ def package(source, classifier, corrector, output):
     }
     manifest = {
         "format": "vgec-focused-package-v1",
-        "archive": ARCHIVE,
+        "archive": archive_name,
         "data_sha256": data_hashes,
         "submission_sha256": sha256(output / "private_test.json"),
         "inference_rows": len(test),
@@ -200,11 +206,11 @@ def package(source, classifier, corrector, output):
     }
     write_json(output / MANIFEST, manifest)
     with zipfile.ZipFile(
-        output / ARCHIVE, "w", zipfile.ZIP_DEFLATED, compresslevel=1
+        output / archive_name, "w", zipfile.ZIP_DEFLATED, compresslevel=1
     ) as z:
         for name in sorted([*files, MANIFEST]):
             z.write(output / name, name)
-    with zipfile.ZipFile(output / ARCHIVE) as z:
+    with zipfile.ZipFile(output / archive_name) as z:
         if z.testzip() is not None:
             raise ValueError("Private package ZIP CRC failure")
     return manifest
@@ -214,8 +220,9 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ["source", "classifier", "corrector", "output"]:
         p.add_argument("--" + name, required=True, type=Path)
+    p.add_argument("--archive-name", default=ARCHIVE)
     a = p.parse_args()
-    m = package(a.source, a.classifier, a.corrector, a.output)
+    m = package(a.source, a.classifier, a.corrector, a.output, archive_name=a.archive_name)
     print(
         json.dumps(
             {

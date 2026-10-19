@@ -20,7 +20,10 @@ from model.runtime import write_json
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--plan", type=Path, default=Path("configs/focused_plan.json"))
     args = parser.parse_args()
+    plan = json.loads(args.plan.read_text())
+    native_recipe = json.loads(Path(plan["training_recipe"]).read_text())
     root = args.output.resolve()
     root.mkdir(parents=True, exist_ok=False)
     data = fixture(root, "cpu", False)
@@ -69,6 +72,8 @@ def main():
     for stage in ["classification", "correction"]:
         p = root / (stage + ".json")
         c = json.loads(p.read_text())
+        native = json.loads(Path(native_recipe[stage + "_config"]).read_text())
+        c["competition_id"] = native.get("competition_id", 1038)
         c.pop("ensemble", None)
         c["training"]["args"].update(
             num_train_epochs=5, max_steps=-1, learning_rate=1e-5
@@ -125,7 +130,6 @@ def main():
     )
     from tools.run_focused import run
 
-    plan = json.loads(Path("configs/focused_plan.json").read_text())
     plan.update(
         name="tiny-focused",
         training_recipe=str(root / "training_recipe.json"),

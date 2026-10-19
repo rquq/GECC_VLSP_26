@@ -12,12 +12,13 @@ import shutil
 import zipfile
 
 from model.data import load_records
-from model.runtime import PROJECT_ROOT, load_config, resolve_output, write_json
+from model.runtime import PROJECT_ROOT, load_config, parameter_limit, resolve_output, write_json
 from tools.runtime import discover_data, source_identity
 
 
 def model_size(config):
     """Count unquantized architecture plus adapter tensors, not packed NF4 storage."""
+    limit = parameter_limit(config)
     from accelerate import init_empty_weights
     from peft import LoraConfig, TaskType, get_peft_model
     from transformers import (
@@ -61,7 +62,7 @@ def model_size(config):
     # The classifier may add a dedicated pad token. Reserve its embedding too.
     padding = architecture.hidden_size if config["task"] == "classification" else 0
     total = base + adapter + saved + padding
-    if total > 8_000_000_000:
+    if limit is not None and total > limit:
         raise ValueError(
             f"{config['task']} model plus adapter exceeds the constrained-track 8B limit: {total:,}"
         )
@@ -71,7 +72,8 @@ def model_size(config):
         "saved_module_copies": saved,
         "padding_allowance": padding,
         "total_upper_bound": total,
-        "limit": 8_000_000_000,
+        "competition_id": config.get("competition_id", 1038),
+        "limit": limit,
     }
     if config.get("ensemble"):
         sizes = {}
@@ -85,6 +87,8 @@ def model_size(config):
         )
         result["eligibility_scope"] = (
             "Each separate classifier component <=8B; bases are different and not shared."
+            if limit is not None else
+            "Track1039 components; native parameter counts retained, no numeric 8B gate."
         )
     return result
 

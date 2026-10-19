@@ -9,6 +9,14 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
+def parameter_limit(config):
+    """Keep constrained-track eligibility unless track 1039 is explicit."""
+    track = config.get("competition_id", 1038)
+    if type(track) is not int or track not in (1038, 1039):
+        raise ValueError("competition_id must be integer 1038 or 1039")
+    return 8_000_000_000 if track == 1038 else None
+
+
 def native_bf16_supported():
     """Do not mistake PyTorch's BF16 emulation on T4 for native support."""
     import torch
@@ -60,6 +68,7 @@ def classifier_member_config(config, entry):
 
 def load_config(path, expected_task=None):
     config = json.loads(Path(path).read_text(encoding="utf-8"))
+    parameter_limit(config)
     task = config.get("task")
     if task not in ("classification", "correction") or (
         expected_task is not None and task != expected_task
