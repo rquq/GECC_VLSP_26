@@ -5,6 +5,8 @@ from pathlib import Path
 import shutil
 import sys
 import traceback
+import time
+from datetime import datetime, timezone
 
 from model.runtime import PROJECT_ROOT, resolve_output, write_json
 from tools.run_focused import materialize_package, merge_export
@@ -82,13 +84,29 @@ def run(plan, input_root, output_root, *, source_identity=None):
         tracking.start(config, output, "pipeline", group=work.name,
                        metadata={"competition_id": 1039, "kind": plan.get("experiment_kind", "fresh quality-data retrain")})
 
-        def stage(command, name):
-            # No wall/stage timeout. Kaggle's external session limit still applies.
+        def stage(command, name, model_settings):
+            # Evict the previous owned disk cache before the next model worker
+            # imports/tokenizes/loads; same-base classifier→corrector is retained.
+            from model.weight_cache import prepare_weight_cache
+            cache = prepare_weight_cache(model_settings, environment)
+            tracking.console_line(json.dumps(cache))
+            started = time.monotonic()
+            started_at = datetime.now(timezone.utc).isoformat()
             message = "Starting stage: " + name
             print(message, flush=True)
             tracking.console_line(message)
-            _run_stage(command, {**environment, "VGEC_STAGE_NAME": name}, tracking)
-            message = "Finished stage: " + name
+            status = "failed"
+            try:
+                # No model wall/stage deadline. The GPU-release wait is only
+                # cleanup, and does not cap training or generation duration.
+                _run_stage(command, {**environment, "VGEC_STAGE_NAME": name}, tracking)
+                status = "completed"
+            finally:
+                elapsed = time.monotonic() - started
+                with (output / "stage_timings.jsonl").open("a") as log:
+                    log.write(json.dumps({"stage": name, "status": status, "started_at": started_at,
+                                          "elapsed_seconds": elapsed, "model": model_settings["name"]}) + "\n")
+            message = f"Finished stage: {name}; elapsed_seconds={elapsed:.1f}"
             print(message, flush=True)
             tracking.console_line(message)
 
@@ -107,12 +125,12 @@ def run(plan, input_root, output_root, *, source_identity=None):
                     child_config = prepared / f"classification_{name}.json"
                     write_json(child_config, classifier_member_config(config, entries[name]))
                     stage([sys.executable, "-m", "model.classification", "--config", str(child_config),
-                           "--output-dir", str(member), "--device", "cuda", "--fit-only"], "classifier-" + name)
+                           "--output-dir", str(member), "--device", "cuda", "--fit-only"], "classifier-" + name, entries[name]["model"])
                     metrics = selected_classifier(member)
                     tracking.stage_result({"stage": "classifier-" + name, "metrics": result_metrics(metrics)})
                     stage([sys.executable, "-m", "tools.focused_worker", "--classifier", str(member / "classifier"),
                            "--records", str(private_path), "--output", str(member / "private_predictions.json"),
-                           "--batch-size", "8"], "private-" + name)
+                           "--batch-size", "8"], "private-" + name, entries[name]["model"])
                 classifier_metrics = build(classifier, config)
                 tracking.stage_result({"stage": "classifier-ensemble", "metrics": result_metrics(classifier_metrics)})
                 write_json(output / "private_classification.json", vote(
@@ -121,20 +139,22 @@ def run(plan, input_root, output_root, *, source_identity=None):
             else:
                 stage([sys.executable, "-m", "model.classification", "--config",
                        str(prepared / "classification_config.json"), "--output-dir", str(classifier),
-                       "--device", "cuda", "--fit-only"], "classifier-training")
+                       "--device", "cuda", "--fit-only"], "classifier-training", config["model"])
                 classifier_metrics = selected_classifier(classifier)
                 tracking.evaluation(classifier_metrics, "selected/classifier")
                 # Classify now, before switching the owned base cache from20B to14B.
                 stage([sys.executable, "-m", "tools.focused_worker", "--classifier", str(classifier / "classifier"),
                        "--records", str(private_path), "--output", str(output / "private_classification.json"),
-                       "--batch-size", "8"], "private-classifier")
+                       "--batch-size", "8"], "private-classifier", config["model"])
+            corrector_settings = read(prepared / "correction_config.json")["model"]
             stage([sys.executable, "-m", "model.correction", "--config",
                    str(prepared / "correction_config.json"), "--classifier-run", str(classifier),
-                   "--output-dir", str(corrector), "--device", "cuda"], "corrector-training")
+                   "--output-dir", str(corrector), "--device", "cuda"], "corrector-training", corrector_settings)
             write_handoff(output, correction=True)
             stage([sys.executable, "-m", "tools.fast_correct", "--adapter", str(corrector / "adapter"),
                    "--records", str(private_path), "--output-dir", str(output / "private_decoding"),
-                   "--batch-size", "4"], "private-corrector")
+                   "--batch-size", str(plan.get("private_generation_batch_size", 4))],
+                  "private-corrector", corrector_settings)
             corrections = read(output / "private_decoding/predictions.json")
             merge_export(private, read(output / "private_classification.json"), corrections, output)
             # These are already-computed epoch results; no model replay is run.
@@ -143,7 +163,9 @@ def run(plan, input_root, output_root, *, source_identity=None):
             write_json(output / "selected_metrics.json", metrics)
             write_json(output / "results.evaluation.json", {
                 "evaluated": False, "status": "completed", "count": len(private),
-                "input_scope": "private_inference_only", "input_sha256": plan["inference_sha256"]})
+                "input_scope": "private_inference_only", "input_sha256": plan["inference_sha256"],
+                "requested_generation_batch_size": plan.get("private_generation_batch_size", 4),
+                "completed_generation_batch_size": read(output / "private_decoding/progress.json")["batch_size"]})
             write_json(output / "pipeline_manifest.json", {
                 "status": "completed", "mode": "both", "competition_id": 1039,
                 "experiment_kind": plan.get("experiment_kind", "fast-training"),

@@ -342,7 +342,8 @@ def correct(model, tokenizer, records, hints, inference):
         try:
             return _correct_batches(model, tokenizer, records, indexed, inference, generation)
         except torch.cuda.OutOfMemoryError:
-            pass
+            if not inference.get("retry_oom", True):
+                raise
         # Exit the exception block before retrying so traceback-held tensors die.
         gc.collect()
         torch.cuda.empty_cache()

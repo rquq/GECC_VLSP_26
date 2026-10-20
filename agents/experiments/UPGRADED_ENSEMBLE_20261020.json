@@ -233,7 +233,7 @@
     "configs/upgraded_classification.json": "410d6c5afac18d183a4222fa885ae334aae77ef6cdc4879f1991e8d35dc492ac",
     "configs/upgraded_correction.json": "ec664f74d885c5f13c1180eaea94a8184d317fa4dae20b4f63b0e4a394ad7573",
     "configs/upgraded_training_recipe.json": "be14deaa1a52e310719d8fb8edc03662f84e9f71be640952df47e18831c91240",
-    "configs/upgraded_training_plan.json": "89fff5a77fa2c2054db18e0c8de23802c35f5be6c59970954cbe52c2965efb72"
+    "configs/upgraded_training_plan.json": "07638f8532fde82d492abd5f68baa26eb72c9b365eb7fc20d3d7ff38e2db575f"
   },
   "verification": "No tests, smoke runs, saved-model replays, native preflight, training or inference performed, per standing user preference. Metadata inspection and implementation only.",
   "sources": [
@@ -241,5 +241,7 @@
     "https://huggingface.co/sail/Sailor2-20B-Chat",
     "https://huggingface.co/mistralai/Mistral-Nemo-Instruct-2407"
   ],
-  "next_action": "Same compact private data, latest notebook, Internet ON/T4x2, Save Version. Training does not spend submission slot; export is not automatically uploaded."
+  "next_action": "Same compact private data, latest notebook, Internet ON/T4x2, Save Version. Training does not spend submission slot; export is not automatically uploaded.",
+  "private_generation_batch_size": 8,
+  "cache_runtime_followup": "agents/experiments/CACHE_RUNTIME_20261020.json"
 }

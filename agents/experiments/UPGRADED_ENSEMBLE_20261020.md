@@ -1,3 +1,5 @@
+Follow-up: private generation now starts at8 with persistent smaller-batch OOM retry; development generation remains4. Original-baseline GPU release and parent-owned disk-cache transitions hardened. See CACHE_RUNTIME_20261020.md/.json; new performance unmeasured. Preparation notes below otherwise remain applicable.
+
 # Fresh upgraded ensemble gamble — October20
 
 Prepared, NOT run. User explicitly requests a new training gamble with the best quality-system mechanism and better models, superseding the earlier recommendation to rely only on already-scored component outputs. No training or inference is executed locally. The previously prepared final component ZIP remains intact as a separate option; no submission slot is consumed by preparation/training and no automatic submission is implemented.

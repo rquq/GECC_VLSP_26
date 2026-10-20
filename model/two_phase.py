@@ -296,9 +296,20 @@ def _run_stage(command, env, tracking, timeout_seconds=None):
     gpu = env.get("VGEC_CUDA_STAGE") == "1"
     before = None
     if gpu:
-        from .gpu_lifecycle import snapshot
+        from .gpu_lifecycle import snapshot, wait_for_release
 
-        before = snapshot()
+        baseline = getattr(tracking, "_gpu_idle_baseline", None)
+        if not isinstance(baseline, dict):
+            baseline = snapshot()
+            tracking._gpu_idle_baseline = baseline
+        # Anchor every transition to the original idle session, rather than
+        # accepting a progressively lower free-memory snapshot as a new normal.
+        try:
+            before = wait_for_release(baseline, timeout=60, on_wait=tracking.heartbeat)
+        except RuntimeError:
+            write_json(tracking.output / "gpu_transition_failure.json",
+                       {"stage": stage, "when": "before_launch", "idle_baseline": baseline})
+            raise
     tracking.heartbeat(stage=stage)
     lines = queue.Queue()
 
@@ -386,7 +397,7 @@ def _run_stage(command, env, tracking, timeout_seconds=None):
         from .gpu_lifecycle import wait_for_release
 
         try:
-            after = wait_for_release(before)
+            after = wait_for_release(tracking._gpu_idle_baseline, timeout=60, on_wait=tracking.heartbeat)
         except RuntimeError:
             write_json(
                 tracking.output / "gpu_transition_failure.json",
@@ -400,6 +411,7 @@ def _run_stage(command, env, tracking, timeout_seconds=None):
                         "stage": stage,
                         "before": before,
                         "after": after,
+                        "idle_baseline": tracking._gpu_idle_baseline,
                         "child_exited": True,
                     }
                 )

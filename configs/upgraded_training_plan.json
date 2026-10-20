@@ -9,5 +9,6 @@
     "sailor20b",
     "mistral12b",
     "qwen14b"
-  ]
+  ],
+  "private_generation_batch_size": 8
 }

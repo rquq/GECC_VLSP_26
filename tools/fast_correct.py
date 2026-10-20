@@ -1,5 +1,6 @@
 """Batched private correction with append-only progress and OOM batch reduction."""
 import argparse
+import gc
 import json
 from pathlib import Path
 
@@ -34,12 +35,19 @@ def main():
         while cursor < len(ordered):
             batch = ordered[cursor:cursor + batch_size]
             hints = [{"id": row["id"], "label": 0, "probabilities": [1, 0, 0, 0, 0]} for row in batch]
+            oom = False
             try:
-                result = correct(model, tokenizer, batch, hints, {**inference, "batch_size": batch_size})
+                result = correct(model, tokenizer, batch, hints,
+                                 {**inference, "batch_size": batch_size, "retry_oom": False})
             except torch.cuda.OutOfMemoryError:
                 if batch_size == 1:
                     raise
+                oom = True
+            if oom:
+                # Leave the exception block before GC to release traceback-held
+                # activations. Keep this smaller batch for subsequent inputs.
                 batch_size = max(1, batch_size // 2)
+                gc.collect()
                 torch.cuda.empty_cache()
                 print(json.dumps({"status": "reduce_inference_batch", "batch_size": batch_size}), flush=True)
                 continue
