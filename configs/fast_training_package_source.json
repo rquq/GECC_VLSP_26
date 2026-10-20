@@ -1,0 +1,10 @@
+{
+  "format": "vgec-focused-package-proof-v1",
+  "manifest_sha256": "10e8134d0b6a5accffe9cb27420da1d223e803145017acbf378e3ed25e217883",
+  "compatible_manifest_sha256": [
+    "d4377bec8104a07d32fcbea785ec2981eae905cdfbb6fb3f3d1203c7b02b9aaf"
+  ],
+  "legacy_manifest_sha256": "513e99b206ab0e48f7c90029dc6e68b4e3ada4955abe5943093c606049164037",
+  "legacy_control_json_sha256": "7d09f2696a00a6472fd84d2624dc36fb93b52f3b9e0e24e32d8cb02d3def5568",
+  "previous_archive_name": "VGEC26-quality-track1039-private-20261019.zip"
+}

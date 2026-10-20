@@ -2,7 +2,7 @@
 
 The default `configs/experiment.json` now selects `configs/fast_training_plan.json`: fresh Sailor2-20B classifier and Qwen2.5-14B corrector, five full epochs each, one final private submission. The earlier four-way trial remains in `configs/controlled_quality_experiment.json`.
 
-1. Keep the existing PRIVATE quality-track1039 Kaggle dataset attached. Its extraction folder name may vary; old expanded-control uploads remain supported. For a new upload, use `dataset/kaggle-quality-track1039-private-20261019-json/VGEC26-quality-track1039-private-20261019.zip`. It contains plain data/model files, no nested ZIP/TAR archives.
+1. Upload the compact PRIVATE fresh-training dataset (2.17MB); replace the old attached dataset with it. Its extraction folder name may vary; old expanded-control uploads remain supported. For a new upload, use `dataset/kaggle-fast-quality-20261020/VGEC26-fast-quality-private-20261020.zip`. It contains plain data files and license notices, no baseline weights or nested ZIP/TAR archives. The old full quality upload is still accepted.
 2. Import `notebooks/kaggle_two_phase.ipynb`, enable Internet and GPU T4 x2. Repository-read GITHUB_TOKEN is required; WANDB_API_KEY enables monitoring; HF_TOKEN is optional.
 3. Save Version / Run All. Download `run/results.zip`; it now means BOTH newly trained20B/14B models. Keep the entire output. Nothing is automatically submitted. No notebook toggles or previous notebook output required.
 

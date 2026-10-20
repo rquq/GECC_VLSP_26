@@ -43,10 +43,16 @@ def run(plan, input_root, output_root, *, source_identity=None):
     output.mkdir(parents=True)
     print("VGEC_RUN_DIR:" + str(output), flush=True)
     proof = read(PROJECT_ROOT / plan["package_proof"])
+    archive_name = recipe["data_archive"]
+    previous_archive = proof.get("previous_archive_name")
+    if (previous_archive and not any(Path(input_root).rglob(archive_name))
+            and any(Path(input_root).rglob(previous_archive))):
+        archive_name = previous_archive
     package, packet = materialize_package(
-        input_root, work / "package", recipe["data_archive"], proof["manifest_sha256"],
+        input_root, work / "package", archive_name, proof["manifest_sha256"],
         legacy_manifest_sha256=proof.get("legacy_manifest_sha256"),
-        legacy_control_json_sha256=proof.get("legacy_control_json_sha256"))
+        legacy_control_json_sha256=proof.get("legacy_control_json_sha256"),
+        additional_manifest_sha256=proof.get("compatible_manifest_sha256", []))
     if packet["data_sha256"] != recipe["data_sha256"]:
         raise ValueError("Training payload differs from the committed quality dataset")
     prepared, _ = prepare_run(PROJECT_ROOT / plan["training_recipe"], package,

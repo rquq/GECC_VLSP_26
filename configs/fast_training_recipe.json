@@ -5,7 +5,7 @@
   "correction_config": "configs/fast_correction.json",
   "classifier_run": null,
   "initial_adapter": null,
-  "data_archive": "VGEC26-quality-track1039-private-20261019.zip",
+  "data_archive": "VGEC26-fast-quality-private-20261020.zip",
   "submission_filename": "private_test.json",
   "data_sha256": {
     "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",

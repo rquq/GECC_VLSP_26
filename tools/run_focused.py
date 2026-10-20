@@ -76,10 +76,11 @@ def _migrate_legacy_control(root, destination, manifest, json_sha256):
 
 
 def materialize_package(inputs, destination, archive_name, manifest_sha256, *,
-                        legacy_manifest_sha256=None, legacy_control_json_sha256=None):
+                        legacy_manifest_sha256=None, legacy_control_json_sha256=None,
+                        additional_manifest_sha256=()):
     """Support one ZIP or arbitrary Kaggle extraction prefixes, with pinned hashes."""
     inputs, destination = Path(inputs), Path(destination)
-    accepted_hashes = {manifest_sha256, legacy_manifest_sha256} - {None}
+    accepted_hashes = {manifest_sha256, legacy_manifest_sha256, *additional_manifest_sha256} - {None}
     archives = list(inputs.rglob(archive_name))
     if len(archives) > 1:
         raise ValueError("Attach exactly one focused package archive")
