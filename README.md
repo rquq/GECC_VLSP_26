@@ -1,3 +1,5 @@
+Final private submission prepared (October20): `runs/final-private-1039-20261020/results.zip` combines exact quality-ensemble labels with completed Qwen14B corrections fortrack1039's2034 private inputs. See `agents/experiments/FINAL_SUBMISSION_1039_20261020.md` and `configs/final_submission_1039.json`. This is for track1039 ONLY; its private score is unknown. Source experiments and the training recipe below remain preserved.
+
 # Track1039: fresh20B/14B quality-data retrain
 
 The default `configs/experiment.json` now selects `configs/fast_training_plan.json`: fresh Sailor2-20B classifier and Qwen2.5-14B corrector, five full epochs each, one final private submission. The earlier four-way trial remains in `configs/controlled_quality_experiment.json`.

@@ -1,0 +1,167 @@
+{
+  "date": "2026-10-20",
+  "status": "final_candidate_built_not_submitted",
+  "request": "One remaining private submission on1039; maximize supported improvement over reported1038 quality0.5806 without risking a development-only winner.",
+  "artifact": "runs/final-private-1039-20261020/results.zip",
+  "provenance": {
+    "format": "vgec-final-component-join-v1",
+    "competition_id": 1039,
+    "rows": 2034,
+    "private_data_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045",
+    "classification_source": "runs/18_10_2026/quality/runs/quality-private-fresh-20261017-20261017T080116892693Z/run/results.zip",
+    "classification_source_sha256": "d9d14ac425dcc0a3ddf3e1fdd60686bbb09bf59293106845e3683dba6f859f79",
+    "correction_source": "runs/20_10_2026_2/runs/track1039-fast-quality-20261020-20261020T052159852419Z/run/results.zip",
+    "correction_source_sha256": "a5b9b9d67cb5cf8831c76e9c20e45766b40cdfbe539672156e524c474ccc0397",
+    "submission_sha256": "ea53b2ae7f8cb9522679066b945d2352abdc432604a9f3d9942387e68c19a335",
+    "submission_bytes": 93503,
+    "labels_identical_to_quality_submission": true,
+    "corrections_identical_to_completed14b_submission": true,
+    "scope": "Frozen component join only. Private score unknown. No fitting, generation, calibration or row-specific rules."
+  },
+  "selection": "Exact labels from reported0.5806 quality ensemble; exact complete corrections from reported0.5504 current14B system. No model execution, output-level fitting, calibration or cherry-picking.",
+  "official_feedback_user_reported": {
+    "quality_track1038": {
+      "combined": 0.5806,
+      "macro_f1": 0.4149,
+      "gleu_plus": 0.7463
+    },
+    "current_track1039": {
+      "combined": 0.5504,
+      "macro_f1": 0.3484,
+      "gleu_plus": 0.7525
+    }
+  },
+  "conditional_component_projection": {
+    "formula": "(.4149 + .7525)/2",
+    "value": 0.5837,
+    "measured": false,
+    "assumptions": [
+      "Same private references/class labels across tracks",
+      "Independent component scoring as documented",
+      "Reported component scores correctly attributed to preserved ZIPs"
+    ],
+    "not_a_guarantee": true
+  },
+  "comparison_scope": {
+    "private_inputs_identical": true,
+    "rows": 2034,
+    "development_population_equal": true,
+    "development_rows": 78,
+    "hosted_gold_equality_verified": false,
+    "private_gold_available": false
+  },
+  "all_nine_cached_development_pairings": [
+    {
+      "classifier": "quality_ensemble",
+      "corrector": "quality7b",
+      "development_macro_f1": 0.5727738927738928,
+      "development_gleu": 0.6057518271992086,
+      "development_combined": 0.5892628599865507
+    },
+    {
+      "classifier": "quality_ensemble",
+      "corrector": "previous14b",
+      "development_macro_f1": 0.5727738927738928,
+      "development_gleu": 0.6638517795670329,
+      "development_combined": 0.6183128361704628
+    },
+    {
+      "classifier": "quality_ensemble",
+      "corrector": "current14b",
+      "development_macro_f1": 0.5727738927738928,
+      "development_gleu": 0.656090571718386,
+      "development_combined": 0.6144322322461394
+    },
+    {
+      "classifier": "previous20b",
+      "corrector": "quality7b",
+      "development_macro_f1": 0.5941224356887007,
+      "development_gleu": 0.6057518271992086,
+      "development_combined": 0.5999371314439547
+    },
+    {
+      "classifier": "previous20b",
+      "corrector": "previous14b",
+      "development_macro_f1": 0.5941224356887007,
+      "development_gleu": 0.6638517795670329,
+      "development_combined": 0.6289871076278668
+    },
+    {
+      "classifier": "previous20b",
+      "corrector": "current14b",
+      "development_macro_f1": 0.5941224356887007,
+      "development_gleu": 0.656090571718386,
+      "development_combined": 0.6251065037035434
+    },
+    {
+      "classifier": "current20b",
+      "corrector": "quality7b",
+      "development_macro_f1": 0.5450919811895422,
+      "development_gleu": 0.6057518271992086,
+      "development_combined": 0.5754219041943753
+    },
+    {
+      "classifier": "current20b",
+      "corrector": "previous14b",
+      "development_macro_f1": 0.5450919811895422,
+      "development_gleu": 0.6638517795670329,
+      "development_combined": 0.6044718803782876
+    },
+    {
+      "classifier": "current20b",
+      "corrector": "current14b",
+      "development_macro_f1": 0.5450919811895422,
+      "development_gleu": 0.656090571718386,
+      "development_combined": 0.600591276453964
+    }
+  ],
+  "development_classifier_bootstrap": {
+    "seed": 42,
+    "resamples": 2000,
+    "stratified_by_gold_class": true,
+    "previous20b_minus_quality_macro_f1": 0.021348542914807922,
+    "previous20b_minus_quality_bootstrap95": [
+      -0.1658786841065292,
+      0.20034094658982657
+    ],
+    "current20b_minus_quality_macro_f1": -0.027681911584350627,
+    "current20b_minus_quality_bootstrap95": [
+      -0.18842849598706002,
+      0.14479900295318945
+    ],
+    "scope": "Resampling already-reused78-row development set, not independent private evidence."
+  },
+  "private_output_changes_vs_quality": {
+    "changed_labels": 0,
+    "changed_corrections": 834,
+    "unchanged_corrections": 1200
+  },
+  "why_larger_lost": [
+    "Three7B classifier models with soft voting were replaced by one20B classifier; ensemble diversity was lost.",
+    "Standard-LoRA FP16 became NF4QLoRA and several optimization settings changed; parameter count was not isolated.",
+    "Same limited/noisy/repeated training supervision; larger base does not supply missing subtype examples.",
+    "78-row development, with6 phrase and6 function examples, is repeatedly reused and has unstable rankings.",
+    "Current classifier makes731 different private labels vs quality, with clean predictions1029 to557 and function41 to297; counts are predictions, not gold.",
+    "Correction improved in reported private GLEU while classification deteriorated, so the bigger corrector is not the principal regression."
+  ],
+  "excluded_changes": [
+    "Earlier previous20B/current14B optional ZIP superseded as final recommendation, not deleted.",
+    "No new probability mixing, thresholds, label distribution matching, source-copy gating, beam strategy or row-specific rules.",
+    "Do not replace missing previous14B outputs with other models to manufacture a completed old-model run.",
+    "No new training or unvalidated synthetic samples before the last slot."
+  ],
+  "sources": [
+    "https://aihub.ml/competitions/1038#learn_the_details-overview",
+    "https://aihub.ml/competitions/1039#learn_the_details-overview"
+  ],
+  "checks": [
+    "Source submission SHA256s match frozen plan and quality preservation record.",
+    "Private data SHA256 matches committed2034-row input.",
+    "Both source comparison files match all private typed IDs and source strings.",
+    "Corrector is no-hint, so reusing different classifier labels does not change correction generation contract.",
+    "Final archive contains only results.json; CRC and strict schema/typed IDs pass.",
+    "Reopened final labels exactly equal quality labels; corrections exactly equal current14B strings."
+  ],
+  "preservation": "No source output, adapter, original quality archive/tag or user-edited experiment file changed.",
+  "next_action": "Human may submit this results.zip to1039 only; do not spend the remaining slot on earlier20B classifier candidate. No automatic submission."
+}

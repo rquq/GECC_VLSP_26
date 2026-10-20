@@ -1,0 +1,12 @@
+{
+  "format": "vgec-final-component-join-v1",
+  "competition_id": 1039,
+  "expected_rows": 2034,
+  "private_data": "dataset/kaggle-fast-quality-20261020/private_test.json",
+  "classification_submission": "runs/18_10_2026/quality/runs/quality-private-fresh-20261017-20261017T080116892693Z/run/results.zip",
+  "correction_submission": "runs/20_10_2026_2/runs/track1039-fast-quality-20261020-20261020T052159852419Z/run/results.zip",
+  "correction_run": "runs/20_10_2026_2/runs/track1039-fast-quality-20261020-20261020T052159852419Z/run/correction",
+  "private_data_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045",
+  "classification_submission_sha256": "d9d14ac425dcc0a3ddf3e1fdd60686bbb09bf59293106845e3683dba6f859f79",
+  "correction_submission_sha256": "a5b9b9d67cb5cf8831c76e9c20e45766b40cdfbe539672156e524c474ccc0397"
+}
