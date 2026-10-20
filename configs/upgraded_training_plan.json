@@ -1,0 +1,13 @@
+{
+  "format": "vgec-fast-training-v1",
+  "name": "track1039-upgraded-soft-vote-20261020",
+  "training_recipe": "configs/upgraded_training_recipe.json",
+  "package_proof": "configs/fast_training_package_source.json",
+  "inference_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045",
+  "experiment_kind": "upgraded-soft-vote",
+  "classifier_order": [
+    "sailor20b",
+    "mistral12b",
+    "qwen14b"
+  ]
+}

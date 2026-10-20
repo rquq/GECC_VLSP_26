@@ -1,4 +1,4 @@
 {
   "format": "vgec-fast-training-v1",
-  "plan": "configs/fast_training_plan.json"
+  "plan": "configs/upgraded_training_plan.json"
 }

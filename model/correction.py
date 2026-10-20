@@ -827,7 +827,10 @@ def main(*, tracking):
                 return control
             interval = config["evaluation"].get("every_n_epochs", 1)
             epoch_number = int(round(state.epoch))
-            if epoch_number % interval and epoch_number < math.ceil(args.num_train_epochs):
+            requested_epochs = config["evaluation"].get("epochs")
+            skip_epoch = (epoch_number not in requested_epochs if requested_epochs is not None
+                          else bool(epoch_number % interval))
+            if skip_epoch and epoch_number < math.ceil(args.num_train_epochs):
                 if rank == 0:
                     history.append({"epoch": state.epoch, "optimizer_steps": state.global_step,
                                     "evaluation_status": "skipped_interval"})

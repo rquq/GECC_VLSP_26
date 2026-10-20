@@ -328,6 +328,12 @@ class TrackingRun:
                 "classifier-qwen7b/*",
                 "classifier-sailor7b/*",
                 "classifier-mistral7b/*",
+                "classifier-qwen14b/*",
+                "classifier-sailor20b/*",
+                "classifier-mistral12b/*",
+                "private-qwen14b/*",
+                "private-sailor20b/*",
+                "private-mistral12b/*",
                 "corrector/*",
                 "inference/*",
                 "pipeline/*",
@@ -612,7 +618,7 @@ class TrackingRun:
     def progress(self, event):
         stage, prefix = event.get("stage", ""), event.get("prefix", "")
         if not re.fullmatch(
-            r"classifier-training|corrector-training|private-classifier|private-corrector|classifier(?:-seed-(?:42|43|44)|-(?:qwen7b|sailor7b|mistral7b))?|corrector|inference|oof|(?:baseline|challenger)-decoders|selected-private-corrector",
+            r"classifier-ensemble|private-(?:qwen14b|sailor20b|mistral12b)|classifier-training|corrector-training|private-classifier|private-corrector|classifier(?:-seed-(?:42|43|44)|-(?:qwen7b|sailor7b|mistral7b|qwen14b|sailor20b|mistral12b))?|corrector|inference|oof|(?:baseline|challenger)-decoders|selected-private-corrector",
             stage,
         ) or not re.fullmatch(
             r"(?:train|training|validation|baseline|final)(?:/classification)?|decoding", prefix

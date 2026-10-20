@@ -80,7 +80,7 @@ def run(plan, input_root, output_root, *, source_identity=None):
         for item in inputs.values():
             tracking.protect_console_file(item["path"])
         tracking.start(config, output, "pipeline", group=work.name,
-                       metadata={"competition_id": 1039, "kind": "fresh five-epoch quality-data retrain"})
+                       metadata={"competition_id": 1039, "kind": plan.get("experiment_kind", "fresh quality-data retrain")})
 
         def stage(command, name):
             # No wall/stage timeout. Kaggle's external session limit still applies.
@@ -93,15 +93,41 @@ def run(plan, input_root, output_root, *, source_identity=None):
             tracking.console_line(message)
 
         try:
-            stage([sys.executable, "-m", "model.classification", "--config",
-                   str(prepared / "classification_config.json"), "--output-dir", str(classifier),
-                   "--device", "cuda", "--fit-only"], "classifier-training")
-            classifier_metrics = selected_classifier(classifier)
-            tracking.evaluation(classifier_metrics, "selected/classifier")
-            # Classify now, before switching the owned base cache from20B to14B.
-            stage([sys.executable, "-m", "tools.focused_worker", "--classifier", str(classifier / "classifier"),
-                   "--records", str(private_path), "--output", str(output / "private_classification.json"),
-                   "--batch-size", "8"], "private-classifier")
+            if config.get("ensemble"):
+                from model.runtime import classifier_member_config
+                from model.upgraded_ensemble import build, NAMES
+                from model.classifier_ensemble import vote
+                from model.tracking import result_metrics
+                entries = {entry["name"]: entry for entry in config["ensemble"]["members"]}
+                order = plan["classifier_order"]
+                if len(order) != 3 or set(order) != set(NAMES) or set(entries) != set(NAMES):
+                    raise ValueError("Classifier schedule must fit each of the three members exactly once")
+                for name in order:
+                    member = classifier / "members" / name
+                    child_config = prepared / f"classification_{name}.json"
+                    write_json(child_config, classifier_member_config(config, entries[name]))
+                    stage([sys.executable, "-m", "model.classification", "--config", str(child_config),
+                           "--output-dir", str(member), "--device", "cuda", "--fit-only"], "classifier-" + name)
+                    metrics = selected_classifier(member)
+                    tracking.stage_result({"stage": "classifier-" + name, "metrics": result_metrics(metrics)})
+                    stage([sys.executable, "-m", "tools.focused_worker", "--classifier", str(member / "classifier"),
+                           "--records", str(private_path), "--output", str(member / "private_predictions.json"),
+                           "--batch-size", "8"], "private-" + name)
+                classifier_metrics = build(classifier, config)
+                tracking.stage_result({"stage": "classifier-ensemble", "metrics": result_metrics(classifier_metrics)})
+                write_json(output / "private_classification.json", vote(
+                    [read(classifier / "members" / name / "private_predictions.json") for name in NAMES],
+                    config["ensemble"]["calibration"]))
+            else:
+                stage([sys.executable, "-m", "model.classification", "--config",
+                       str(prepared / "classification_config.json"), "--output-dir", str(classifier),
+                       "--device", "cuda", "--fit-only"], "classifier-training")
+                classifier_metrics = selected_classifier(classifier)
+                tracking.evaluation(classifier_metrics, "selected/classifier")
+                # Classify now, before switching the owned base cache from20B to14B.
+                stage([sys.executable, "-m", "tools.focused_worker", "--classifier", str(classifier / "classifier"),
+                       "--records", str(private_path), "--output", str(output / "private_classification.json"),
+                       "--batch-size", "8"], "private-classifier")
             stage([sys.executable, "-m", "model.correction", "--config",
                    str(prepared / "correction_config.json"), "--classifier-run", str(classifier),
                    "--output-dir", str(corrector), "--device", "cuda"], "corrector-training")
@@ -120,7 +146,8 @@ def run(plan, input_root, output_root, *, source_identity=None):
                 "input_scope": "private_inference_only", "input_sha256": plan["inference_sha256"]})
             write_json(output / "pipeline_manifest.json", {
                 "status": "completed", "mode": "both", "competition_id": 1039,
-                "experiment_kind": "fast-training", "new_classifier_fits": 1, "new_corrector_fits": 1,
+                "experiment_kind": plan.get("experiment_kind", "fast-training"),
+                "new_classifier_fits": 3 if config.get("ensemble") else 1, "new_corrector_fits": 1,
                 "verification_status": "skipped_user_request", "controller_deadline": None,
                 "classifier": "classification/classifier", "corrector": "correction/adapter",
                 "selected_metrics": metrics, "submission": {"status": "completed", "path": "results.zip"}})

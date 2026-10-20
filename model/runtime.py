@@ -91,7 +91,9 @@ def load_config(path, expected_task=None):
         from .classifier_ensemble import calibration_settings
         calibration_settings(spec.get('calibration') if isinstance(spec, dict) else None)
         entries = spec.get("members", []) if isinstance(spec, dict) else []
-        expected = ["qwen7b", "sailor7b", "mistral7b"]
+        expected = (["qwen14b", "sailor20b", "mistral12b"]
+                    if config.get("competition_id") == 1039 and isinstance(spec, dict) and spec.get("format") == "vgec-upgraded-classifier-soft-vote-v1"
+                    else ["qwen7b", "sailor7b", "mistral7b"])
         if (
             task != "classification"
             or len(entries) != 3
@@ -102,7 +104,7 @@ def load_config(path, expected_task=None):
             or config.get("oof", {}).get("enabled", False)
         ):
             raise ValueError(
-                "Soft voting requires Qwen/Sailor/Mistral members, seed 42 and no OOF hints"
+                "Soft voting requires the committed Qwen/Sailor/Mistral members, seed42 and no OOF hints"
             )
         models = [entry.get("model") for entry in entries]
         if (

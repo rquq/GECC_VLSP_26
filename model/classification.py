@@ -120,8 +120,12 @@ def _configure_padding(tokenizer):
     added = False
     if tokenizer.pad_token_id is None or tokenizer.pad_token_id == tokenizer.eos_token_id:
         # Qwen already has a vocabulary-resident end-of-text token distinct from im_end.
-        candidate = "<|endoftext|>"
-        if candidate in tokenizer.get_vocab() and tokenizer.convert_tokens_to_ids(candidate) != tokenizer.eos_token_id:
+        vocabulary = tokenizer.get_vocab()
+        candidate = next((token for token in ("<|endoftext|>", "<pad>", "[PAD]")
+                          if token in vocabulary and vocabulary[token] != tokenizer.eos_token_id), None)
+        if candidate is not None:
+            # Nemo already reserves <pad> in its backend, even when metadata
+            # does not assign pad_token. Avoid resizing/saving a huge embedding.
             tokenizer.pad_token = candidate
         else:
             added = bool(tokenizer.add_special_tokens({"pad_token": "<|classification_pad|>"}))
@@ -270,7 +274,11 @@ def _release(device):
 def classify(checkpoint, records, device="cuda", batch_size=8):
     """Reload the saved hierarchical LoRA/score head and return five joint scores."""
     if (Path(checkpoint) / "ensemble.json").is_file():
-        from .classifier_ensemble import classify as ensemble_classify
+        descriptor = json.loads((Path(checkpoint) / "ensemble.json").read_text())
+        if descriptor.get("format") == "vgec-upgraded-classifier-soft-vote-v1":
+            from .upgraded_ensemble import classify as ensemble_classify
+        else:
+            from .classifier_ensemble import classify as ensemble_classify
         return ensemble_classify(checkpoint, records, device, batch_size)
     from .reproducibility import seed_everything
     seed_everything(42)

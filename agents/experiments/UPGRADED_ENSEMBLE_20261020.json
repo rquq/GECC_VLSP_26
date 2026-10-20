@@ -1,0 +1,245 @@
+{
+  "date": "2026-10-20",
+  "status": "prepared_not_executed",
+  "competition_id": 1039,
+  "authorization": "User explicitly prefers gambling on a fresh training run with the best quality-system mechanism and upgraded models, superseding the cached-component-only final recommendation.",
+  "training_recipe": "configs/upgraded_training_recipe.json",
+  "plan": "configs/upgraded_training_plan.json",
+  "models": [
+    {
+      "member": "qwen14b",
+      "base": "Qwen/Qwen2.5-14B-Instruct",
+      "revision": "cf98f3b3bbb457ad9e2bb7baf9a0125b6b88caa8",
+      "epochs": 5,
+      "learning_rate": 3e-05
+    },
+    {
+      "member": "sailor20b",
+      "base": "sail/Sailor2-20B-Chat",
+      "revision": "bca071eb3dedd23b4e141f63e25d9456300534eb",
+      "epochs": 5,
+      "learning_rate": 3e-05
+    },
+    {
+      "member": "mistral12b",
+      "base": "mistralai/Mistral-Nemo-Instruct-2407",
+      "revision": "04d8a90549d23fc6bd7f642064003592df51e9b3",
+      "epochs": 5,
+      "learning_rate": 5e-05
+    },
+    {
+      "task": "correction",
+      "base": "Qwen/Qwen2.5-14B-Instruct",
+      "revision": "cf98f3b3bbb457ad9e2bb7baf9a0125b6b88caa8",
+      "epochs": 6,
+      "learning_rate": 2e-05
+    }
+  ],
+  "classification": {
+    "mechanism": "Independent binary-error plus conditional subtype soft hierarchy; weighted binary +lambda2 subtype CE; combine joint class probability distributions by SOFT voting",
+    "calibration": {
+      "weights": [
+        1,
+        1,
+        2
+      ],
+      "temperature": 1.0,
+      "phrase_scale": 1.25
+    },
+    "calibration_origin": "Unchanged fixed weights/T/phrase multiplier from preserved quality system; no new sweep",
+    "lora": {
+      "r": 16,
+      "lora_alpha": 32,
+      "lora_dropout": 0.05,
+      "target_modules": [
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj"
+      ],
+      "bias": "none",
+      "modules_to_save": [
+        "score"
+      ]
+    },
+    "precision": "NF4 double-quant QLoRA/FP16 compute/FP32 trainables",
+    "training": {
+      "max_length": 512,
+      "effective_batch_size": 8,
+      "fp16_initial_scale": 1,
+      "class_weight_power": 0.5,
+      "args": {
+        "num_train_epochs": 5,
+        "max_steps": -1,
+        "per_device_train_batch_size": 4,
+        "per_device_eval_batch_size": 8,
+        "learning_rate": 3e-05,
+        "weight_decay": 0.01,
+        "warmup_steps": 30,
+        "gradient_checkpointing": true,
+        "gradient_checkpointing_kwargs": {
+          "use_reentrant": false
+        },
+        "optim": "adamw_torch",
+        "logging_steps": 10,
+        "dataloader_num_workers": 0,
+        "lr_scheduler_type": "cosine",
+        "max_grad_norm": 1,
+        "adam_beta1": 0.9,
+        "adam_beta2": 0.999,
+        "adam_epsilon": 1e-08
+      }
+    },
+    "selection": "Each member best development Macro-F1 epoch; no saved-model score replay."
+  },
+  "correction": {
+    "lora": {
+      "r": 16,
+      "lora_alpha": 32,
+      "lora_dropout": 0.075,
+      "target_modules": [
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj"
+      ],
+      "bias": "none"
+    },
+    "precision": "NF4 double-quant QLoRA/FP16 compute/FP32 trainables",
+    "training": {
+      "max_length": 512,
+      "effective_batch_size": 8,
+      "fp16_initial_scale": 1.0,
+      "args": {
+        "num_train_epochs": 6,
+        "max_steps": -1,
+        "per_device_train_batch_size": 2,
+        "learning_rate": 2e-05,
+        "warmup_ratio": 0.05,
+        "weight_decay": 0.02,
+        "gradient_checkpointing": true,
+        "gradient_checkpointing_kwargs": {
+          "use_reentrant": false
+        },
+        "optim": "adamw_torch",
+        "logging_steps": 10,
+        "dataloader_num_workers": 0,
+        "lr_scheduler_type": "linear",
+        "max_grad_norm": 1.0,
+        "adam_beta1": 0.9,
+        "adam_beta2": 0.999,
+        "adam_epsilon": 1e-08
+      }
+    },
+    "evaluation_epochs": [
+      2,
+      4,
+      5,
+      6
+    ],
+    "generation": {
+      "max_new_tokens": 192,
+      "do_sample": false,
+      "use_cache": true,
+      "num_beams": 1,
+      "repetition_penalty": 1.0
+    },
+    "hint_mode": "none",
+    "selection": "Best evaluated checkpoint by all-GLEU, error-GLEU, then clean preservation."
+  },
+  "schedule": [
+    "sailor20b",
+    "mistral12b",
+    "qwen14b",
+    "weighted_soft_vote",
+    "fresh_qwen14b_correction",
+    "private_correction",
+    "export"
+  ],
+  "cache_policy": "Each member private classification immediately after fit; Sailor→Nemo→Qwen order keeps Qwen base in owned temporary cache for corrector. One model worker at a time, explicit split across both T4s. No user cache deletion.",
+  "data": {
+    "archive": "VGEC26-fast-quality-private-20261020.zip",
+    "data_sha256": {
+      "original": "7968ea77cbcf69a26c9f98f1946c4b4dc19237a02c67fb483d54265f109dc728",
+      "classification": "0120bdf836b20069ce01826c6a8c695c6deb76f6ff7c3ec1cb4f1f73b40bede2",
+      "correction": "9baa0e9ebbbb4b0c3713306462263170ec73e63bd5106ba8355452eae0890d17"
+    },
+    "private_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045",
+    "classifier_exposures": 1128,
+    "corrector_exposures": 1011,
+    "shared_development": 78,
+    "private_inference_only": 2034,
+    "new_samples": 0,
+    "repairs": 0,
+    "new_upload_required": false
+  },
+  "seed": 42,
+  "folds": false,
+  "artificial_controller_timeout": null,
+  "baseline_comparison": false,
+  "decoder_sweep": false,
+  "model_preflight_runs": false,
+  "saved_model_score_replay": false,
+  "nemo_metadata": {
+    "source": "https://huggingface.co/mistralai/Mistral-Nemo-Instruct-2407",
+    "license": "Apache-2.0",
+    "gated": false,
+    "revision": "04d8a90549d23fc6bd7f642064003592df51e9b3",
+    "api_causal_native_parameters": 12247782400,
+    "model_type": "mistral",
+    "hidden_size": 5120,
+    "layers": 40,
+    "intermediate_size": 14336,
+    "attention_heads": 32,
+    "kv_heads": 8,
+    "head_dim": 128,
+    "vocab_size": 131072,
+    "tokenizer_class": "PreTrainedTokenizerFast",
+    "pad_detail": "Native tokenizer metadata has no pad assignment, but reserves <pad> ID10; configure existing token to avoid resizing/saving huge embedding matrix.",
+    "scope": "Official metadata inspected only; no tokenizer/model execution or GPU fit verified.",
+    "vietnamese_benchmark_verified": false
+  },
+  "history_rationale": [
+    "Original0.5806 quality used three7B families with weighted soft vote1:1:2; this restores that mechanism using14B/20B/12B.",
+    "Single20B run lost reported private classification despite larger base; parameter count alone is not evidence of better VGEC quality.",
+    "Restore classifier dropout.05/decay.01 from quality recipe; Sailor LR3e-5 from earlier stronger20B development fit; Qwen LR3e-5 and Nemo LR5e-5 are hypotheses.",
+    "Fresh corrector retains completed14B optimization/prompt/greedy recipe, extends5→6 epochs because evaluated development GLEU rose through5; no improvement proven.",
+    "Nemo12B is selected for third-family diversity and session/storage room relative to larger alternatives; Vietnamese VGEC quality unmeasured."
+  ],
+  "runtime_and_memory": "Sailor20B micro4 and Qwen14B correction micro2/generation4 have actual prior T4 evidence; Qwen14B classifier and Nemo12B placements, new total runtime and ensemble quality are untested. Kaggle external session cap remains; four fits may approach it. No completion guarantee.",
+  "preserved": [
+    "Original0.5806 quality source/tag/weights/docs",
+    "All old runs/partial outputs",
+    "runs/final-private-1039-20261020/results.zip cached component candidate",
+    "Three preexisting user-edited experiment files",
+    "Previous one-classifier default wrapper configs/fast_single_experiment.json"
+  ],
+  "new_code": [
+    "model/upgraded_ensemble.py portable descriptor/selected-member probability vote",
+    "run_fast_training ensemble scheduling and cached private voting",
+    "classification dispatcher for explicit upgraded descriptor",
+    "runtime validation supports actual upgraded member names without weakening1038 size cap",
+    "correction callback supports explicit evaluation epochs",
+    "W&B stage names include upgraded members/private classifiers",
+    "reuse existing vocabulary pad token where available"
+  ],
+  "config_sha256": {
+    "configs/upgraded_classification.json": "410d6c5afac18d183a4222fa885ae334aae77ef6cdc4879f1991e8d35dc492ac",
+    "configs/upgraded_correction.json": "ec664f74d885c5f13c1180eaea94a8184d317fa4dae20b4f63b0e4a394ad7573",
+    "configs/upgraded_training_recipe.json": "be14deaa1a52e310719d8fb8edc03662f84e9f71be640952df47e18831c91240",
+    "configs/upgraded_training_plan.json": "89fff5a77fa2c2054db18e0c8de23802c35f5be6c59970954cbe52c2965efb72"
+  },
+  "verification": "No tests, smoke runs, saved-model replays, native preflight, training or inference performed, per standing user preference. Metadata inspection and implementation only.",
+  "sources": [
+    "https://huggingface.co/Qwen/Qwen2.5-14B-Instruct",
+    "https://huggingface.co/sail/Sailor2-20B-Chat",
+    "https://huggingface.co/mistralai/Mistral-Nemo-Instruct-2407"
+  ],
+  "next_action": "Same compact private data, latest notebook, Internet ON/T4x2, Save Version. Training does not spend submission slot; export is not automatically uploaded."
+}
