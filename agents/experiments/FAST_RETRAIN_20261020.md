@@ -1,3 +1,5 @@
+Outcome update: the native run is now completed; see FAST_RESULTS_20261020.md/.json for runtime, official user-reported score and negative development tuning result. The preparation notes below describe what was known before that run.
+
 # Fresh quality-data retrain — October20
 
 Prepared, not executed. User requests fresh classifier → corrector → inference; remove our runtime cap, tune using saved results, use standard LoRA if feasible, and skip verification runs. No tests, model preflight, smoke fits or new native inference/training were run for this change.

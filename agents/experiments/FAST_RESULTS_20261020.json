@@ -1,0 +1,124 @@
+{
+  "date": "2026-10-20",
+  "status": "completed_native_and_user_reported_score",
+  "source_commit": "d9e99b1c7bc43cf3102f6a81f7aa0d3bc25fc8fb",
+  "source_run": "runs/20_10_2026_2/runs/track1039-fast-quality-20261020-20261020T052159852419Z",
+  "official_user_reported": {
+    "track": 1039,
+    "avg_f1_gleu": 0.5504,
+    "macro_f1": 0.3484,
+    "micro_f1": 0.5982,
+    "exact_match": 0.5305,
+    "gleu_plus": 0.7525,
+    "rouge_l": 0.8317
+  },
+  "prior_official_user_reported": {
+    "oct19_7b_track1039": {
+      "combined": 0.5307,
+      "macro_f1": 0.3178,
+      "gleu_plus": 0.7435
+    },
+    "quality_track1038": {
+      "combined": 0.5806,
+      "macro_f1": 0.4149,
+      "gleu_plus": 0.7463
+    },
+    "scope": "Track1038 quality score is a different competition track; direct equivalence of scorer/reference sets is not independently established."
+  },
+  "same_development_verified": true,
+  "development_rows": 78,
+  "development": {
+    "previous20b14b": {
+      "macro_f1": 0.5941224356887007,
+      "micro_f1": 0.782051282051282,
+      "gleu_plus": 0.6638517795670329,
+      "error_gleu": 0.3086054158663492,
+      "combined": 0.6289871076278668
+    },
+    "current20b14b": {
+      "macro_f1": 0.5450919811895422,
+      "micro_f1": 0.7564102564102564,
+      "gleu_plus": 0.656090571718386,
+      "error_gleu": 0.2912862569332572,
+      "combined": 0.600591276453964
+    },
+    "optional_previous20b_current14b": {
+      "macro_f1": 0.5941224356887007,
+      "micro_f1": 0.782051282051282,
+      "gleu_plus": 0.656090571718386,
+      "error_gleu": 0.2912862569332572,
+      "combined": 0.6251065037035434
+    }
+  },
+  "classifier_epoch_macro": [
+    0.37833837988636754,
+    0.4922106216223863,
+    0.4632034632034632,
+    0.5436933797909408,
+    0.5450919811895422
+  ],
+  "classifier_final_mean_logged_training_loss": 0.02519285714285714,
+  "corrector_final_mean_logged_training_loss": 0.007138461538461538,
+  "current_per_class": {
+    "0": {
+      "precision": 0.9523809523809523,
+      "recall": 1.0,
+      "f1": 0.975609756097561,
+      "support": 40
+    },
+    "1": {
+      "precision": 0.8125,
+      "recall": 0.6842105263157895,
+      "f1": 0.7428571428571429,
+      "support": 19
+    },
+    "2": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 6
+    },
+    "3": {
+      "precision": 0.6,
+      "recall": 0.5,
+      "f1": 0.5454545454545454,
+      "support": 6
+    },
+    "4": {
+      "precision": 0.5,
+      "recall": 0.42857142857142855,
+      "f1": 0.46153846153846156,
+      "support": 7
+    }
+  },
+  "runtime_seconds": {
+    "root_wandb_elapsed": 27306.372869922998,
+    "classifier_train_loop": 4393.172,
+    "corrector_train_loop": 9874.2126,
+    "previous_classifier_train_loop": 12462.8913,
+    "previous_corrector_train_loop": 15066.0566
+  },
+  "current_correction_peak_allocated_bytes": {
+    "cuda:0": 8102995456,
+    "cuda:1": 9567102976
+  },
+  "submission": {
+    "path": "runs/20_10_2026_2/runs/track1039-fast-quality-20261020-20261020T052159852419Z/run/results.zip",
+    "rows": 2034,
+    "sha256": "a5b9b9d67cb5cf8831c76e9c20e45766b40cdfbe539672156e524c474ccc0397",
+    "parse_errors": 0,
+    "schema_retries": 23,
+    "final_batch_size": 4
+  },
+  "private_classifier_counts": {
+    "1": 1034,
+    "2": 81,
+    "0": 557,
+    "3": 297,
+    "4": 65
+  },
+  "optional_hybrid_submission": "runs/analysis-fast-quality-20261020/previous20b-current14b/results.zip",
+  "optional_hybrid_private_score": null,
+  "interpretation": "The speed goal succeeded, but the joint tuning regressed reused-development quality. Low final training loss plus low subtype F1 is not evidence of simple global underfitting. All five classifier epochs have phrase recall0/6. Corrector development improves through epoch5; extra epochs are an untested option, not the primary classification fix. Multiple settings/microbatch changed together, so no individual cause is isolated.",
+  "actions": "Recorded outcome, created one optional cached-prediction hybrid without model inference/training; no default model/config promotion, source artifact edits, tests or new model runs."
+}
