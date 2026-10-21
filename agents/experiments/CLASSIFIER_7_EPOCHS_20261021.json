@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-21",
+  "status": "prepared_not_run",
+  "source_commit_before_change": "95b6697aab2a6a32f583aaa3bfa5bffc15fcc293",
+  "authorization": "User requests seven epochs for all three classifiers, commit and push.",
+  "default_experiment": "configs/experiment.json",
+  "plan": "configs/upgraded_training_plan.json",
+  "classification_config": "configs/upgraded_classification.json",
+  "classification_config_sha256": "713e1e30a20f9ccf60e2708207539cb4285f69f9469fe5cc134738aec78464ab",
+  "shared_epochs": {
+    "before": 5,
+    "after": 7
+  },
+  "members": [
+    {
+      "name": "qwen14b",
+      "model": "Qwen/Qwen2.5-14B-Instruct",
+      "epochs": 7,
+      "learning_rate": 3e-05
+    },
+    {
+      "name": "sailor20b",
+      "model": "sail/Sailor2-20B-Chat",
+      "epochs": 7,
+      "learning_rate": 3e-05
+    },
+    {
+      "name": "mistral12b",
+      "model": "mistralai/Mistral-Nemo-Instruct-2407",
+      "epochs": 7,
+      "learning_rate": 5e-05
+    }
+  ],
+  "checkpoint_selection": "Best development Macro-F1 per member; full seven-epoch training.",
+  "corrector_epochs": 6,
+  "corrector_config_sha256": "ec664f74d885c5f13c1180eaea94a8184d317fa4dae20b4f63b0e4a394ad7573",
+  "dataset_changed": false,
+  "notebook_code_changed": false,
+  "reupload_required": false,
+  "validation": "Static configuration and patch checks only; no tests, training or inference.",
+  "runtime": "Classifier epoch budget rises by40 percent; full-session runtime unmeasured.",
+  "automatic_submission": false
+}
