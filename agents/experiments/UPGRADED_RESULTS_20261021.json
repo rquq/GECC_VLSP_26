@@ -1,0 +1,591 @@
+{
+  "date": "2026-10-21",
+  "status": "completed_native_reviewed",
+  "source_run": "runs/21_10_2026/runs/track1039-upgraded-soft-vote-20261020-20261020T144909923321Z",
+  "source_commit": "95b6697aab2a6a32f583aaa3bfa5bffc15fcc293",
+  "same_development_verified": true,
+  "development_rows": 78,
+  "members": {
+    "qwen14b": {
+      "epochs": 5,
+      "selected_epoch": 4.0,
+      "macro_f1": 0.5261851595184929,
+      "micro_f1": 0.7435897435897436,
+      "per_class": {
+        "0": {
+          "precision": 0.926829268292683,
+          "recall": 0.95,
+          "f1": 0.9382716049382716,
+          "support": 40
+        },
+        "1": {
+          "precision": 0.7777777777777778,
+          "recall": 0.7368421052631579,
+          "f1": 0.7567567567567568,
+          "support": 19
+        },
+        "2": {
+          "precision": 0.16666666666666666,
+          "recall": 0.16666666666666666,
+          "f1": 0.16666666666666666,
+          "support": 6
+        },
+        "3": {
+          "precision": 0.14285714285714285,
+          "recall": 0.16666666666666666,
+          "f1": 0.15384615384615385,
+          "support": 6
+        },
+        "4": {
+          "precision": 0.6666666666666666,
+          "recall": 0.5714285714285714,
+          "f1": 0.6153846153846154,
+          "support": 7
+        }
+      },
+      "epoch_macro_f1": [
+        0.4639385560675883,
+        0.4608058608058608,
+        0.44815807404042696,
+        0.5261851595184929,
+        0.5261851595184929
+      ],
+      "whole_fit_training_loss": 1.3831335320064784,
+      "trainable_parameters": 68838400
+    },
+    "sailor20b": {
+      "epochs": 5,
+      "selected_epoch": 5.0,
+      "macro_f1": 0.6227710843373494,
+      "micro_f1": 0.7948717948717948,
+      "per_class": {
+        "0": {
+          "precision": 0.9302325581395349,
+          "recall": 1.0,
+          "f1": 0.963855421686747,
+          "support": 40
+        },
+        "1": {
+          "precision": 0.875,
+          "recall": 0.7368421052631579,
+          "f1": 0.8,
+          "support": 19
+        },
+        "2": {
+          "precision": 0.2,
+          "recall": 0.3333333333333333,
+          "f1": 0.25,
+          "support": 6
+        },
+        "3": {
+          "precision": 0.75,
+          "recall": 0.5,
+          "f1": 0.6,
+          "support": 6
+        },
+        "4": {
+          "precision": 0.6,
+          "recall": 0.42857142857142855,
+          "f1": 0.5,
+          "support": 7
+        }
+      },
+      "epoch_macro_f1": [
+        0.4341480881803463,
+        0.6134717134717135,
+        0.5973286334261945,
+        0.5904575163398693,
+        0.6227710843373494
+      ],
+      "whole_fit_training_loss": 0.8169746623329938,
+      "trainable_parameters": 91776000
+    },
+    "mistral12b": {
+      "epochs": 5,
+      "selected_epoch": 4.0,
+      "macro_f1": 0.5865699006875478,
+      "micro_f1": 0.717948717948718,
+      "per_class": {
+        "0": {
+          "precision": 0.9,
+          "recall": 0.9,
+          "f1": 0.9,
+          "support": 40
+        },
+        "1": {
+          "precision": 0.6666666666666666,
+          "recall": 0.5263157894736842,
+          "f1": 0.5882352941176471,
+          "support": 19
+        },
+        "2": {
+          "precision": 0.375,
+          "recall": 0.5,
+          "f1": 0.42857142857142855,
+          "support": 6
+        },
+        "3": {
+          "precision": 0.6,
+          "recall": 0.5,
+          "f1": 0.5454545454545454,
+          "support": 6
+        },
+        "4": {
+          "precision": 0.4,
+          "recall": 0.5714285714285714,
+          "f1": 0.47058823529411764,
+          "support": 7
+        }
+      },
+      "epoch_macro_f1": [
+        0.2859011164274322,
+        0.3773917310759416,
+        0.5276425403007681,
+        0.5865699006875478,
+        0.5821096550508316
+      ],
+      "whole_fit_training_loss": 1.0664330772421462,
+      "trainable_parameters": 57041920
+    }
+  },
+  "ensemble": {
+    "macro_f1": 0.5345414462081128,
+    "micro_f1": 0.717948717948718,
+    "confusion_matrix": [
+      [
+        37,
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      [
+        2,
+        11,
+        3,
+        1,
+        2,
+        0
+      ],
+      [
+        0,
+        1,
+        3,
+        0,
+        2,
+        0
+      ],
+      [
+        2,
+        2,
+        1,
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        2,
+        0,
+        4,
+        0
+      ]
+    ],
+    "labels": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "prediction_columns": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      "invalid"
+    ],
+    "per_class": {
+      "0": {
+        "precision": 0.9024390243902439,
+        "recall": 0.925,
+        "f1": 0.9135802469135802,
+        "support": 40
+      },
+      "1": {
+        "precision": 0.6875,
+        "recall": 0.5789473684210527,
+        "f1": 0.6285714285714286,
+        "support": 19
+      },
+      "2": {
+        "precision": 0.3,
+        "recall": 0.5,
+        "f1": 0.375,
+        "support": 6
+      },
+      "3": {
+        "precision": 0.3333333333333333,
+        "recall": 0.16666666666666666,
+        "f1": 0.2222222222222222,
+        "support": 6
+      },
+      "4": {
+        "precision": 0.5,
+        "recall": 0.5714285714285714,
+        "f1": 0.5333333333333333,
+        "support": 7
+      }
+    }
+  },
+  "sailor_vs_ensemble": {
+    "labels_differ": 18,
+    "sailor_correct_ensemble_wrong": 10,
+    "ensemble_correct_sailor_wrong": 4,
+    "both_wrong": 12,
+    "both_correct": 52
+  },
+  "vote_arithmetic_verified_on_saved_rows": {
+    "development": 78,
+    "private": 2034,
+    "label_mismatches": 0
+  },
+  "corrector": {
+    "selected_epoch": 4.0,
+    "trained_epochs": 6,
+    "epoch_metrics": [
+      {
+        "epoch": 2.0,
+        "gleu_plus": 0.5961514465032853,
+        "error_gleu": 0.19973647692034485,
+        "error_exact": 0.13157894736842105,
+        "clean_preservation": 0.9
+      },
+      {
+        "epoch": 4.0,
+        "gleu_plus": 0.6850007767781571,
+        "error_gleu": 0.34041483516641824,
+        "error_exact": 0.18421052631578946,
+        "clean_preservation": 0.925
+      },
+      {
+        "epoch": 5.0,
+        "gleu_plus": 0.6706717349979121,
+        "error_gleu": 0.3128905666838356,
+        "error_exact": 0.15789473684210525,
+        "clean_preservation": 0.95
+      },
+      {
+        "epoch": 6.0,
+        "gleu_plus": 0.6314493406173539,
+        "error_gleu": 0.2501314558576995,
+        "error_exact": 0.15789473684210525,
+        "clean_preservation": 0.95
+      }
+    ]
+  },
+  "comparisons": [
+    {
+      "name": "quality7b",
+      "macro_f1": 0.5727738927738928,
+      "micro_f1": 0.7435897435897436,
+      "gleu_plus": 0.6057518271992086,
+      "combined": 0.5892628599865507
+    },
+    {
+      "name": "previous20b14b",
+      "macro_f1": 0.5941224356887007,
+      "micro_f1": 0.782051282051282,
+      "gleu_plus": 0.6638517795670329,
+      "combined": 0.6289871076278668
+    },
+    {
+      "name": "fast20b14b",
+      "macro_f1": 0.5450919811895422,
+      "micro_f1": 0.7564102564102564,
+      "gleu_plus": 0.656090571718386,
+      "combined": 0.600591276453964
+    },
+    {
+      "name": "new_ensemble14_20_12",
+      "macro_f1": 0.5345414462081128,
+      "micro_f1": 0.717948717948718,
+      "gleu_plus": 0.6850007767781571,
+      "combined": 0.609771111493135
+    },
+    {
+      "name": "new_sailor20b_qwen14b_cached_join",
+      "macro_f1": 0.6227710843373494,
+      "micro_f1": 0.7948717948717948,
+      "gleu_plus": 0.6850007767781571,
+      "combined": 0.6538859305577532
+    }
+  ],
+  "root_runtime_seconds": 32742,
+  "stages": [
+    {
+      "stage": "classifier-sailor20b",
+      "status": "completed",
+      "started_at": "2026-10-20T14:49:30.013403+00:00",
+      "elapsed_seconds": 4981.773493455,
+      "model": "sail/Sailor2-20B-Chat"
+    },
+    {
+      "stage": "private-sailor20b",
+      "status": "completed",
+      "started_at": "2026-10-20T16:12:32.518810+00:00",
+      "elapsed_seconds": 613.7708279019998,
+      "model": "sail/Sailor2-20B-Chat"
+    },
+    {
+      "stage": "classifier-mistral12b",
+      "status": "completed",
+      "started_at": "2026-10-20T16:22:46.762613+00:00",
+      "elapsed_seconds": 3098.7267877800004,
+      "model": "mistralai/Mistral-Nemo-Instruct-2407"
+    },
+    {
+      "stage": "private-mistral12b",
+      "status": "completed",
+      "started_at": "2026-10-20T17:14:25.642120+00:00",
+      "elapsed_seconds": 369.7351512189998,
+      "model": "mistralai/Mistral-Nemo-Instruct-2407"
+    },
+    {
+      "stage": "classifier-qwen14b",
+      "status": "completed",
+      "started_at": "2026-10-20T17:20:35.818820+00:00",
+      "elapsed_seconds": 3705.236477779001,
+      "model": "Qwen/Qwen2.5-14B-Instruct"
+    },
+    {
+      "stage": "private-qwen14b",
+      "status": "completed",
+      "started_at": "2026-10-20T18:22:21.224614+00:00",
+      "elapsed_seconds": 455.6851805850001,
+      "model": "Qwen/Qwen2.5-14B-Instruct"
+    },
+    {
+      "stage": "corrector-training",
+      "status": "completed",
+      "started_at": "2026-10-20T18:30:01.910241+00:00",
+      "elapsed_seconds": 12876.491632219,
+      "model": "Qwen/Qwen2.5-14B-Instruct"
+    },
+    {
+      "stage": "private-corrector",
+      "status": "completed",
+      "started_at": "2026-10-20T22:04:38.408976+00:00",
+      "elapsed_seconds": 6633.109009792999,
+      "model": "Qwen/Qwen2.5-14B-Instruct"
+    }
+  ],
+  "private_generation_batch_size": 8,
+  "gpu_release": {
+    "transitions": 8,
+    "all_return_to_original_idle": true,
+    "free_gib_each_gpu": 14.5595703125
+  },
+  "log_error_markers": {
+    "traceback (most recent call last)": 0,
+    "outofmemoryerror": 0,
+    "cuda out of memory": 0,
+    "timed out": 0,
+    "timeouterror": 0,
+    "runtimeerror:": 0,
+    "valueerror:": 0
+  },
+  "original_submission": {
+    "path": "runs/21_10_2026/runs/track1039-upgraded-soft-vote-20261020-20261020T144909923321Z/run/results.zip",
+    "sha256": "4b2f2178fc7260c79293be568b3130bc42cff1c6bc3ba15d0a2be777217313c9",
+    "rows": 2034,
+    "bytes": 91659,
+    "labels": {
+      "2": 95,
+      "1": 1008,
+      "0": 810,
+      "3": 73,
+      "4": 48
+    }
+  },
+  "alternative_submission": {
+    "path": "runs/analysis-upgraded-20261021/sailor20b-qwen14b/results.zip",
+    "status": "built_not_submitted",
+    "scope": "Whole Sailor20B label component plus exact independently generated selected-epoch4 Qwen14B corrections. Development-only candidate; private score unknown.",
+    "private_data_sha256": "0762703e83e59feac963b2e63f2986a351340cf32da07ce2db7d151a8abe6045",
+    "original_submission_sha256": "4b2f2178fc7260c79293be568b3130bc42cff1c6bc3ba15d0a2be777217313c9",
+    "classifier_source": "runs/21_10_2026/runs/track1039-upgraded-soft-vote-20261020-20261020T144909923321Z/run/classification/members/sailor20b/private_predictions.json",
+    "classifier_source_sha256": "970cfebf3ea5dbce7c2193b2be31007796a9316fcf5e367b6ffca45870bce16a",
+    "correction_source": "runs/21_10_2026/runs/track1039-upgraded-soft-vote-20261020-20261020T144909923321Z/run/results.zip",
+    "rows": 2034,
+    "submission_sha256": "dcbdc8283ae67d6e6dfa005f1ea2cd06265926465d7d854c4891e8b40914609c",
+    "submission_bytes": 91778,
+    "corrected_strings_identical_to_original_submission": true,
+    "changed_labels_from_ensemble": 482,
+    "development_macro_f1": 0.6227710843373494,
+    "development_combined": 0.6538859305577532,
+    "private_score": null,
+    "automatic_submission": false
+  },
+  "seven_epoch_estimate": {
+    "seconds": 37097.297959999996,
+    "method": "Measured root runtime plus40 percent of three classifier train-loop runtimes; downloads/evaluation/decoding may vary. Not a guarantee."
+  },
+  "training_or_inference_rerun": false,
+  "configuration_changed": false,
+  "automatic_submission": false,
+  "scope": "All metrics are on the same repeatedly used78-row development set, not hidden private scores. No inference, training or calibration sweep.",
+  "mean_logged_training_loss_by_epoch": {
+    "sailor20b": {
+      "1": 3.2900714285714283,
+      "2": 0.6113214285714286,
+      "3": 0.16830714285714285,
+      "4": 0.03904285714285714,
+      "5": 0.005257142857142857
+    },
+    "qwen14b": {
+      "1": 5.888835714285714,
+      "2": 0.6665285714285715,
+      "3": 0.25639285714285714,
+      "4": 0.10298571428571429,
+      "5": 0.04887857142857143
+    },
+    "mistral12b": {
+      "1": 3.521264285714286,
+      "2": 1.0664071428571429,
+      "3": 0.4975,
+      "4": 0.225,
+      "5": 0.05465
+    },
+    "correction": {
+      "1": 0.23095000000000002,
+      "2": 0.06717692307692308,
+      "3": 0.033892307692307694,
+      "4": 0.012791666666666666,
+      "5": 0.004969230769230769,
+      "6": 0.0017153846153846154
+    }
+  },
+  "selected_metrics": {
+    "count": 78,
+    "classification": {
+      "macro_f1": 0.5345414462081128,
+      "micro_f1": 0.717948717948718,
+      "confusion_matrix": [
+        [
+          37,
+          1,
+          1,
+          1,
+          0,
+          0
+        ],
+        [
+          2,
+          11,
+          3,
+          1,
+          2,
+          0
+        ],
+        [
+          0,
+          1,
+          3,
+          0,
+          2,
+          0
+        ],
+        [
+          2,
+          2,
+          1,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          2,
+          0,
+          4,
+          0
+        ]
+      ],
+      "labels": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "prediction_columns": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        "invalid"
+      ],
+      "per_class": {
+        "0": {
+          "precision": 0.9024390243902439,
+          "recall": 0.925,
+          "f1": 0.9135802469135802,
+          "support": 40
+        },
+        "1": {
+          "precision": 0.6875,
+          "recall": 0.5789473684210527,
+          "f1": 0.6285714285714286,
+          "support": 19
+        },
+        "2": {
+          "precision": 0.3,
+          "recall": 0.5,
+          "f1": 0.375,
+          "support": 6
+        },
+        "3": {
+          "precision": 0.3333333333333333,
+          "recall": 0.16666666666666666,
+          "f1": 0.2222222222222222,
+          "support": 6
+        },
+        "4": {
+          "precision": 0.5,
+          "recall": 0.5714285714285714,
+          "f1": 0.5333333333333333,
+          "support": 7
+        }
+      }
+    },
+    "corrections": {
+      "all": {
+        "count": 78,
+        "exact_match": 0.5641025641025641,
+        "gleu_plus": 0.6850007767781571,
+        "rouge_l": 0.8892609893988668
+      },
+      "error_only": {
+        "count": 38,
+        "exact_match": 0.18421052631578946,
+        "gleu_plus": 0.34041483516641824,
+        "rouge_l": 0.7785177856429023
+      }
+    },
+    "combined_score": 0.609771111493135,
+    "clean_preservation": {
+      "count": 40,
+      "exact_source_preservation": 0.925,
+      "overcorrection_rate": 0.075
+    },
+    "invalid_json_rate": 0.0
+  },
+  "official_private_score": null,
+  "next_run": "c7fee39 seven-epoch classifier recipe remains unchanged; this completed run used95b6697 five-epoch classifiers."
+}
