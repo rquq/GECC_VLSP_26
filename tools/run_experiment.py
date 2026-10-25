@@ -377,7 +377,10 @@ def main():
         )
     recipe = json.loads(Path(args.recipe).read_text())
     if recipe.get("format") == "vgec-tuning-v1":
-        raise ValueError("Only the committed quality training recipe is supported")
+        from tools.run_tuning import run_from_args
+
+        run_from_args(args, source)
+        return
     stage = load_config(
         PROJECT_ROOT / recipe["classification_config"], "classification"
     )

@@ -76,6 +76,7 @@ def vote(predictions, calibration=None):
         )
     calibration = calibration_settings(calibration)
     if calibration is not None:
+        from .tuning import calibrated_vote
 
         adjusted = calibrated_vote(predictions, **calibration)
         for row, calibrated in zip(result, adjusted):
@@ -347,42 +348,3 @@ def classify(checkpoint, records, device, batch_size):
         "calibration"
     )
     return vote(predictions, calibration)
-
-
-def calibrated_vote(predictions, weights, temperature=1.0, phrase_scale=1.0):
-    from .correction import _hint_index
-
-    if (
-        len(predictions) != 3
-        or len(weights) != 3
-        or any(not math.isfinite(w) or w < 0 for w in weights)
-        or sum(weights) <= 0
-        or not math.isfinite(temperature)
-        or temperature <= 0
-        or not math.isfinite(phrase_scale)
-        or phrase_scale <= 0
-    ):
-        raise ValueError("Invalid soft-vote calibration")
-    rows = [{"id": p["id"]} for p in predictions[0]]
-    indexed = [_hint_index(rows, p) for p in predictions]
-    result = []
-    for row in rows:
-        values = [0.0] * 5
-        for index, weight in zip(indexed, weights):
-            p = [
-                v ** (1 / temperature)
-                for v in index[_id_key(row["id"])]["probabilities"]
-            ]
-            total = sum(p)
-            values = [a + weight * b / total / sum(weights) for a, b in zip(values, p)]
-        values[2] *= phrase_scale
-        total = sum(values)
-        values = [v / total for v in values]
-        result.append(
-            {
-                "id": row["id"],
-                "label": max(range(5), key=values.__getitem__),
-                "probabilities": values,
-            }
-        )
-    return result
