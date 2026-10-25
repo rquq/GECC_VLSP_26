@@ -14,7 +14,10 @@ from datetime import timedelta
 from .data import _id_key, _source_key, _valid_label, load_training_split
 from .runtime import CompleteEpochMixin, balanced_limit, load_config, resolve_data, selection_key, stage_output, write_json
 from .prediction_export import comparison_rows
-from .correction_edits import EDIT_PROMPT, SENTENCE_NO_HINT_PROMPT, encode_edits, parse_edits
+SENTENCE_NO_HINT_PROMPT = (
+    "Hãy sửa lỗi ngữ pháp Tiếng Việt. Sửa ít nhất có thể, giữ nguyên ý nghĩa và hãy giữ nguyên "
+    "câu đúng. Chỉ trả lời JSON với duy nhất khóa corrected_sentence chứa câu hoàn chỉnh; không giải thích."
+)
 from .tracking import records_identity, tracked_entrypoint
 
 
@@ -24,17 +27,15 @@ def prepare_training_inference(config):
                  "max_length": config["training"]["max_length"]}
     inference.setdefault("output_format", "sentence")
     inference.setdefault("hint_mode", "predicted")
-    if inference["output_format"] == "edits":
-        inference["prompt"] = EDIT_PROMPT
-    elif inference["hint_mode"] == "none":
+    if inference["hint_mode"] == "none":
         inference["prompt"] = SENTENCE_NO_HINT_PROMPT
     validate_inference(inference)
     return inference
 
 
 def validate_inference(inference):
-    if inference.get("output_format", "sentence") not in ("sentence", "edits"):
-        raise ValueError("output_format must be sentence or edits")
+    if inference.get("output_format", "sentence") != "sentence":
+        raise ValueError("This pipeline supports sentence output only")
     if inference.get("hint_mode", "predicted") not in ("predicted", "none"):
         raise ValueError("hint_mode must be predicted or none")
     if inference.get("user_role", "user") not in ("user", "question"):
@@ -45,9 +46,6 @@ def validate_inference(inference):
         descriptions = inference.get("hint_descriptions")
         if not isinstance(descriptions, list) or len(descriptions) != 5 or any(not isinstance(x, str) for x in descriptions):
             raise ValueError("Predicted hints require five description strings")
-    if inference.get("reranking") is not None:
-        from .correction_reranking import reranking_config
-        reranking_config(inference["reranking"])
 
 
 def validate_initial_adapter(adapter, config, inference=None):
@@ -251,7 +249,7 @@ def _prompt_ids(tokenizer, source, label, inference):
     mode = inference.get("hint_mode", "predicted")
     if mode == "none":
         content = f"Câu gốc:\n{source}"
-        prompt = EDIT_PROMPT if inference.get("output_format", "sentence") == "edits" else SENTENCE_NO_HINT_PROMPT
+        prompt = SENTENCE_NO_HINT_PROMPT
     elif mode == "predicted":
         descriptions = inference["hint_descriptions"]
         content = f"Gợi ý nhãn dự đoán: {label} — {descriptions[label]}.\nCâu gốc:\n{source}"
@@ -266,9 +264,7 @@ def _prompt_ids(tokenizer, source, label, inference):
 
 def encode_record(tokenizer, record, hint, max_length, inference):
     prompt = _prompt_ids(tokenizer, record["source"], hint["label"], inference)
-    answer_value = (encode_edits(record["source"], record["target"])
-                    if inference.get("output_format", "sentence") == "edits"
-                    else {"corrected_sentence": record["target"]})
+    answer_value = {"corrected_sentence": record["target"]}
     answer = json.dumps(answer_value, ensure_ascii=False)
     if tokenizer.eos_token_id is None:
         raise ValueError("Correction tokenizer must have an EOS token")
@@ -280,12 +276,8 @@ def encode_record(tokenizer, record, hint, max_length, inference):
 
 
 def _parse_correction(text, source=None, output_format="sentence"):
-    if output_format == "edits":
-        if not isinstance(source, str):
-            raise ValueError("Edit parsing requires the original source")
-        return parse_edits(source, text)
     if output_format != "sentence":
-        raise ValueError("output_format must be sentence or edits")
+        raise ValueError("This pipeline supports sentence output only")
     try:
         value = json.loads(text)
         if (not isinstance(value, dict) or set(value) != {"corrected_sentence"}
@@ -305,14 +297,7 @@ def correct(model, tokenizer, records, hints, inference):
                   "pad_token_id": tokenizer.pad_token_id,
                   "eos_token_id": model.generation_config.eos_token_id or tokenizer.eos_token_id}
     generation.update(inference["generation"])
-    reranker, ranking = None, None
-    if (inference.get("reranking") or {}).get("enabled", False):
-        from .correction_reranking import FrozenReranker, reranking_config
-        ranking = reranking_config(inference["reranking"])
-        generation.update(do_sample=False, num_beams=ranking["num_candidates"],
-                          num_return_sequences=ranking["num_candidates"])
-        reranker = FrozenReranker(model, tokenizer, ranking, inference["max_length"],
-                                 user_role=inference.get("user_role", "user"))
+    ranking = None
     device = model.get_input_embeddings().weight.device
     model.eval()
     predictions = []
@@ -349,17 +334,11 @@ def correct(model, tokenizer, records, hints, inference):
                 candidates[0] = {"target": target, "raw_generation": text, "parse_error": error,
                                  "origin": "schema_constrained_retry"}
             selected = 0
-            if reranker is not None:
-                candidates.append({"target": record["source"], "raw_generation": None,
-                                   "parse_error": None, "origin": "unchanged_source"})
-                selected = reranker.score(record["source"], candidates)
             chosen = candidates[selected]
             prediction = {"id": record["id"], "label": hint["label"], "target": chosen["target"],
                           "raw_generation": chosen["raw_generation"], "parse_error": chosen["parse_error"]}
             if chosen["origin"] == "schema_constrained_retry":
                 prediction["regenerated"] = True
-            if ranking:
-                prediction.update(candidates=candidates, selected_candidate=selected, reranking=ranking)
             predictions.append(prediction)
     return predictions
 
