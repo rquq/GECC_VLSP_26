@@ -1,0 +1,147 @@
+{
+  "date": "2026-10-27",
+  "status": "prepared_and_verified_tiny_only",
+  "native_kaggle_status": "not_started",
+  "parent_commit": "b5bd540e8efce6bd5e34ea068ff8a1f1060a7320",
+  "quality_source_commit": "338293f90e664803ee3dde12e82dd5d4d5601d43",
+  "scope": "Three controlled Sailor7B fits and cached quality voting; no corrector retrain or private-test inference.",
+  "plan": {
+    "name": "quality-sailor-controlled-ablations-20261027",
+    "classification_config": "configs/quality_ablation_classification.json",
+    "package_proof": "configs/quality_ablation_package.json",
+    "optimizer_steps": 705,
+    "evaluation_steps": 141,
+    "arms": [
+      {
+        "name": "quality_hierarchical",
+        "dataset": "quality",
+        "objective": "hierarchical"
+      },
+      {
+        "name": "organizer_hierarchical",
+        "dataset": "organizer",
+        "objective": "hierarchical"
+      },
+      {
+        "name": "quality_flat",
+        "dataset": "quality",
+        "objective": "flat"
+      }
+    ]
+  },
+  "model": {
+    "name": "sail/Sailor-7B-Chat",
+    "revision": "19066fae0a8a3ba029c190d8e3dacccf4d1234b8",
+    "load_in_4bit": false,
+    "compute_dtype": "float16",
+    "attn_implementation": "sdpa",
+    "device_map": "balanced"
+  },
+  "lora": {
+    "r": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ],
+    "bias": "none",
+    "modules_to_save": [
+      "score",
+      "classifier",
+      "score",
+      "classifier",
+      "score",
+      "classifier",
+      "score",
+      "classifier",
+      "score"
+    ]
+  },
+  "training_recipe": {
+    "max_length": 512,
+    "effective_batch_size": 8,
+    "fp16_initial_scale": 1,
+    "class_weight_power": 0.5,
+    "args": {
+      "num_train_epochs": 5,
+      "max_steps": -1,
+      "per_device_train_batch_size": 1,
+      "per_device_eval_batch_size": 1,
+      "learning_rate": 5e-05,
+      "weight_decay": 0.01,
+      "warmup_steps": 30,
+      "gradient_checkpointing": true,
+      "gradient_checkpointing_kwargs": {
+        "use_reentrant": false
+      },
+      "optim": "adamw_torch",
+      "logging_steps": 10,
+      "dataloader_num_workers": 0,
+      "lr_scheduler_type": "cosine",
+      "max_grad_norm": 1,
+      "adam_beta1": 0.9,
+      "adam_beta2": 0.999,
+      "adam_epsilon": 1e-08
+    }
+  },
+  "archive": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/dataset/VGEC26-quality-ablations-20261027.zip",
+  "archive_bytes": 1222252,
+  "package_proof": {
+    "format": "vgec-quality-ablations-package-v1",
+    "archive_name": "VGEC26-quality-ablations-20261027.zip",
+    "manifest_sha256": "3658bd3819aaddf42d5d538259a71edcb98a74a2e6efe55f5f834c379164bdf4",
+    "archive_sha256_for_download_only": "acbae65722222fee8f4e4b4f10e12b7c87565f476ce95312e42315e8577321b7",
+    "counts": {
+      "quality": 1128,
+      "organizer": 321,
+      "validation": 78
+    },
+    "quality_source_commit": "338293f90e664803ee3dde12e82dd5d4d5601d43",
+    "historical_development_macro_f1": 0.5727738927738928,
+    "historical_development_gleu": 0.6057518271992086
+  },
+  "validation_scope": "Same78 repeatedly used development rows, unchanged; not independent/private results.",
+  "selection": "Shared141-step cadence,705-update budget; best Macro-F1/earlier-step ties; final-step scores retained.",
+  "organizer_only": "321 exact eligible original rows cycle for the same705 updates; more actual epochs and partial-window sample counts explicitly reported.",
+  "quality_parity": "Exact normalized quality training/dev arrays and exact frozen Sailor model/LoRA/training config verified; original hierarchical architecture metadata unchanged.",
+  "checks": {
+    "focused_tests": 9,
+    "legacy_classifier_tests": 12,
+    "notebook_import_tests": 3,
+    "actual_tiny_fits": 3,
+    "actual_tiny_reloads": 3,
+    "selection_steps": [
+      2,
+      4,
+      6
+    ],
+    "actual_root_wandb_history_records": 68,
+    "actual_root_system_stat_keys": 24,
+    "code_cells_unchanged": true,
+    "graph_nodes": 90,
+    "graph_edges": 246,
+    "package_zip_crc": "passed",
+    "nested_archives": 0
+  },
+  "smoke_output": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/quality-ablation-preparation-20261027/final-offline-cpu/runs/tiny-quality-ablation-20261026T185811653147Z/run",
+  "native_limit": "Full Sailor7B/T4 execution and model-quality effects are unmeasured; no guarantee of third-party session availability.",
+  "controller_deadline": null,
+  "initial_failed_checks_and_fixes": [
+    "Package subdirectory creation; fixed before release.",
+    "Original ensemble API is vote, not aggregate; corrected and reproduced exact historical metrics.",
+    "Final review: true --preflight-only path avoids starting GPU training.",
+    "Final review: permit all three arm stage names and register optimizer-step axes so live metrics reach root run."
+  ],
+  "protected_working_edits_preserved": {
+    "AGENTS.md": "cb868b5e6dd77bcdfa09d4a418ff47d375ca0d67c796262d4aef8a4a1880443c",
+    "agents/experiments/CURRENT.md": "39ab64eeba45a2681f428a9405c8ef6f420ef8913d1773cc7a7eaf9f47f4350d",
+    "agents/experiments/PRIVATE_RETRAIN_20261017.json": "4a7dddc478762653c92d146597e0b4f0ec8c5ef1ab9b923d24cf16e18f1e34b6",
+    "agents/experiments/PRIVATE_RETRAIN_20261017.md": "acb795873b2fb8eaf4e66323895bb2d99f21fbb27c2735afd035cf8d2e5a96b3"
+  }
+}

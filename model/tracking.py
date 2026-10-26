@@ -341,6 +341,11 @@ class TrackingRun:
                 self.run.define_metric(
                     pattern, step_metric="pipeline/elapsed_seconds", summary="none"
                 )
+            for arm in ("quality_hierarchical", "organizer_hierarchical", "quality_flat"):
+                step = arm + "/fit/optimizer_step"
+                self.run.define_metric(step, summary="none")
+                self.run.define_metric(arm + "/fit/*", step_metric=step, summary="none")
+                self.run.define_metric(arm + "/verify/*", step_metric="pipeline/elapsed_seconds", summary="none")
         self.message("Started " + stage)
         if task == "pipeline":
 
@@ -618,7 +623,7 @@ class TrackingRun:
     def progress(self, event):
         stage, prefix = event.get("stage", ""), event.get("prefix", "")
         if not re.fullmatch(
-            r"classifier-ensemble|private-(?:qwen14b|sailor20b|mistral12b)|classifier-training|corrector-training|private-classifier|private-corrector|classifier(?:-seed-(?:42|43|44)|-(?:qwen7b|sailor7b|mistral7b|qwen14b|sailor20b|mistral12b))?|corrector|inference|oof|(?:baseline|challenger)-decoders|selected-private-corrector",
+            r"(?:quality_hierarchical|organizer_hierarchical|quality_flat)/(?:fit|verify)|classifier-ensemble|private-(?:qwen14b|sailor20b|mistral12b)|classifier-training|corrector-training|private-classifier|private-corrector|classifier(?:-seed-(?:42|43|44)|-(?:qwen7b|sailor7b|mistral7b|qwen14b|sailor20b|mistral12b))?|corrector|inference|oof|(?:baseline|challenger)-decoders|selected-private-corrector",
             stage,
         ) or not re.fullmatch(
             r"(?:train|training|validation|baseline|final)(?:/classification)?|decoding", prefix

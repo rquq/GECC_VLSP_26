@@ -160,6 +160,14 @@ def launch(project, python):
     from IPython.display import FileLink, display
 
     manifest = json.loads((run_dir / "pipeline_manifest.json").read_text())
+    if manifest.get("mode") == "quality_ablations":
+        report = json.loads((run_dir / "ablation_summary.json").read_text())
+        print("Completed three controlled classifier fits; cached historical voting is reported separately.")
+        for name, entry in report["fresh_training"].items():
+            print(name, json.dumps({key:entry["classification"][key] for key in ("macro_f1","micro_f1")}))
+        for filename in ("comparison.md", "comparison.csv", "ablation_summary.json", "ablation_results.zip"):
+            display(FileLink(str(run_dir / filename)))
+        return run_dir
     if manifest.get("mode") == "quality_trial":
         candidates = json.loads((run_dir / "submission_candidates.json").read_text())
         print("Four separate comparisons; development scores do not establish a private winner.")

@@ -1,0 +1,14 @@
+{
+  "format": "vgec-quality-ablations-package-v1",
+  "archive_name": "VGEC26-quality-ablations-20261027.zip",
+  "manifest_sha256": "3658bd3819aaddf42d5d538259a71edcb98a74a2e6efe55f5f834c379164bdf4",
+  "archive_sha256_for_download_only": "acbae65722222fee8f4e4b4f10e12b7c87565f476ce95312e42315e8577321b7",
+  "counts": {
+    "quality": 1128,
+    "organizer": 321,
+    "validation": 78
+  },
+  "quality_source_commit": "338293f90e664803ee3dde12e82dd5d4d5601d43",
+  "historical_development_macro_f1": 0.5727738927738928,
+  "historical_development_gleu": 0.6057518271992086
+}

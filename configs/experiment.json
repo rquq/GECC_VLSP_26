@@ -1,4 +1,4 @@
 {
-  "format": "vgec-fast-training-v1",
-  "plan": "configs/upgraded_training_plan.json"
+  "format": "vgec-quality-ablations-v1",
+  "plan": "configs/quality_ablation_plan.json"
 }

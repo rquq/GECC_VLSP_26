@@ -31,7 +31,13 @@ def _organizer_partition(path, fraction, seed, classifier_info):
             split_records(load_records(path), fraction, seed))
 
 
-def _architecture():
+def _architecture(objective="hierarchical"):
+    if objective == "flat":
+        return {"name": "flat_error_type", "version": 1, "score_width": 5,
+                "score_outputs": list(LABELS), "objective": "weighted five-class CE / accumulation-window row count",
+                "decision": "argmax softmax probabilities"}
+    if objective != "hierarchical":
+        raise ValueError("Classifier objective must be hierarchical or flat")
     return {
         "name": "soft_hierarchical_error_type", "version": 2,
         "score_width": 5,
@@ -46,17 +52,24 @@ def _architecture():
 
 
 def _require_hierarchy(saved):
+    if saved.get("architecture") == _architecture("flat"):
+        return "flat"
     if saved.get("architecture") != _architecture():
         raise ValueError("Baseline requires lambda-two soft hierarchical architecture metadata; "
                          "reload earlier classifiers with their original experiment code")
+    return "hierarchical"
 
 
-def _joint_log_probabilities(logits):
+def _joint_log_probabilities(logits, objective="hierarchical"):
     """Compose P(clean)=1-q and P(type=k)=q*r_k stably in FP32."""
     import torch
     import torch.nn.functional as F
 
     logits = logits.float()
+    if objective == "flat":
+        return F.log_softmax(logits, dim=-1)
+    if objective != "hierarchical":
+        raise ValueError("Unknown classifier objective")
     error = logits[..., :1]
     return torch.cat((F.logsigmoid(-error),
                       F.logsigmoid(error) + F.log_softmax(logits[..., 1:], dim=-1)), dim=-1)
@@ -234,7 +247,7 @@ def _encoded(tokenizer, records, preprocessing):
             for index, row in enumerate(records)]
 
 
-def _predict(model, tokenizer, records, preprocessing, device, batch_size):
+def _predict(model, tokenizer, records, preprocessing, device, batch_size, objective="hierarchical"):
     import torch
     from contextlib import nullcontext
 
@@ -254,7 +267,7 @@ def _predict(model, tokenizer, records, preprocessing, device, batch_size):
             context = torch.autocast("cuda", dtype=compute_dtype) if use_autocast else nullcontext()
             with context:
                 logits = model(**{key: value.to(device) for key, value in tokens.items()}).logits
-            probabilities = _joint_log_probabilities(logits).exp()
+            probabilities = _joint_log_probabilities(logits, objective).exp()
             if not torch.isfinite(probabilities).all().item():
                 raise RuntimeError("Classifier produced nonfinite probabilities")
             for row, values in zip(batch, probabilities.cpu().tolist()):
@@ -287,7 +300,7 @@ def classify(checkpoint, records, device="cuda", batch_size=8):
     checkpoint = Path(checkpoint)
     preprocessing = json.loads((checkpoint / "preprocessing.json").read_text(encoding="utf-8"))
     saved = json.loads((checkpoint / "classifier_config.json").read_text(encoding="utf-8"))
-    _require_hierarchy(saved)
+    objective = _require_hierarchy(saved)
     if preprocessing["labels"] != list(LABELS) or saved["labels"] != list(LABELS):
         raise ValueError("Saved classifier label mapping must be 0..4")
     placement = placement_preflight(saved["model"], device, training=False)
@@ -304,7 +317,7 @@ def classify(checkpoint, records, device="cuda", batch_size=8):
     if model.config.num_labels != len(LABELS):
         raise ValueError("Saved classifier must predict five labels")
     try:
-        return _predict(model, tokenizer, records, preprocessing, placement["device"], batch_size)
+        return _predict(model, tokenizer, records, preprocessing, placement["device"], batch_size, objective)
     finally:
         del model, base, tokenizer
         _release(placement["device"])
@@ -355,7 +368,14 @@ def _weighted_hierarchical_loss(logits, labels, weights, num_items_in_batch=None
     return loss / denominator
 
 
-def _hierarchical_trainer_class():
+def _weighted_flat_loss(logits, labels, weights, num_items_in_batch=None):
+    import torch.nn.functional as F
+
+    loss = (F.cross_entropy(logits.float(), labels, reduction="none") * weights[labels]).sum()
+    return loss / (labels.numel() if num_items_in_batch is None else num_items_in_batch)
+
+
+def _hierarchical_trainer_class(objective="hierarchical"):
     """Keep optional Transformers imports lazy for dataset-only consumers."""
     import torch
     from transformers import Trainer
@@ -378,8 +398,8 @@ def _hierarchical_trainer_class():
             labels = labels.to(head_device)
             if torch.is_tensor(num_items_in_batch):
                 num_items_in_batch = num_items_in_batch.to(head_device)
-            loss = _weighted_hierarchical_loss(output.logits, labels, self.loss_weights.to(head_device),
-                                               num_items_in_batch)
+            loss_function = _weighted_flat_loss if objective == "flat" else _weighted_hierarchical_loss
+            loss = loss_function(output.logits, labels, self.loss_weights.to(head_device), num_items_in_batch)
             loss = loss.to(self.args.device)
             if not torch.isfinite(loss).all().item():
                 raise RuntimeError("Nonfinite classifier training loss")
@@ -392,7 +412,9 @@ def _training_algorithm(config, model):
     if "algorithm" in config["training"]:
         raise ValueError("training.algorithm is obsolete; classifier training uses single-forward hierarchical loss")
     return {
-        "name": "hierarchical", "supervised_objective": "weighted BCE + 2*CE",
+        "name": config["training"].get("objective", "hierarchical"),
+        "supervised_objective": ("weighted five-class CE" if config["training"].get("objective") == "flat"
+                                 else "weighted BCE + 2*CE"),
         "normalization": "weighted sum divided by full/partial accumulation-window rows",
         "training_forwards": 1, "inference_forwards": 1,
         "lora_dropout": config["lora"]["lora_dropout"],
@@ -423,6 +445,11 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
 
     if not train:
         raise ValueError("Every classifier fit needs training rows")
+    objective = config["training"].get("objective", "hierarchical")
+    architecture = _architecture(objective)
+    evaluation_steps = config["training"].get("evaluation_steps")
+    if evaluation_steps is not None and (type(evaluation_steps) is not int or evaluation_steps < 1):
+        raise ValueError("evaluation_steps must be a positive integer")
     if "algorithm" in config["training"]:
         raise ValueError("training.algorithm is obsolete; classifier training uses single-forward hierarchical loss")
     weighting = _class_weights(train, config["training"].get("class_weight_power", 0.0))
@@ -458,7 +485,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         "lora": {**config["lora"], "task_type": "SEQ_CLS", "modules_to_save": ["score"],
                  "revision": settings["revision"]},
         "num_labels": len(LABELS), "labels": list(LABELS),
-        "architecture": _architecture(),
+        "architecture": architecture,
         "inference_precision": "CUDA autocast at model.compute_dtype; FP32 composition; no CPU autocast",
         "training_seed": seed,
         "pad_token_id": tokenizer.pad_token_id, "tokenizer_length": len(tokenizer),
@@ -506,10 +533,10 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
             or (expected_device.type == "cuda" and actual_device.index != expected_device.index)):
         raise ValueError(f"Classifier device {actual_device} must match rank-local {expected_device}")
     history = []
-    best = {"epoch": None, "macro_f1": None}
+    best = {"epoch": None, "macro_f1": None, "optimizer_steps": None}
     batch_size = args.get("per_device_eval_batch_size", 8)
     if rank == 0 and validation is not None and config.get("evaluation", {}).get("baseline", True):
-        baseline = _classification_metrics(validation, _predict(model, tokenizer, validation, preprocessing, device, batch_size))
+        baseline = _classification_metrics(validation, _predict(model, tokenizer, validation, preprocessing, device, batch_size, objective))
         tracking.evaluation(baseline, "baseline/classification")
         model.train()
 
@@ -522,22 +549,32 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
 
     loss_weights = torch.tensor(weighting["weights"], dtype=torch.float32, device=device)
 
-    HierarchicalTrainer = _hierarchical_trainer_class()
+    HierarchicalTrainer = _hierarchical_trainer_class(objective)
 
     class EpochEvaluation(TrainerCallback):
         def on_epoch_end(self, args, state, control, **kwargs):
+            if evaluation_steps is not None:
+                return control
+            return self.evaluate(args, state, control)
+
+        def on_step_end(self, args, state, control, **kwargs):
+            if evaluation_steps is not None and (state.global_step % evaluation_steps == 0 or state.global_step == state.max_steps):
+                return self.evaluate(args, state, control)
+            return control
+
+        def evaluate(self, args, state, control):
             barrier()
             _finite_parameters(model)
             if rank == 0:
                 unwrapped = trainer.accelerator.unwrap_model(model)
                 entry = {"epoch": state.epoch, "optimizer_steps": state.global_step}
                 if validation is not None:
-                    predictions = _predict(unwrapped, tokenizer, validation, preprocessing, device, batch_size)
+                    predictions = _predict(unwrapped, tokenizer, validation, preprocessing, device, batch_size, objective)
                     metrics = _classification_metrics(validation, predictions)
                     entry["classification"] = metrics
                     tracking.evaluation(metrics, "validation/classification", optimizer_step=state.global_step, epoch=state.epoch)
                     if best["macro_f1"] is None or metrics["macro_f1"] > best["macro_f1"]:
-                        best.update(epoch=state.epoch, macro_f1=metrics["macro_f1"])
+                        best.update(epoch=state.epoch, macro_f1=metrics["macro_f1"], optimizer_steps=state.global_step)
                         save_model()
                         write_json(artifact_dir / "selected_epoch_predictions.json", comparison_rows(validation, predictions))
                 history.append(entry)
@@ -587,6 +624,7 @@ def _fit(config, train, validation, checkpoint, artifact_dir, device, seed, prep
         "training_algorithm": classifier_config["training_algorithm"],
         "fp16_initial_scale": training.get("fp16_initial_scale", 1.0) if training_args.fp16 else None,
         "best_epoch": best["epoch"], "selection_macro_f1": best["macro_f1"],
+        "best_optimizer_steps": best["optimizer_steps"], "evaluation_steps": evaluation_steps,
         "selection_rule": ("highest outer-validation macro F1; ties retain earlier epoch"
                            if validation is not None else "fixed epochs; no outer-validation evaluation or selection"),
         "train_max_tokens": max(len(row["input_ids"]) for row in encoded),

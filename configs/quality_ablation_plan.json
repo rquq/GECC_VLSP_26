@@ -1,0 +1,12 @@
+{
+  "name": "quality-sailor-controlled-ablations-20261027",
+  "classification_config": "configs/quality_ablation_classification.json",
+  "package_proof": "configs/quality_ablation_package.json",
+  "optimizer_steps": 705,
+  "evaluation_steps": 141,
+  "arms": [
+    {"name": "quality_hierarchical", "dataset": "quality", "objective": "hierarchical"},
+    {"name": "organizer_hierarchical", "dataset": "organizer", "objective": "hierarchical"},
+    {"name": "quality_flat", "dataset": "quality", "objective": "flat"}
+  ]
+}
