@@ -1,7 +1,7 @@
 {
   "date": "2026-10-27",
-  "status": "prepared_and_verified_tiny_only",
-  "native_kaggle_status": "not_started",
+  "status": "completed_and_independently_verified",
+  "native_kaggle_status": "completed",
   "parent_commit": "b5bd540e8efce6bd5e34ea068ff8a1f1060a7320",
   "quality_source_commit": "338293f90e664803ee3dde12e82dd5d4d5601d43",
   "scope": "Three controlled Sailor7B fits and cached quality voting; no corrector retrain or private-test inference.",
@@ -130,7 +130,7 @@
     "nested_archives": 0
   },
   "smoke_output": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/quality-ablation-preparation-20261027/final-offline-cpu/runs/tiny-quality-ablation-20261026T185811653147Z/run",
-  "native_limit": "Full Sailor7B/T4 execution and model-quality effects are unmeasured; no guarantee of third-party session availability.",
+  "native_limit": "Full Sailor7B dual-T4 fits/reloads completed; single-seed reused-development effects only, no new private score.",
   "controller_deadline": null,
   "initial_failed_checks_and_fixes": [
     "Package subdirectory creation; fixed before release.",
@@ -143,5 +143,8 @@
     "agents/experiments/CURRENT.md": "39ab64eeba45a2681f428a9405c8ef6f420ef8913d1773cc7a7eaf9f47f4350d",
     "agents/experiments/PRIVATE_RETRAIN_20261017.json": "4a7dddc478762653c92d146597e0b4f0ec8c5ef1ab9b923d24cf16e18f1e34b6",
     "agents/experiments/PRIVATE_RETRAIN_20261017.md": "acb795873b2fb8eaf4e66323895bb2d99f21fbb27c2735afd035cf8d2e5a96b3"
-  }
+  },
+  "completed_source_commit": "d17828a6d135354aea14a954d8c328a0bc59149f",
+  "completed_run": "/home/quq/machineLearning/competitions/VLSP26_4/kaggle-linux/runs/27_10_2026/runs/quality-sailor-controlled-ablations-20261027-20261026T192117776519Z/run",
+  "result_record": "agents/experiments/QUALITY_ABLATION_RESULTS_20261027.json"
 }

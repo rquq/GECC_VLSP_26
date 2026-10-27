@@ -1,6 +1,6 @@
 # Controlled quality-run ablations — 2026-10-27
 
-Status: prepared and verified with actual tiny native-model fits/reloads; full Sailor7B Kaggle run has NOT started. The user requested one existing-notebook Save Version plus one private dataset upload, keeping the original quality-run code/recipe as closely as possible.
+Status: full Sailor7B Kaggle run completed and independently verified. See QUALITY_ABLATION_RESULTS_20261027.md/.json for measured outcomes; the remaining preparation notes below are historical. The user requested one existing-notebook Save Version plus one private dataset upload, keeping the original quality-run code/recipe as closely as possible.
 
 ## Committed experiment
 
